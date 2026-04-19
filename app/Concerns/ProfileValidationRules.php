@@ -18,6 +18,19 @@ trait ProfileValidationRules
         return [
             'name' => $this->nameRules(),
             'email' => $this->emailRules($userId),
+            'autoreach_connect_id' => $this->connectIdRules(),
+        ];
+    }
+
+    /**
+     * Get the validation rules used when updating the profile settings page.
+     *
+     * @return array<string, array<int, ValidationRule|array<mixed>|string>>
+     */
+    protected function profileUpdateRules(): array
+    {
+        return [
+            'name' => $this->nameRules(),
         ];
     }
 
@@ -47,5 +60,15 @@ trait ProfileValidationRules
                 ? Rule::unique(User::class)
                 : Rule::unique(User::class)->ignore($userId),
         ];
+    }
+
+    /**
+     * Get the validation rules used to validate the Autoreach Connect ID.
+     *
+     * @return array<int, ValidationRule|array<mixed>|string>
+     */
+    protected function connectIdRules(): array
+    {
+        return ['required', 'string', 'max:255'];
     }
 }

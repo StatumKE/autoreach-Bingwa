@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'autoreach' => [
+        'backend_url' => env('AUTOREACH_BACKEND_URL', 'https://backend.statum.co.ke/'),
+    ],
+
 ];

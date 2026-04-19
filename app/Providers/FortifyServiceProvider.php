@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Actions\Autoreach\RegisterBingwaDevice;
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -49,7 +50,15 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::verifyEmailView(fn () => view('pages::auth.verify-email'));
         Fortify::twoFactorChallengeView(fn () => view('pages::auth.two-factor-challenge'));
         Fortify::confirmPasswordView(fn () => view('pages::auth.confirm-password'));
-        Fortify::registerView(fn () => view('pages::auth.register'));
+        Fortify::registerView(function () {
+            if (app(RegisterBingwaDevice::class)->isCurrentDeviceRegistered()) {
+                session()->flash('status', __('This device is already registered. Log in below, or use the APK on a new device to register another installation.'));
+
+                return view('pages::auth.login');
+            }
+
+            return view('pages::auth.register');
+        });
         Fortify::resetPasswordView(fn () => view('pages::auth.reset-password'));
         Fortify::requestPasswordResetLinkView(fn () => view('pages::auth.forgot-password'));
     }

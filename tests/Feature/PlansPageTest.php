@@ -1,0 +1,194 @@
+<?php
+
+use App\Models\BingwaDeviceRegistration;
+use App\Models\User;
+use Illuminate\Support\Facades\Http;
+use Livewire\Livewire;
+use Native\Mobile\Facades\Device;
+
+test('plans page can be rendered on mobile', function () {
+    $user = User::factory()->create();
+
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'raw-device-token',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
+    $this->actingAs($user);
+    Device::shouldReceive('getId')->andReturn('HW-12345');
+
+    $this->get(route('plans'))
+        ->assertOk()
+        ->assertSee('Subscription plans');
+});
+
+test('plans load from the backend using the saved device token', function () {
+    $user = User::factory()->create();
+
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'raw-device-token',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
+    $this->actingAs($user);
+
+    Http::fake([
+        'backend.statum.co.ke/api/v1/subscription/plans/hybrid' => Http::response([
+            'status' => 'ok',
+            'data' => [
+                [
+                    'id' => 5,
+                    'code' => '1_week',
+                    'name' => '1 week',
+                    'tagline' => null,
+                    'description' => null,
+                    'type' => 'time_unlimited',
+                    'app_scope' => 'hybrid',
+                    'price' => 400,
+                    'duration_days' => 7,
+                    'ussd_requests_included' => null,
+                    'is_active' => true,
+                ],
+            ],
+            'plans' => [
+                [
+                    'id' => 5,
+                    'code' => '1_week',
+                    'name' => '1 week',
+                    'tagline' => null,
+                    'description' => null,
+                    'type' => 'time_unlimited',
+                    'app_scope' => 'hybrid',
+                    'price' => 400,
+                    'duration_days' => 7,
+                    'ussd_requests_included' => null,
+                    'is_active' => true,
+                ],
+            ],
+            'sambaza_line' => '2547XXXXXXXX',
+            'sambaza_ussd_prompts' => ['prompt one', 'prompt two'],
+        ], 200),
+    ]);
+
+    $response = Livewire::test('plans')
+        ->call('loadPlans');
+
+    $response->assertHasNoErrors();
+    $response->assertSet('plans.0.name', '1 week');
+    $response->assertSee('KES 400');
+    $response->assertSee('1 week');
+    $response->assertSee('plans-reveal');
+    $response->assertSee('Duration');
+    $response->assertSee('7 days');
+    $response->assertDontSee('USSD requests');
+
+    Http::assertSent(function ($request): bool {
+        return $request->url() === 'https://backend.statum.co.ke/api/v1/subscription/plans/hybrid'
+            && $request->hasHeader('Authorization', 'Bearer raw-device-token');
+    });
+});
+
+test('a plan can be selected in the mobile ui', function () {
+    $user = User::factory()->create();
+
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'raw-device-token',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
+    $this->actingAs($user);
+
+    Http::fake([
+        'backend.statum.co.ke/api/v1/subscription/plans/hybrid' => Http::response([
+            'status' => 'ok',
+            'plans' => [
+                [
+                    'id' => 5,
+                    'code' => '1_week',
+                    'name' => '1 week',
+                    'type' => 'time_unlimited',
+                    'price' => 400,
+                    'duration_days' => 7,
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $response = Livewire::test('plans')
+        ->call('loadPlans')
+        ->call('selectPlan', 5);
+
+    $response->assertSet('selectedPlanId', 5);
+    $response->assertSee('Selected plan');
+    $response->assertSee('Clear');
+});
+
+test('usage pack plans show ussd requests instead of duration', function () {
+    $user = User::factory()->create();
+
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'raw-device-token',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
+    $this->actingAs($user);
+
+    Http::fake([
+        'backend.statum.co.ke/api/v1/subscription/plans/hybrid' => Http::response([
+            'status' => 'ok',
+            'plans' => [
+                [
+                    'id' => 7,
+                    'code' => 'test_1',
+                    'name' => 'Test',
+                    'type' => 'usage_pack',
+                    'price' => 10,
+                    'ussd_requests_included' => 10,
+                    'duration_days' => null,
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $response = Livewire::test('plans')
+        ->call('loadPlans');
+
+    $response->assertSee('USSD requests');
+    $response->assertSee('10');
+    $response->assertDontSee('Duration');
+});
+
+test('plans page surfaces backend failures cleanly', function () {
+    $user = User::factory()->create();
+
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'raw-device-token',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
+    $this->actingAs($user);
+
+    Http::fake([
+        'backend.statum.co.ke/api/v1/subscription/plans/hybrid' => Http::response([
+            'status' => 'failed',
+            'message' => 'Device type must be hybridApp.',
+        ], 403),
+    ]);
+
+    $response = Livewire::test('plans')
+        ->call('loadPlans');
+
+    $response->assertHasNoErrors();
+    $response->assertSet('plans', []);
+    $response->assertSee('Device type must be hybridApp.');
+});

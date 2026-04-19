@@ -1,6 +1,8 @@
 <?php
 
+use App\Actions\Autoreach\RecoverBingwaDeviceToken;
 use App\Concerns\ProfileValidationRules;
+use App\Models\BingwaDeviceRegistration;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +15,7 @@ new #[Title('Profile settings')] class extends Component {
 
     public string $name = '';
     public string $email = '';
+    public string $autoreach_connect_id = '';
 
     /**
      * Mount the component.
@@ -21,6 +24,7 @@ new #[Title('Profile settings')] class extends Component {
     {
         $this->name = Auth::user()->name;
         $this->email = Auth::user()->email;
+        $this->autoreach_connect_id = Auth::user()->autoreach_connect_id ?? '';
     }
 
     /**
@@ -30,17 +34,23 @@ new #[Title('Profile settings')] class extends Component {
     {
         $user = Auth::user();
 
-        $validated = $this->validate($this->profileRules($user->id));
+        $validated = $this->validate($this->profileUpdateRules());
 
-        $user->fill($validated);
-
-        if ($user->isDirty('email')) {
-            $user->email_verified_at = null;
-        }
+        $user->name = $validated['name'];
 
         $user->save();
 
         Flux::toast(variant: 'success', text: __('Profile updated.'));
+    }
+
+    /**
+     * Recover the stored Bingwa device token from the backend.
+     */
+    public function recoverDeviceToken(): void
+    {
+        app(RecoverBingwaDeviceToken::class)->recover(Auth::user());
+
+        Flux::toast(variant: 'success', text: __('Device token recovered.'));
     }
 
     /**
@@ -68,6 +78,12 @@ new #[Title('Profile settings')] class extends Component {
     }
 
     #[Computed]
+    public function hasBingwaDeviceRegistration(): bool
+    {
+        return Auth::user()->bingwaDeviceRegistration instanceof BingwaDeviceRegistration;
+    }
+
+    #[Computed]
     public function showDeleteUser(): bool
     {
         return ! Auth::user() instanceof MustVerifyEmail
@@ -80,32 +96,51 @@ new #[Title('Profile settings')] class extends Component {
 
     <flux:heading class="sr-only">{{ __('Profile settings') }}</flux:heading>
 
-    <x-pages::settings.layout :heading="__('Profile')" :subheading="__('Update your name and email address')">
-        <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6">
-            <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
+        <x-pages::settings.layout :heading="__('Profile')" :subheading="__('Update your name and review your registered device details')">
+            <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6">
+                <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
 
-            <div>
-                <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
+                <div>
+                    <flux:input
+                        wire:model="email"
+                        :label="__('Email')"
+                        type="email"
+                        autocomplete="email"
+                        disabled
+                        readonly
+                    />
 
-                @if ($this->hasUnverifiedEmail)
-                    <div>
-                        <flux:text class="mt-4">
-                            {{ __('Your email address is unverified.') }}
+                    <flux:text class="mt-2 text-sm text-zinc-500">
+                        {{ __('Email is linked to your device account and cannot be edited here.') }}
+                    </flux:text>
+                </div>
 
-                            <flux:link class="text-sm cursor-pointer" wire:click.prevent="resendVerificationNotification">
-                                {{ __('Click here to re-send the verification email.') }}
-                            </flux:link>
-                        </flux:text>
+                <div>
+                    <flux:input
+                        wire:model="autoreach_connect_id"
+                        :label="__('Autoreach Connect ID')"
+                        type="text"
+                        autocomplete="off"
+                        disabled
+                        readonly
+                    />
 
-                    </div>
-                @endif
-            </div>
+                    <flux:text class="mt-2 text-sm text-zinc-500">
+                        {{ __('Autoreach Connect ID is tied to the registered device and cannot be edited here.') }}
+                    </flux:text>
+                </div>
 
-            <div class="flex items-center gap-4">
-                <flux:button variant="primary" type="submit" data-test="update-profile-button">
-                    {{ __('Save') }}
-                </flux:button>
-            </div>
+                <div class="flex items-center gap-4">
+                    <flux:button variant="primary" type="submit" data-test="update-profile-button">
+                        {{ __('Save') }}
+                    </flux:button>
+
+                    @if ($this->hasBingwaDeviceRegistration)
+                        <flux:button variant="ghost" type="button" wire:click="recoverDeviceToken">
+                            {{ __('Recover token') }}
+                        </flux:button>
+                    @endif
+                </div>
         </form>
 
         @if ($this->showDeleteUser)

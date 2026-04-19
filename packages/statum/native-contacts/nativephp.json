@@ -1,0 +1,32 @@
+{
+    "namespace": "NativeContacts",
+    "bridge_functions": [
+        {
+            "name": "Contacts.CheckPermission",
+            "android": "com.statum.nativecontacts.ContactsFunctions.CheckPermission",
+            "ios": "ContactsFunctions.CheckPermission",
+            "description": "Check whether contacts permission is granted"
+        },
+        {
+            "name": "Contacts.RequestPermission",
+            "android": "com.statum.nativecontacts.ContactsFunctions.RequestPermission",
+            "ios": "ContactsFunctions.RequestPermission",
+            "description": "Request contacts permission"
+        },
+        {
+            "name": "Contacts.Search",
+            "android": "com.statum.nativecontacts.ContactsFunctions.Search",
+            "ios": "ContactsFunctions.Search",
+            "description": "Search device contacts"
+        }
+    ],
+    "android": {
+        "permissions": [
+            "android.permission.READ_CONTACTS"
+        ],
+        "min_version": 33
+    },
+    "ios": {
+        "min_version": "18.2"
+    }
+}

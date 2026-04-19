@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'user_id',
+    'offer_id',
     'transaction_id',
     'mpesa_code',
     'sender_phone',
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'occurred_at',
     'status',
     'status_desc',
+    'processed_at',
 ])]
 class Transaction extends Model
 {
@@ -37,6 +39,14 @@ class Transaction extends Model
     }
 
     /**
+     * Get the offer that matches this transaction.
+     */
+    public function offer(): BelongsTo
+    {
+        return $this->belongsTo(Offer::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -48,6 +58,7 @@ class Transaction extends Model
             'matched_offer' => 'array',
             'balance' => 'array',
             'occurred_at' => 'datetime',
+            'processed_at' => 'datetime',
         ];
     }
 }

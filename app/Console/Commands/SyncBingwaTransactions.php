@@ -17,22 +17,22 @@ class SyncBingwaTransactions extends Command
      */
     public function handle(FetchNextBingwaJobs $fetchNextBingwaJobs): int
     {
-        $synced = 0;
-        $failed = 0;
-        $skipped = 0;
-
-        User::query()
+        $user = User::query()
             ->with('bingwaDeviceRegistration')
             ->whereHas('bingwaDeviceRegistration')
-            ->chunkById(50, function ($users) use (&$synced, &$failed, &$skipped, $fetchNextBingwaJobs): void {
-                foreach ($users as $user) {
-                    $result = $fetchNextBingwaJobs->sync($user);
+            ->first();
 
-                    $synced += $result['synced'];
-                    $failed += $result['failed'];
-                    $skipped += $result['skipped'];
-                }
-            });
+        if (! $user) {
+            $this->warn('No user found with a Bingwa device registration. Skipping sync.');
+
+            return self::SUCCESS;
+        }
+
+        $result = $fetchNextBingwaJobs->sync($user);
+
+        $synced = $result['synced'];
+        $failed = $result['failed'];
+        $skipped = $result['skipped'];
 
         $this->info("Synced {$synced} transaction(s). Skipped {$skipped} account(s). Failed {$failed} endpoint(s).");
 

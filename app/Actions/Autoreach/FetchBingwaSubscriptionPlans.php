@@ -31,10 +31,11 @@ class FetchBingwaSubscriptionPlans
         }
 
         $response = Http::baseUrl(rtrim((string) config('services.autoreach.backend_url'), '/'))
+            ->retry(3, 100)
             ->acceptJson()
             ->asJson()
             ->withToken($registration->device_token)
-            ->timeout(15)
+            ->timeout(30)
             ->get('/api/v1/subscription/plans/hybrid');
 
         if ($response->successful()) {

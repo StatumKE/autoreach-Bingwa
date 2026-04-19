@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9f2543c16f94420faf205ee8dadef6a1",
+    "content-hash": "6cc143633fffcb1c1b4ac2073d05a460",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -4397,6 +4397,56 @@
             "description": "NativePHP contacts search plugin for Bingwa",
             "transport-options": {
                 "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "statum/native-scheduler",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/statum/native-scheduler",
+                "reference": "62fd5a375682ed53931a5190eed3a558cdbdc808"
+            },
+            "require": {
+                "nativephp/mobile": "^3.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "pestphp/pest": "^3.0"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Statum\\NativeScheduler\\NativeSchedulerServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Statum\\NativeScheduler\\": "src/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Your Name",
+                    "email": "you@example.com"
+                }
+            ],
+            "description": "A NativePHP Mobile plugin",
+            "transport-options": {
                 "relative": true
             }
         },
@@ -10586,7 +10636,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "statum/native-scheduler": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

@@ -30,9 +30,10 @@ class RecoverBingwaDeviceToken
         }
 
         $response = Http::baseUrl(rtrim((string) config('services.autoreach.backend_url'), '/'))
+            ->retry(3, 100)
             ->acceptJson()
             ->asJson()
-            ->timeout(15)
+            ->timeout(30)
             ->post('/api/v1/auth/device/token/recover', [
                 'email' => $user->email,
                 'hardware_id' => $registration->hardware_id,

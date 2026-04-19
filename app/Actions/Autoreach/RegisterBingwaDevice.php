@@ -46,6 +46,7 @@ class RegisterBingwaDevice
         }
 
         $response = Http::baseUrl(rtrim((string) config('services.autoreach.backend_url'), '/'))
+            ->retry(3, 100)
             ->acceptJson()
             ->asJson()
             ->timeout(30)

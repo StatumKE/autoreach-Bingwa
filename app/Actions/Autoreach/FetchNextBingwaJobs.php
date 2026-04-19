@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use GuzzleHttp\Promise\Utils;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 class FetchNextBingwaJobs
@@ -40,18 +41,30 @@ class FetchNextBingwaJobs
         ];
 
         $promises = [];
+        $activeOffers = $user->offers()->where('is_active', true)->get();
+        $allJobs = [];
 
         foreach ($endpoints as $type => $endpoint) {
             $promises[$type] = Http::async()
+                ->retry(3, 100)
+                ->timeout(30)
                 ->acceptJson()
                 ->withToken($token)
                 ->get("{$baseUrl}{$endpoint}", ['limit' => $limit])
-                ->then(function ($response) use ($type, $user, &$synced, &$failed): void {
+                ->then(function ($response) use ($type, $user, &$allJobs, &$failed): void {
                     if ($response->status() === 204) {
                         return;
                     }
 
                     if (! $response->successful()) {
+                        if ($response->status() === 401) {
+                            try {
+                                app(RecoverBingwaDeviceToken::class)->recover($user);
+                            } catch (\Throwable $e) {
+                                report(new \RuntimeException('Failed to recover token during sync: '.$e->getMessage(), 0, $e));
+                            }
+                        }
+
                         $failed++;
                         report(new \RuntimeException("Unable to fetch {$type} jobs from the Autoreach backend."));
 
@@ -60,37 +73,12 @@ class FetchNextBingwaJobs
 
                     $payload = $response->json();
 
-                    if (! is_array($payload)) {
-                        return;
-                    }
-
-                    $jobs = $this->extractJobs($payload);
-                    $balance = $payload['balance'] ?? null;
-
-                    foreach ($jobs as $job) {
-                        if (! is_array($job) || blank($job['transaction_id'] ?? null)) {
-                            continue;
-                        }
-
-                        Transaction::query()->updateOrCreate(
-                            ['transaction_id' => (string) $job['transaction_id']],
-                            [
-                                'user_id' => $user->id,
-                                'mpesa_code' => $job['mpesa_code'] ?? null,
-                                'sender_phone' => $job['sender_phone'] ?? '',
-                                'sender_name' => $job['sender_name'] ?? null,
-                                'amount' => (float) ($job['amount'] ?? 0),
-                                'offer_name' => $job['offer_name'] ?? __('Unknown offer'),
-                                'offer_type' => $job['offer_type'] ?? $type,
-                                'matched_offer' => $job['matched_offer'] ?? null,
-                                'balance' => $balance,
-                                'occurred_at' => Carbon::parse($job['occurred_at'] ?? now()),
-                                'status' => 'queued',
-                                'status_desc' => __('Pulled from backend job queue.'),
-                            ]
-                        );
-
-                        $synced++;
+                    if (is_array($payload)) {
+                        $allJobs[] = [
+                            'type' => $type,
+                            'jobs' => $this->extractJobs($payload),
+                            'balance' => $payload['balance'] ?? null,
+                        ];
                     }
                 })->otherwise(function (\Throwable $e) use ($type, &$failed): void {
                     $failed++;
@@ -98,7 +86,58 @@ class FetchNextBingwaJobs
                 });
         }
 
+        // Wait for all HTTP requests to complete
         Utils::settle($promises)->wait();
+
+        // Process all gathered jobs in a single database transaction for performance
+        DB::transaction(function () use ($allJobs, $user, $activeOffers, &$synced): void {
+            foreach ($allJobs as $jobGroup) {
+                $type = $jobGroup['type'];
+                $jobs = $jobGroup['jobs'];
+                $balance = $jobGroup['balance'];
+
+                foreach ($jobs as $job) {
+                    if (! is_array($job) || blank($job['transaction_id'] ?? null)) {
+                        continue;
+                    }
+
+                    $amount = (float) ($job['amount'] ?? 0);
+
+                    // Find a matching offer by price only
+                    $matchedOffer = $activeOffers->first(fn ($offer) => (int) $offer->price === (int) $amount);
+
+                    $status = 'queued';
+                    $statusDesc = __('Pulled from backend job queue.');
+                    $offerId = $matchedOffer?->id;
+
+                    if (! $matchedOffer) {
+                        $status = 'failed';
+                        $statusDesc = __("Price mismatch: No active offer found for amount {$amount}.");
+                    }
+
+                    Transaction::query()->updateOrCreate(
+                        ['transaction_id' => (string) $job['transaction_id']],
+                        [
+                            'user_id' => $user->id,
+                            'offer_id' => $offerId,
+                            'mpesa_code' => $job['mpesa_code'] ?? null,
+                            'sender_phone' => $job['sender_phone'] ?? '',
+                            'sender_name' => $job['sender_name'] ?? null,
+                            'amount' => $amount,
+                            'offer_name' => $job['offer_name'] ?? __('Unknown offer'),
+                            'offer_type' => $job['offer_type'] ?? $type,
+                            'matched_offer' => $job['matched_offer'] ?? null,
+                            'balance' => $balance,
+                            'occurred_at' => Carbon::parse($job['occurred_at'] ?? now()),
+                            'status' => $status,
+                            'status_desc' => $statusDesc,
+                        ]
+                    );
+
+                    $synced++;
+                }
+            }
+        });
 
         return [
             'synced' => $synced,

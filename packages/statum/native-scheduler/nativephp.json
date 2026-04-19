@@ -1,0 +1,39 @@
+{
+    "namespace": "NativeScheduler",
+    "bridge_functions": [],
+    "android": {
+        "min_version": 26,
+        "permissions": [
+            "android.permission.FOREGROUND_SERVICE",
+            "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+            "android.permission.POST_NOTIFICATIONS",
+            "android.permission.RECEIVE_BOOT_COMPLETED",
+            "android.permission.CALL_PHONE",
+            "android.permission.SYSTEM_ALERT_WINDOW"
+        ],
+        "init_function": "com.statum.plugins.nativescheduler.initNativeScheduler",
+        "services": [
+            {
+                "name": "com.statum.plugins.nativescheduler.ArtisanSchedulerService",
+                "exported": false,
+                "foregroundServiceType": "dataSync"
+            },
+            {
+                "name": "com.statum.plugins.nativescheduler.UssdAccessibilityService",
+                "exported": false,
+                "permission": "android.permission.BIND_ACCESSIBILITY_SERVICE",
+                "label": "Bingwa USSD Automation"
+            }
+        ],
+        "receivers": [
+            {
+                "name": "com.statum.plugins.nativescheduler.SchedulerBootReceiver",
+                "exported": true,
+                "actions": ["android.intent.action.BOOT_COMPLETED"]
+            }
+        ]
+    },
+    "ios": {
+        "min_version": "15.0"
+    }
+}

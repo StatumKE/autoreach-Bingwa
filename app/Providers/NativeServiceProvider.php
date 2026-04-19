@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Statum\NativeContacts\NativeContactsServiceProvider;
+use Statum\NativeScheduler\NativeSchedulerServiceProvider;
 
 class NativeServiceProvider extends ServiceProvider
 {
@@ -32,6 +33,7 @@ class NativeServiceProvider extends ServiceProvider
     {
         return [
             NativeContactsServiceProvider::class,
+            NativeSchedulerServiceProvider::class,
         ];
     }
 }

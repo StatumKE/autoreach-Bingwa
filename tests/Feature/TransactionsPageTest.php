@@ -10,7 +10,10 @@ test('transactions page can be rendered', function () {
     $this->get(route('transactions'))
         ->assertOk()
         ->assertSee('Transactions')
-        ->assertSee('Track transaction identifiers');
+        ->assertSee('wire:poll.10s')
+        ->assertDontSee('Live sync')
+        ->assertDontSee('Track transaction identifiers')
+        ->assertDontSee('Refresh');
 });
 
 test('transactions load and display the requested details', function () {
@@ -36,12 +39,11 @@ test('transactions load and display the requested details', function () {
         ->call('loadTransactions');
 
     $response->assertHasNoErrors();
-    $response->assertSet('transactions.0.transaction_id', 'TX-12345678');
     $response->assertSee('TX-12345678');
     $response->assertSee('MP123ABC');
     $response->assertSee('254712345678');
     $response->assertSee('John Doe');
-    $response->assertSee('KES 125');
+    $response->assertSee('Ksh 125');
     $response->assertSee('1 GB Data Bundle');
     $response->assertSee('Data');
     $response->assertSee('Auto matched from active offer');

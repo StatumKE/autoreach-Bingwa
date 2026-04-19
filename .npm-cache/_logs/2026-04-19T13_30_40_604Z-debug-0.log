@@ -6,10 +6,10 @@
 5 silly config load:file:/Users/statum/.npmrc
 6 silly config load:file:/Users/statum/Library/Application Support/Herd/config/nvm/versions/node/v22.22.0/etc/npmrc
 7 verbose title npm run build
-8 verbose argv "run" "build" "--no-ansi"
-9 verbose logfile logs-max:10 dir:/Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-19T05_19_09_568Z-
-10 verbose logfile /Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-19T05_19_09_568Z-debug-0.log
-11 warn Unknown cli config "--ansi". This will stop working in the next major version of npm.
+8 verbose argv "run" "build"
+9 verbose logfile logs-max:10 dir:/Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-19T13_30_40_604Z-
+10 verbose logfile /Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-19T13_30_40_604Z-debug-0.log
+11 silly logfile start cleaning logs, removing 1 files
 12 silly logfile done cleaning log files
 13 verbose cwd /Users/statum/Herd/autoreachBingwaApp
 14 verbose os Darwin 25.4.0

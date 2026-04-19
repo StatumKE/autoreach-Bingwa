@@ -63,6 +63,16 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the subscription plans owned by the user.
+     *
+     * @return HasMany<Plan, $this>
+     */
+    public function plans(): HasMany
+    {
+        return $this->hasMany(Plan::class);
+    }
+
+    /**
      * Get the user's device settings.
      */
     public function deviceSetting(): HasOne

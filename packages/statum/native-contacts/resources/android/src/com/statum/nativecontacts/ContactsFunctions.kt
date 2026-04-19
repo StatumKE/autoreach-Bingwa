@@ -10,6 +10,8 @@ import androidx.fragment.app.FragmentActivity
 import com.nativephp.mobile.bridge.BridgeError
 import com.nativephp.mobile.bridge.BridgeFunction
 import com.nativephp.mobile.bridge.BridgeResponse
+import android.util.Log
+import android.net.Uri
 
 object ContactsFunctions {
     private const val DEFAULT_LIMIT = 20
@@ -21,10 +23,8 @@ object ContactsFunctions {
                 Manifest.permission.READ_CONTACTS
             ) == PackageManager.PERMISSION_GRANTED
 
-            return BridgeResponse.success(
-                mapOf(
-                    "granted" to granted
-                )
+            return mapOf(
+                "granted" to granted
             )
         }
     }
@@ -36,11 +36,9 @@ object ContactsFunctions {
                     Manifest.permission.READ_CONTACTS
                 ) == PackageManager.PERMISSION_GRANTED
             ) {
-                return BridgeResponse.success(
-                    mapOf(
-                        "requested" to false,
-                        "granted" to true
-                    )
+                return mapOf(
+                    "requested" to false,
+                    "granted" to true
                 )
             }
 
@@ -52,30 +50,25 @@ object ContactsFunctions {
                 )
             }
 
-            return BridgeResponse.success(
-                mapOf(
-                    "requested" to true,
-                    "granted" to false
-                )
+            return mapOf(
+                "requested" to true,
+                "granted" to false
             )
         }
     }
 
     class Search(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
-            if (ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.READ_CONTACTS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                return BridgeResponse.error(
-                    BridgeError.PermissionRequired("Contacts permission is required.")
-                )
-            }
-
             val query = (parameters["query"] as? String).orEmpty().trim()
             val requestedLimit = (parameters["limit"] as? Number)?.toInt() ?: DEFAULT_LIMIT
-            val limit = requestedLimit.coerceIn(1, 50)
+            val limit = requestedLimit.coerceIn(1, 100)
+
+            Log.i("NativeContacts", "Searching contacts with query: '$query' (limit: $limit)")
+
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+                Log.e("NativeContacts", "Permission READ_CONTACTS not granted")
+                throw BridgeError.PermissionRequired("Contacts permission is required.")
+            }
 
             val contacts = mutableListOf<Map<String, Any?>>()
             val projection = arrayOf(
@@ -86,53 +79,62 @@ object ContactsFunctions {
                 ContactsContract.CommonDataKinds.Phone.LABEL
             )
 
-            val selection = if (query.isBlank()) {
-                "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} IS NOT NULL"
-            } else {
-                "(${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ? OR ${ContactsContract.CommonDataKinds.Phone.NUMBER} LIKE ?)"
-            }
-
-            val selectionArgs = if (query.isBlank()) {
-                null
-            } else {
-                arrayOf("%$query%", "%$query%")
-            }
-
-            context.contentResolver.query(
-                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} COLLATE NOCASE ASC"
-            )?.use { cursor ->
-                val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-                val phoneIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                val labelIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.LABEL)
-
-                while (cursor.moveToNext() && contacts.size < limit) {
-                    val name = cursor.getString(nameIndex).orEmpty()
-                    val phone = cursor.getString(phoneIndex).orEmpty()
-                    val label = cursor.getString(labelIndex)
-
-                    if (phone.isBlank()) {
-                        continue
-                    }
-
-                    contacts.add(
-                        mapOf(
-                            "name" to name.ifBlank { phone },
-                            "phone" to phone,
-                            "label" to label
-                        )
-                    )
-                }
-            }
-
-            return BridgeResponse.success(
-                mapOf(
-                    "contacts" to contacts,
-                    "count" to contacts.size
+            // If query is present, use the specialized FILTER_URI which handles name/number matching correctly
+            // (including normalization of spaces/dashes in phone numbers).
+            val uri = if (query.isNotEmpty()) {
+                Uri.withAppendedPath(
+                    ContactsContract.CommonDataKinds.Phone.CONTENT_FILTER_URI,
+                    Uri.encode(query)
                 )
+            } else {
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+            }
+
+            val sortOrder = "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} COLLATE NOCASE ASC"
+
+            try {
+                context.contentResolver.query(uri, projection, null, null, sortOrder)?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                    val phoneIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                    val typeIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE)
+                    val labelIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.LABEL)
+
+                    while (cursor.moveToNext() && contacts.size < limit) {
+                        val name = if (nameIndex != -1) cursor.getString(nameIndex) else null
+                        val phone = if (phoneIndex != -1) cursor.getString(phoneIndex) else null
+                        val type = if (typeIndex != -1) cursor.getInt(typeIndex) else -1
+                        val customLabel = if (labelIndex != -1) cursor.getString(labelIndex) else null
+
+                        if (phone.isNullOrBlank()) continue
+
+                        // Resolve the label (e.g. "Mobile", "Home", or custom)
+                        val label = if (type == ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM) {
+                            customLabel ?: "Other"
+                        } else if (type != -1) {
+                            ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.resources, type, customLabel).toString()
+                        } else {
+                            null
+                        }
+
+                        contacts.add(
+                            mapOf(
+                                "name" to (name ?: phone),
+                                "phone" to phone,
+                                "label" to label
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("NativeContacts", "Error querying contacts", e)
+                throw BridgeError.UnknownError("Error querying contacts: ${e.message}")
+            }
+
+            Log.i("NativeContacts", "Found ${contacts.size} contacts")
+
+            return mapOf(
+                "contacts" to contacts,
+                "count" to contacts.size
             )
         }
     }

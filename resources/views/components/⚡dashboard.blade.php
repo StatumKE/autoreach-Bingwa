@@ -153,17 +153,9 @@ new #[Title('Dashboard')] class extends Component
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
-            <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
             <div>
                 <flux:text class="text-sm font-medium text-zinc-500 dark:text-zinc-400">{{ $this->greeting }},</flux:text>
                 <flux:heading size="xl" class="mt-0.5">{{ auth()->user()->name }}</flux:heading>
-            </div>
-        </div>
-        <div class="flex flex-col items-end gap-1">
-            <flux:icon.qr-code class="size-6 text-zinc-900 dark:text-zinc-50" />
-            <div class="flex items-center gap-1.5">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{{ __('Express Mode') }}</span>
-                <span class="size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
             </div>
         </div>
     </div>

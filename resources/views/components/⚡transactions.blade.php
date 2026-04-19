@@ -12,6 +12,8 @@ new #[Title('Transactions')] class extends Component
 
     public bool $loaded = false;
 
+    public ?string $errorMessage = null;
+
     /**
      * Load the transactions after the page has rendered.
      */
@@ -52,7 +54,7 @@ new #[Title('Transactions')] class extends Component
 };
 ?>
 
-<section class="w-full p-4 md:p-6" wire:init="loadTransactions">
+<section class="w-full p-4 md:p-6" wire:init="loadTransactions" wire:poll.10s="loadTransactions">
     <style>
         @keyframes transactions-reveal {
             from {
@@ -80,38 +82,9 @@ new #[Title('Transactions')] class extends Component
             </div>
 
             <div class="relative flex flex-col gap-3">
-                <div class="flex items-center gap-2">
-                    <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_6px_rgba(16,185,129,0.15)] motion-safe:animate-pulse"></span>
-                    <span class="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-300/60">{{ __('Live sync') }}</span>
-                </div>
-
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <flux:heading size="xl" class="text-white">{{ __('Transactions') }}</flux:heading>
-                        <flux:text class="max-w-2xl text-emerald-100/80">
-                            {{ __('Track USSD execution identifiers, sender details, and plan status updates.') }}
-                        </flux:text>
-                    </div>
-
-                    <flux:button
-                        type="button"
-                        variant="ghost"
-                        class="shrink-0 border border-white/15 bg-white/5 text-white hover:bg-white/10"
-                        wire:click="loadTransactions"
-                    >
-                        {{ __('Refresh') }}
-                    </flux:button>
-                </div>
-
-                <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85 backdrop-blur-sm">
-                    <div class="flex items-center justify-between gap-3">
-                        <span>{{ __('Syncing latest network events in background') }}</span>
-                        @if (! $this->loaded)
-                            <span class="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-emerald-300">
-                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-300 motion-safe:animate-pulse"></span>
-                                {{ __('Syncing') }}
-                            </span>
-                        @endif
                     </div>
                 </div>
             </div>
@@ -234,7 +207,6 @@ new #[Title('Transactions')] class extends Component
                     {{ $this->transactions()->links() }}
                 </div>
             </div>
-        @endif
         @endif
     </div>
 </section>

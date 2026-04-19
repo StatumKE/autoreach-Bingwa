@@ -31,6 +31,10 @@
                     <flux:sidebar.item icon="phone" :href="route('quick-dials')" :current="request()->routeIs('quick-dials')" wire:navigate>
                         {{ __('Quick Dial') }}
                     </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="cog" :href="route('device.edit')" :current="request()->routeIs('device.edit')" wire:navigate>
+                        {{ __('Device') }}
+                    </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 

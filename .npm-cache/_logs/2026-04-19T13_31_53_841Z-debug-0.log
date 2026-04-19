@@ -5,14 +5,15 @@
 4 silly config load:file:/Users/statum/Herd/autoreachBingwaApp/.npmrc
 5 silly config load:file:/Users/statum/.npmrc
 6 silly config load:file:/Users/statum/Library/Application Support/Herd/config/nvm/versions/node/v22.22.0/etc/npmrc
-7 verbose title npm run dev --mode=android
-8 verbose argv "run" "dev" "--" "--mode=android"
-9 verbose logfile logs-max:10 dir:/Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-19T07_58_02_533Z-
-10 verbose logfile /Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-19T07_58_02_533Z-debug-0.log
-11 silly logfile done cleaning log files
-12 verbose cwd /Users/statum/Herd/autoreachBingwaApp
-13 verbose os Darwin 25.4.0
-14 verbose node v22.22.0
-15 verbose npm  v11.12.1
-16 verbose exit 0
-17 info ok
+7 verbose title npm run build
+8 verbose argv "run" "build"
+9 verbose logfile logs-max:10 dir:/Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-19T13_31_53_841Z-
+10 verbose logfile /Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-19T13_31_53_841Z-debug-0.log
+11 silly logfile start cleaning logs, removing 1 files
+12 silly logfile done cleaning log files
+13 verbose cwd /Users/statum/Herd/autoreachBingwaApp
+14 verbose os Darwin 25.4.0
+15 verbose node v22.22.0
+16 verbose npm  v11.12.1
+17 verbose exit 0
+18 info ok

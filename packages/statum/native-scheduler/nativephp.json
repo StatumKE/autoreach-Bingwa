@@ -4,6 +4,10 @@
         {
             "name": "TriggerSambaza",
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.TriggerSambaza"
+        },
+        {
+            "name": "ExecuteUssd",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.ExecuteUssd"
         }
     ],
     "android": {

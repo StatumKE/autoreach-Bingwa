@@ -9,7 +9,9 @@ test('device settings page is displayed', function () {
 
     $this->get(route('device.edit'))
         ->assertOk()
-        ->assertSee('Device & application configuration')
+        ->assertSeeInOrder(['Quick Dial', 'Device', 'Hardware'])
+        ->assertDontSee('Security')
+        ->assertSee('Configure radio slots, SIM mapping, and automated retry resilience.')
         ->assertSee('SIM Slot Mapping')
         ->assertSee('Retry & resilience rules');
 });

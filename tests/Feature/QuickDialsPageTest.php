@@ -1,6 +1,8 @@
 <?php
 
 use App\Actions\QuickDial\QuickDialContacts;
+use App\Models\Offer;
+use App\Models\Transaction;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -10,22 +12,28 @@ test('quick dial page can be rendered', function () {
     $this->get(route('quick-dials'))
         ->assertOk()
         ->assertSee('Quick Dial')
-        ->assertSee('Search contacts from the device');
+        ->assertSee('Directly award offers to customers')
+        ->assertSee('Customer information')
+        ->assertSee('Available offers')
+        ->assertSee('Contacts')
+        ->assertDontSee('Phone Book')
+        ->assertDontSee('Search your device contacts')
+        ->assertDontSee('Securely browse your native contacts');
 });
 
-test('quick dial page loads contacts through the device contacts action', function () {
+test('quick dial page searches native contacts', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user);
 
     $this->mock(QuickDialContacts::class, function ($mock): void {
         $mock->shouldReceive('checkPermission')
-            ->twice()
+            ->once()
             ->andReturn(true);
 
         $mock->shouldReceive('search')
             ->once()
-            ->with('', 20)
+            ->with('Jane', 12)
             ->andReturn([
                 [
                     'name' => 'Jane Doe',
@@ -36,42 +44,116 @@ test('quick dial page loads contacts through the device contacts action', functi
     });
 
     Livewire::test('quick-dials')
-        ->call('initializeContacts')
+        ->set('customerPhone', 'Jane')
+        ->call('searchContacts')
+        ->assertSet('contactResults.0.phone', '+254700000001')
         ->assertSee('Jane Doe')
-        ->assertSee('+254700000001')
         ->assertSee('Mobile');
 });
 
-test('quick dial reacts to the native permission result event', function () {
-    $user = User::factory()->create();
-
-    $this->actingAs($user);
+test('quick dial page requests contacts permission when missing', function () {
+    $this->actingAs(User::factory()->create());
 
     $this->mock(QuickDialContacts::class, function ($mock): void {
         $mock->shouldReceive('checkPermission')
-            ->andReturn(false, false, true, true);
+            ->once()
+            ->andReturn(false);
 
         $mock->shouldReceive('requestPermission')
             ->once()
             ->andReturn(true);
-
-        $mock->shouldReceive('search')
-            ->once()
-            ->with('', 20)
-            ->andReturn([
-                [
-                    'name' => 'Jane Doe',
-                    'phone' => '+254700000001',
-                    'label' => 'Mobile',
-                ],
-            ]);
     });
 
     Livewire::test('quick-dials')
-        ->call('initializeContacts')
-        ->call('requestContactsPermission')
-        ->dispatch('native:onPermissionResult', permission: 'android.permission.READ_CONTACTS', granted: true)
-        ->assertSet('contactsPermissionGranted', true)
+        ->call('searchContacts')
+        ->assertSee('Contacts permission is required');
+});
+
+test('quick dial page stores a selected native contact as a local number', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user);
+
+    Livewire::test('quick-dials')
+        ->call('selectContact', '+254700000001', 'Jane Doe')
+        ->assertSet('customerPhone', '0700000001')
+        ->assertSet('selectedName', 'Jane Doe')
         ->assertSee('Jane Doe')
-        ->assertDontSee('Contacts access is needed to search the phone book.');
+        ->assertSee('0700000001');
+});
+
+test('quick dial page records a completed award transaction', function () {
+    $user = User::factory()->create();
+    $offer = Offer::factory()->for($user)->create([
+        'name' => '1 GB Data',
+        'category' => 'data',
+        'price' => 50,
+        'ussd_code' => '*180*5*PN#',
+        'ussd_mode' => 'express',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test('quick-dials')
+        ->set('customerPhone', '0712345678')
+        ->call('recordQuickDialResult', $offer->id, true, 'USSD accepted')
+        ->assertSet('awardMessage', 'Award sent through 1 GB Data.')
+        ->assertHasNoErrors();
+
+    $this->assertDatabaseHas('transactions', [
+        'user_id' => $user->id,
+        'offer_id' => $offer->id,
+        'sender_phone' => '0712345678',
+        'amount' => 50,
+        'offer_name' => '1 GB Data',
+        'offer_type' => 'data',
+        'status' => 'completed',
+        'status_desc' => 'USSD accepted',
+    ]);
+
+    expect(Transaction::query()->first()?->matched_offer)->toMatchArray([
+        'source' => 'quick_dial',
+        'offer_local_id' => (string) $offer->id,
+    ]);
+});
+
+test('quick dial page records the phone captured when the ussd request started', function () {
+    $user = User::factory()->create();
+    $offer = Offer::factory()->for($user)->create([
+        'name' => 'SMS Pack',
+        'category' => 'sms',
+        'price' => 25,
+        'ussd_code' => '*188*PN#',
+        'ussd_mode' => 'advanced',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test('quick-dials')
+        ->set('customerPhone', '')
+        ->call('recordQuickDialResult', $offer->id, true, 'USSD accepted', '+254700000002', 'John Doe')
+        ->assertSet('awardMessage', 'Award sent through SMS Pack.')
+        ->assertHasNoErrors();
+
+    $this->assertDatabaseHas('transactions', [
+        'user_id' => $user->id,
+        'offer_id' => $offer->id,
+        'sender_phone' => '0700000002',
+        'sender_name' => 'John Doe',
+        'status' => 'completed',
+    ]);
+});
+
+test('quick dial page blocks awarding without a valid customer phone', function () {
+    $user = User::factory()->create();
+    $offer = Offer::factory()->for($user)->create(['is_active' => true]);
+
+    $this->actingAs($user);
+
+    Livewire::test('quick-dials')
+        ->set('customerPhone', '123')
+        ->call('awardOffer', $offer->id)
+        ->assertSet('awardError', 'Enter or select a valid customer phone number first.');
 });

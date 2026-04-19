@@ -283,13 +283,7 @@ new #[Title('My Offers')] class extends Component {
 
             <div class="relative flex items-start justify-between gap-4">
                 <div>
-                    <div class="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-300/80">
-                        {{ __('My Offers') }}
-                    </div>
-                    <flux:heading size="xl" class="mt-2 text-white">{{ __('Telco Offers') }}</flux:heading>
-                    <flux:text class="mt-2 max-w-2xl text-emerald-100/80">
-                        {{ __('Manage your specialized Android-native USSD workflows and pricing.') }}
-                    </flux:text>
+                    <flux:heading size="xl" class="text-white">{{ __('My Offers') }}</flux:heading>
                 </div>
 
                 <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right shadow-sm backdrop-blur-sm">

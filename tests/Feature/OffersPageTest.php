@@ -10,7 +10,8 @@ test('offers page can be rendered', function () {
     $this->get(route('offers'))
         ->assertOk()
         ->assertSee('My Offers')
-        ->assertSee('Manage synchronized telco offers');
+        ->assertDontSee('Telco Offers')
+        ->assertDontSee('Manage your specialized Android-native USSD workflows and pricing.');
 });
 
 test('offers can be created', function () {

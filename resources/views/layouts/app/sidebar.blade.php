@@ -33,7 +33,7 @@
                     </flux:sidebar.item>
 
                     <flux:sidebar.item icon="cog" :href="route('device.edit')" :current="request()->routeIs('device.edit')" wire:navigate>
-                        {{ __('Device') }}
+                        {{ __('Device settings') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>

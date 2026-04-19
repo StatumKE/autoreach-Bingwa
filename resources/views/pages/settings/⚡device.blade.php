@@ -30,11 +30,16 @@ new #[Title('Device settings')] class extends Component {
 
     public bool $retry_network_issues = true;
 
+    public string $deviceId = 'Unknown';
+
+    public string $osVersion = 'Unknown';
+
     /**
      * Hydrate the form from the stored device settings.
      */
     public function mount(): void
     {
+        $this->fetchNativeDeviceInfo();
         $deviceSetting = Auth::user()->deviceSetting;
 
         if ($deviceSetting === null) {
@@ -184,6 +189,26 @@ new #[Title('Device settings')] class extends Component {
             ],
         );
     }
+
+    /**
+     * Fetch native device hardware information.
+     */
+    private function fetchNativeDeviceInfo(): void
+    {
+        if (! function_exists('nativephp_call')) {
+            return;
+        }
+
+        try {
+            $idResponse = json_decode(nativephp_call('Device.GetId', '{}'), true);
+            $this->deviceId = $idResponse['data']['id'] ?? 'Unknown';
+
+            $infoResponse = json_decode(nativephp_call('Device.GetInfo', '{}'), true);
+            $this->osVersion = $infoResponse['data']['os_version'] ?? 'Unknown';
+        } catch (\Exception $e) {
+            // Log or ignore
+        }
+    }
 }; ?>
 
 <section class="w-full p-4 md:p-6">
@@ -209,6 +234,28 @@ new #[Title('Device settings')] class extends Component {
                 <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right shadow-sm backdrop-blur-sm">
                     <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-300/60">{{ __('Status') }}</div>
                     <div class="mt-1 text-2xl font-bold text-white">{{ __('Ready') }}</div>
+                </div>
+            </div>
+
+            <div class="mt-6 grid grid-cols-2 gap-4 border-t border-white/10 pt-6 md:grid-cols-4">
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300/60">{{ __('Device ID') }}</span>
+                    <span class="mt-1 font-mono text-xs font-medium text-white/90">{{ $this->deviceId }}</span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300/60">{{ __('OS Version') }}</span>
+                    <span class="mt-1 text-xs font-medium text-white/90">{{ $this->osVersion }}</span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300/60">{{ __('Connection') }}</span>
+                    <span class="mt-1 flex items-center gap-1.5 text-xs font-medium text-emerald-400">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        {{ __('Active') }}
+                    </span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300/60">{{ __('Battery') }}</span>
+                    <span class="mt-1 text-xs font-medium text-white/90">{{ __('Charging') }}</span>
                 </div>
             </div>
         </div>

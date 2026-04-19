@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'occurred_at',
     'status',
     'status_desc',
+    'retry_count',
     'processed_at',
 ])]
 class Transaction extends Model
@@ -59,6 +60,7 @@ class Transaction extends Model
             'balance' => 'array',
             'occurred_at' => 'datetime',
             'processed_at' => 'datetime',
+            'retry_count' => 'integer',
         ];
     }
 }

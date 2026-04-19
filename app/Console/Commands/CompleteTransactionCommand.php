@@ -25,7 +25,7 @@ class CompleteTransactionCommand extends Command
             return self::FAILURE;
         }
 
-        $transaction = Transaction::query()->find($id);
+        $transaction = Transaction::query()->with('user.deviceSetting')->find($id);
 
         if (! $transaction) {
             $this->warn("Transaction #{$id} not found.");
@@ -37,6 +37,53 @@ class CompleteTransactionCommand extends Command
             'completed' => $this->option('message') ?? __('USSD call completed successfully.'),
             'failed' => $this->option('message') ?? __('USSD call failed.'),
         };
+
+        $settings = $transaction->user?->deviceSetting;
+
+        // Intelligent Auto-Retry Logic
+        if ($status === 'failed' && $settings?->intelligent_auto_retry) {
+            if ($transaction->retry_count < ($settings->max_attempts - 1)) {
+                $transaction->increment('retry_count');
+                
+                $retryAt = now()->addMinutes($settings->retry_interval_minutes ?? 1);
+                
+                $transaction->update([
+                    'status' => 'queued',
+                    'occurred_at' => $retryAt,
+                    'status_desc' => __('Auto-retry attempt :count scheduled for :time.', [
+                        'count' => $transaction->retry_count,
+                        'time' => $retryAt->format('g:i A')
+                    ]),
+                ]);
+
+                $this->info("Transaction #{$id} re-queued for retry.");
+
+                return self::SUCCESS;
+            }
+        }
+
+        // Auto Reschedule Rejected Logic
+        if ($status === 'failed' && $settings?->auto_reschedule_rejected) {
+            $isRejected = str_contains(strtolower($this->option('message') ?? ''), 'rejected')
+                       || str_contains(strtolower($this->option('message') ?? ''), 'not allowed');
+
+            if ($isRejected) {
+                $nextRun = now();
+                if ($settings->retry_tomorrow_at) {
+                    $nextRun = now()->addDay()->setTimeFromTimeString($settings->retry_tomorrow_at);
+                }
+
+                $transaction->update([
+                    'status' => 'queued',
+                    'occurred_at' => $nextRun,
+                    'status_desc' => __('Rescheduled for :time.', ['time' => $nextRun->format('g:i A')]),
+                ]);
+
+                $this->info("Transaction #{$id} rescheduled for tomorrow.");
+
+                return self::SUCCESS;
+            }
+        }
 
         $transaction->update([
             'status' => $status,

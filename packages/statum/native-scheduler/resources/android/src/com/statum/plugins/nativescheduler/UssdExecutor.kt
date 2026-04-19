@@ -43,7 +43,13 @@ class UssdExecutor(private val context: Context) {
      * Entry point. Routes to the correct executor based on [mode].
      * Enforces a hard 30-second timeout on both paths.
      */
-    suspend fun execute(code: String, mode: String, simSlot: Int = 0, isSambaza: Boolean = false): UssdResult {
+    suspend fun execute(
+        code: String, 
+        mode: String, 
+        simSlot: Int = 0, 
+        isSambaza: Boolean = false,
+        timeoutSeconds: Int = 30
+    ): UssdResult {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
             != PackageManager.PERMISSION_GRANTED
         ) {
@@ -70,14 +76,15 @@ class UssdExecutor(private val context: Context) {
             Log.e(TAG, "Failed to resolve subscription ID", e)
         }
 
-        Log.i(TAG, "Executing USSD [$mode] on subId=$subId: $code")
+        Log.i(TAG, "Executing USSD [$mode] on subId=$subId (timeout ${timeoutSeconds}s): $code")
 
-        return withTimeoutOrNull(USSD_TIMEOUT_MS) {
+        val timeoutMs = timeoutSeconds * 1000L
+        return withTimeoutOrNull(timeoutMs) {
             when (mode) {
                 "advanced" -> runAdvanced(code, subId, isSambaza)
                 else -> runExpress(code, subId)
             }
-        } ?: UssdResult(success = false, message = "USSD timed out after ${USSD_TIMEOUT_MS / 1000}s")
+        } ?: UssdResult(success = false, message = "USSD timed out after ${timeoutSeconds}s")
     }
 
     // -------------------------------------------------------------------------

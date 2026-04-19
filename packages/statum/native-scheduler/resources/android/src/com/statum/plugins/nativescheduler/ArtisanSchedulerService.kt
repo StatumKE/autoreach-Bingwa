@@ -192,13 +192,15 @@ class ArtisanSchedulerService : Service() {
                     val id = job.getInt("id")
                     val code = job.getString("code")
                     val mode = job.getString("mode")
+                    val simSlot = job.optInt("sim_slot", 0)
+                    val timeout = job.optInt("timeout", 30)
 
-                    Log.i(TAG, "Executing USSD job #$id [$mode]: $code")
+                    Log.i(TAG, "Executing USSD job #$id [$mode] on SIM $simSlot (timeout ${timeout}s): $code")
 
                     // 2. Execute USSD.
-                    // IMPORTANT: This suspends for up to 30s. Because it is OUTSIDE the phpMutex,
+                    // IMPORTANT: This suspends for up to 30s+. Because it is OUTSIDE the phpMutex,
                     // Loop A (Sync Poller) can continue running normally in the background!
-                    val result = ussdExecutor.execute(code, mode)
+                    val result = ussdExecutor.execute(code, mode, simSlot, timeoutSeconds = timeout)
 
                     val status = if (result.success) "completed" else "failed"
                     val message = result.message.replace("'", "\\'").take(200)

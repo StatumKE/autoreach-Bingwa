@@ -35,7 +35,7 @@ class NextUssdJobCommand extends Command
             ]);
 
         $transaction = Transaction::query()
-            ->with('offer:id,ussd_code,ussd_mode')
+            ->with(['offer:id,ussd_code,ussd_mode', 'user.deviceSetting'])
             ->where('status', 'queued')
             ->whereNotNull('offer_id')
             ->oldest('occurred_at')
@@ -54,10 +54,16 @@ class NextUssdJobCommand extends Command
             'status_desc' => __('USSD call in progress.'),
         ]);
 
+        $settings = $transaction->user?->deviceSetting;
+        $simSlot = ($settings?->primary_transaction_sim === 'slot_2') ? 1 : 0;
+        $timeout = $settings?->ussd_timeout_seconds ?? 30;
+
         $this->line(json_encode([
             'id' => $transaction->id,
             'code' => $resolvedCode,
             'mode' => $transaction->offer->ussd_mode,
+            'sim_slot' => $simSlot,
+            'timeout' => $timeout,
         ]));
 
         return self::SUCCESS;

@@ -44,6 +44,24 @@ class CompleteTransactionCommand extends Command
             'processed_at' => now(),
         ]);
 
+        $user = $transaction->user;
+        if ($user) {
+            $activePlan = $user->plans()->where('is_active', true)->first();
+            if ($activePlan) {
+                $activePlan->increment('ussd_counter');
+
+                // Refresh to get the new counter value
+                $activePlan->refresh();
+
+                if ($activePlan->type === 'usage_pack' && $activePlan->ussd_requests_included !== null) {
+                    if ($activePlan->ussd_counter >= $activePlan->ussd_requests_included) {
+                        $activePlan->update(['is_active' => false]);
+                        $this->info("Plan '{$activePlan->name}' has been exhausted and deactivated.");
+                    }
+                }
+            }
+        }
+
         return self::SUCCESS;
     }
 }

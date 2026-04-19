@@ -43,37 +43,38 @@ new #[Title('Quick Dials')] class extends Component {
 
 <section class="w-full p-4 md:p-6" x-data="contactPicker()">
     <div class="flex flex-col gap-4">
-        <div class="relative overflow-hidden rounded-3xl border border-zinc-200 bg-gradient-to-br from-white via-white to-zinc-100 p-5 shadow-sm dark:border-zinc-700 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900 md:p-6">
+        <div class="relative overflow-hidden rounded-3xl border border-emerald-800 bg-gradient-to-br from-emerald-950 via-emerald-900 to-zinc-900 p-5 text-white shadow-lg dark:border-emerald-700 md:p-6">
             <div class="pointer-events-none absolute inset-0">
-                <div class="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-indigo-400/10 blur-3xl motion-safe:animate-pulse"></div>
-                <div class="absolute -bottom-16 -left-12 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl motion-safe:animate-pulse" style="animation-delay: 240ms;"></div>
+                <div class="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-emerald-400/10 blur-3xl motion-safe:animate-pulse"></div>
+                <div class="absolute -bottom-16 -left-12 h-40 w-40 rounded-full bg-zinc-400/10 blur-3xl motion-safe:animate-pulse" style="animation-delay: 240ms;"></div>
+                <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
             </div>
 
             <div class="relative flex items-start justify-between gap-4">
                 <div>
-                    <div class="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
+                    <div class="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-300/80">
                         {{ __('Quick Dial') }}
                     </div>
-                    <flux:heading size="xl" class="mt-2">{{ __('Select from Phone Book') }}</flux:heading>
-                    <flux:text class="mt-2 max-w-2xl text-zinc-600 dark:text-zinc-300">
-                        {{ __('Use your device\'s native phone book to quickly find a customer, then dial or select their number for the next step.') }}
+                    <flux:heading size="xl" class="mt-2 text-white">{{ __('Phone Book') }}</flux:heading>
+                    <flux:text class="mt-2 max-w-2xl text-emerald-100/80">
+                        {{ __('Search your device contacts to quickly perform manual dials or transfers.') }}
                     </flux:text>
                 </div>
             </div>
         </div>
 
-        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 text-center flex flex-col items-center justify-center min-h-[40vh]">
-            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+        <div class="rounded-3xl border border-zinc-100 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50 text-center flex flex-col items-center justify-center min-h-[40vh]">
+            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
                 <flux:icon.users class="h-8 w-8" />
             </div>
             
-            <flux:heading size="lg" class="mt-4">{{ __('Open Phone Book') }}</flux:heading>
-            <flux:text class="mt-2 text-zinc-500 dark:text-zinc-400 max-w-sm">
-                {{ __('Tap below to securely browse your native contacts and select a customer.') }}
+            <flux:heading size="lg" class="mt-4 text-zinc-900 dark:text-zinc-100">{{ __('Open Phone Book') }}</flux:heading>
+            <flux:text class="mt-2 text-zinc-500 dark:text-zinc-400 max-w-xs">
+                {{ __('Securely browse your native contacts and select a customer.') }}
             </flux:text>
 
-            <div class="mt-6 w-full max-w-xs">
-                <flux:button variant="primary" type="button" @click="openPicker" class="w-full text-base h-12" x-text="buttonText">
+            <div class="mt-8 w-full max-w-xs">
+                <flux:button variant="primary" type="button" @click="openPicker" class="w-full h-12 rounded-2xl text-base shadow-lg shadow-emerald-500/20" x-text="buttonText">
                     {{ __('Open Phone Book') }}
                 </flux:button>
             </div>

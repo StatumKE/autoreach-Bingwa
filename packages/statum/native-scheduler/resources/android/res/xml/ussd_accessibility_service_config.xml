@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Accessibility Service configuration for UssdAccessibilityService.
+
+    This file must be placed in the Android Studio project at:
+        app/src/main/res/xml/ussd_accessibility_service_config.xml
+
+    It is referenced by the <meta-data android:name="android.accessibilityservice"> entry
+    in AndroidManifest.xml for the UssdAccessibilityService.
+
+    PackageNames is intentionally left empty here because we set serviceInfo programmatically
+    in onServiceConnected() — which allows runtime updates to the monitored dialer packages
+    without requiring an APK rebuild.
+
+    See: https://developer.android.com/guide/topics/ui/accessibility/service
+-->
+<accessibility-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/ussd_accessibility_service_description"
+    android:notificationTimeout="100"
+    android:settingsActivity="" />

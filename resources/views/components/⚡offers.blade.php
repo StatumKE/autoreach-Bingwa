@@ -8,8 +8,11 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 new #[Title('My Offers')] class extends Component {
+    use WithPagination;
+
     public bool $showForm = false;
 
     public ?int $editingOfferId = null;
@@ -139,19 +142,17 @@ new #[Title('My Offers')] class extends Component {
 
     /**
      * Get the offers for the current account and filter.
-     *
-     * @return Collection<int, Offer>
      */
     #[Computed]
-    public function offers(): Collection
+    public function offers()
     {
         return Offer::query()
             ->where('user_id', Auth::id())
             ->when($this->activeCategory !== 'all', function ($query): void {
                 $query->where('category', $this->activeCategory);
             })
-            ->latest()
-            ->get();
+            ->orderBy('id', 'desc')
+            ->paginate(10);
     }
 
     /**
@@ -273,26 +274,27 @@ new #[Title('My Offers')] class extends Component {
 
 <section class="w-full p-4 md:p-6">
     <div class="flex flex-col gap-4">
-        <div class="relative overflow-hidden rounded-3xl border border-zinc-200 bg-gradient-to-br from-white via-white to-zinc-100 p-5 shadow-sm dark:border-zinc-700 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900 md:p-6">
+        <div class="relative overflow-hidden rounded-3xl border border-emerald-800 bg-gradient-to-br from-emerald-950 via-emerald-900 to-zinc-900 p-5 text-white shadow-lg dark:border-emerald-700 md:p-6">
             <div class="pointer-events-none absolute inset-0">
-                <div class="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-indigo-400/10 blur-3xl motion-safe:animate-pulse"></div>
-                <div class="absolute -bottom-16 -left-12 h-40 w-40 rounded-full bg-fuchsia-400/10 blur-3xl motion-safe:animate-pulse" style="animation-delay: 240ms;"></div>
+                <div class="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-emerald-400/10 blur-3xl motion-safe:animate-pulse"></div>
+                <div class="absolute -bottom-16 -left-12 h-40 w-40 rounded-full bg-zinc-400/10 blur-3xl motion-safe:animate-pulse" style="animation-delay: 240ms;"></div>
+                <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
             </div>
 
             <div class="relative flex items-start justify-between gap-4">
                 <div>
-                    <div class="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
+                    <div class="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-300/80">
                         {{ __('My Offers') }}
                     </div>
-                    <flux:heading size="xl" class="mt-2">{{ __('Manage synchronized telco offers') }}</flux:heading>
-                    <flux:text class="mt-2 max-w-2xl text-zinc-600 dark:text-zinc-300">
-                        {{ __('Create, update, and remove offer records for Android-friendly telco workflows.') }}
+                    <flux:heading size="xl" class="mt-2 text-white">{{ __('Telco Offers') }}</flux:heading>
+                    <flux:text class="mt-2 max-w-2xl text-emerald-100/80">
+                        {{ __('Manage your specialized Android-native USSD workflows and pricing.') }}
                     </flux:text>
                 </div>
 
-                <div class="rounded-2xl border border-zinc-200 bg-white/80 px-4 py-3 text-right shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-                    <div class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Offers') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">{{ $this->offersCount }}</div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right shadow-sm backdrop-blur-sm">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-300/60">{{ __('Offers') }}</div>
+                    <div class="mt-1 text-2xl font-bold text-white">{{ $this->offersCount }}</div>
                 </div>
             </div>
         </div>
@@ -333,34 +335,34 @@ new #[Title('My Offers')] class extends Component {
         @else
             <div class="flex flex-col gap-3">
                 @foreach ($this->offers as $offer)
-                    <article class="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm transition-colors dark:border-zinc-700 dark:bg-zinc-900">
+                    <article class="rounded-3xl border border-zinc-100 bg-white p-5 shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-900/50">
                         <div class="flex items-start justify-between gap-3">
-                            <div class="space-y-1">
+                            <div class="space-y-1.5">
                                 <div class="flex items-center gap-2">
-                                    <flux:heading size="lg">{{ $offer->name }}</flux:heading>
+                                    <flux:heading size="lg" class="text-zinc-900 dark:text-zinc-100">{{ $offer->name }}</flux:heading>
                                     @if ($offer->is_active)
-                                        <span class="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                                        <span class="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
                                             {{ __('Active') }}
                                         </span>
                                     @else
-                                        <span class="rounded-full bg-zinc-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
+                                        <span class="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                                             {{ __('Paused') }}
                                         </span>
                                     @endif
                                 </div>
 
-                                <div class="flex flex-wrap gap-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                                    <span class="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">
+                                <div class="flex flex-wrap gap-1.5">
+                                    <span class="rounded-lg bg-zinc-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
                                         {{ $this->categoryLabel($offer->category) }}
                                     </span>
-                                    <span class="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">
+                                    <span class="rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
                                         {{ $this->ussdModeLabel($offer->ussd_mode) }}
                                     </span>
                                 </div>
                             </div>
 
-                            <div class="rounded-full bg-emerald-500/10 px-3 py-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                                {{ __('KES :price', ['price' => number_format($offer->price)]) }}
+                            <div class="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                                {{ __('Ksh :price', ['price' => number_format($offer->price)]) }}
                             </div>
                         </div>
 
@@ -386,6 +388,10 @@ new #[Title('My Offers')] class extends Component {
                         </div>
                     </article>
                 @endforeach
+
+                <div class="mt-4">
+                    {{ $this->offers->links() }}
+                </div>
             </div>
         @endif
     </div>

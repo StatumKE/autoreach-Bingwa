@@ -188,35 +188,36 @@ new #[Title('Device settings')] class extends Component {
 
 <section class="w-full p-4 md:p-6">
     <div class="flex flex-col gap-4">
-        <div class="relative overflow-hidden rounded-3xl border border-zinc-200 bg-gradient-to-br from-white via-white to-zinc-100 p-5 shadow-sm dark:border-zinc-700 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900 md:p-6">
+        <div class="relative overflow-hidden rounded-3xl border border-emerald-800 bg-gradient-to-br from-emerald-950 via-emerald-900 to-zinc-900 p-5 text-white shadow-lg dark:border-emerald-700 md:p-6">
             <div class="pointer-events-none absolute inset-0">
-                <div class="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-indigo-400/10 blur-3xl motion-safe:animate-pulse"></div>
-                <div class="absolute -bottom-16 -left-12 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl motion-safe:animate-pulse" style="animation-delay: 240ms;"></div>
+                <div class="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-emerald-400/10 blur-3xl motion-safe:animate-pulse"></div>
+                <div class="absolute -bottom-16 -left-12 h-40 w-40 rounded-full bg-zinc-400/10 blur-3xl motion-safe:animate-pulse" style="animation-delay: 240ms;"></div>
+                <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
             </div>
 
             <div class="relative flex items-start justify-between gap-4">
                 <div>
-                    <div class="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
-                        {{ __('Settings') }}
+                    <div class="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-300/80">
+                        {{ __('Hardware') }}
                     </div>
-                    <flux:heading size="xl" class="mt-2">{{ __('Device & application configuration') }}</flux:heading>
-                    <flux:text class="mt-2 max-w-2xl text-zinc-600 dark:text-zinc-300">
-                        {{ __('Configure the device identity, SIM mapping, and retry behavior used by this Android installation.') }}
+                    <flux:heading size="xl" class="mt-2 text-white">{{ __('Device Settings') }}</flux:heading>
+                    <flux:text class="mt-2 max-w-2xl text-emerald-100/80">
+                        {{ __('Configure radio slots, SIM mapping, and automated retry resilience.') }}
                     </flux:text>
                 </div>
 
-                <div class="rounded-2xl border border-zinc-200 bg-white/80 px-4 py-3 text-right shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80">
-                    <div class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Device') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">{{ __('Ready') }}</div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right shadow-sm backdrop-blur-sm">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-300/60">{{ __('Status') }}</div>
+                    <div class="mt-1 text-2xl font-bold text-white">{{ __('Ready') }}</div>
                 </div>
             </div>
         </div>
 
         <div class="grid gap-4 xl:grid-cols-3">
-            <article class="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 xl:col-span-1">
+            <article class="rounded-3xl border border-zinc-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50 xl:col-span-1">
                 <div class="flex items-center gap-3">
-                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-300">
-                        <span class="text-xl font-semibold">{{ strtoupper(substr($this->operator_identity ?: Auth::user()->name, 0, 1)) }}</span>
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        <span class="text-xl font-bold">{{ strtoupper(substr($this->operator_identity ?: Auth::user()->name, 0, 1)) }}</span>
                     </div>
 
                     <div>
@@ -261,9 +262,9 @@ new #[Title('Device settings')] class extends Component {
 
                         <div class="grid gap-3 sm:grid-cols-2">
                             @foreach ($this->simSlotOptions() as $value => $label)
-                                <label class="flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-4 transition-colors {{ $this->primary_transaction_sim === $value ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/15 dark:bg-indigo-500/10' : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800' }}">
-                                    <span class="text-base font-semibold text-zinc-950 dark:text-zinc-50">{{ $label }}</span>
-                                    <input wire:model="primary_transaction_sim" type="radio" class="h-5 w-5 border-zinc-300 text-indigo-600 focus:ring-indigo-600" value="{{ $value }}">
+                                <label class="flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-4 transition-colors {{ $this->primary_transaction_sim === $value ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/15 dark:bg-emerald-500/10 dark:border-emerald-500/50' : 'border-zinc-100 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-800/30' }}">
+                                    <span class="text-base font-bold text-zinc-900 dark:text-zinc-100">{{ $label }}</span>
+                                    <input wire:model="primary_transaction_sim" type="radio" class="h-5 w-5 border-zinc-300 text-emerald-600 focus:ring-emerald-600" value="{{ $value }}">
                                 </label>
                             @endforeach
                         </div>
@@ -339,8 +340,8 @@ new #[Title('Device settings')] class extends Component {
 
                         <label class="relative inline-flex cursor-pointer items-center">
                             <input wire:model="auto_reschedule_rejected" type="checkbox" class="peer sr-only">
-                            <span class="h-7 w-12 rounded-full bg-zinc-300 transition peer-checked:bg-violet-600"></span>
-                            <span class="absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
+                            <span class="h-7 w-12 rounded-full bg-zinc-200 transition peer-checked:bg-emerald-600 dark:bg-zinc-700"></span>
+                            <span class="absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition peer-checked:translate-x-5"></span>
                         </label>
                     </div>
 

@@ -1,15 +1,16 @@
 package com.statum.plugins.nativescheduler
 
 import android.content.Context
+import android.util.Log
 
 /**
  * Called by NativePHP's generated [PluginBridgeFunctionRegistration.kt] once
  * on every app launch (via the `android.init_function` manifest key).
  *
- * Starts [ArtisanSchedulerService] as a Foreground Service so that the
- * Laravel Artisan command runs every 5 seconds even when the app is
- * backgrounded and the user is not logged in.
+ * Do not start PHP work from this callback. NativePHP invokes plugin init while
+ * the Android shell is still registering bridges, before Laravel extraction,
+ * APP_KEY setup, migrations, and the persistent PHP runtime are ready.
  */
 fun initNativeScheduler(context: Context) {
-    ArtisanSchedulerService.start(context)
+    Log.i("NativeSchedulerInit", "Scheduler startup deferred until Laravel is ready")
 }

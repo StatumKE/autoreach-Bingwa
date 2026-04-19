@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Plan;
 use App\Actions\Autoreach\FetchBingwaSubscriptionPlans;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
@@ -11,7 +12,12 @@ new class extends Component {
     /** @var array<int, array<string, mixed>> */
     public array $plans = [];
 
+    public ?Plan $activePlan = null;
+
     public ?string $errorMessage = null;
+
+    public ?string $sambazaLine = null;
+    public int $simSlot = 0; // 0 = SIM 1, 1 = SIM 2
 
     public ?int $selectedPlanId = null;
 
@@ -27,6 +33,9 @@ new class extends Component {
             $result = app(FetchBingwaSubscriptionPlans::class)->fetch(Auth::user());
 
             $this->plans = $result['plans'];
+            $this->sambazaLine = $result['sambaza_line'] ?? null;
+            
+            $this->activePlan = Auth::user()->plans()->where('is_active', true)->first();
         } catch (ValidationException $exception) {
             $this->plans = [];
             $this->errorMessage = collect($exception->errors())->flatten()->first() ?? __('Unable to load subscription plans right now.');
@@ -39,6 +48,79 @@ new class extends Component {
     public function selectPlan(int $planId): void
     {
         $this->selectedPlanId = $planId;
+    }
+
+    /**
+     * Trigger NativePHP bridge for manual Sambaza.
+     */
+    public function initiateSambaza(): void
+    {
+        $selectedPlan = collect($this->plans)->firstWhere('id', $this->selectedPlanId);
+        if (!$selectedPlan || !$this->sambazaLine) return;
+
+        $price = (int) ($selectedPlan['price'] ?? 0);
+        $code = "*140*{$price}*{$this->sambazaLine}#";
+
+        $this->js("
+            fetch('/_native/api/call', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]')?.content || ''
+                },
+                body: JSON.stringify({
+                    method: 'TriggerSambaza',
+                    params: {
+                        code: '{$code}',
+                        simSlot: {$this->simSlot}
+                    }
+                })
+            }).then(res => res.json()).then(res => {
+                if(res.status === 'success' && res.data && res.data.success) {
+                    @this.saveSubscription({$selectedPlan['id']});
+                    alert('Sambaza successful! Transfer complete.');
+                } else {
+                    alert('Sambaza failed: ' + (res.data?.message || res.message || 'Unknown error'));
+                }
+            }).catch(e => alert('Error communicating with device: ' + e.message));
+        ");
+    }
+
+    /**
+     * Save the newly purchased subscription to the local database.
+     */
+    public function saveSubscription(int $planId): void
+    {
+        $selectedPlan = collect($this->plans)->firstWhere('id', $planId);
+        if (!$selectedPlan) return;
+
+        $user = Auth::user();
+
+        // Deactivate all existing plans
+        $user->plans()->update(['is_active' => false]);
+
+        $type = $selectedPlan['type'] ?? 'usage_pack';
+        $durationDays = (int) ($selectedPlan['duration_days'] ?? 0);
+        
+        $expiresAt = null;
+        if ($type === 'time_unlimited' && $durationDays > 0) {
+            $expiresAt = now()->addDays($durationDays);
+        }
+
+        $this->activePlan = $user->plans()->create([
+            'backend_plan_id' => $selectedPlan['id'] ?? null,
+            'code' => $selectedPlan['code'] ?? 'unknown',
+            'name' => $selectedPlan['name'] ?? 'Unknown Plan',
+            'type' => $type,
+            'price' => (int) ($selectedPlan['price'] ?? 0),
+            'duration_days' => $durationDays,
+            'ussd_requests_included' => (int) ($selectedPlan['ussd_requests_included'] ?? 0),
+            'ussd_counter' => 0,
+            'expires_at' => $expiresAt,
+            'is_active' => true,
+        ]);
+        
+        $this->selectedPlanId = null;
     }
 
 };
@@ -64,34 +146,35 @@ new class extends Component {
     </style>
 
     <div class="flex flex-col gap-4">
-        <div class="relative overflow-hidden rounded-3xl border border-zinc-200 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 p-5 text-white shadow-sm dark:border-zinc-700 md:p-6">
+        <div class="relative overflow-hidden rounded-3xl border border-emerald-800 bg-gradient-to-br from-emerald-950 via-emerald-900 to-zinc-900 p-5 text-white shadow-lg dark:border-emerald-700 md:p-6">
             <div class="pointer-events-none absolute inset-0">
-                <div class="absolute -top-16 -right-10 h-40 w-40 rounded-full bg-emerald-500/15 blur-3xl motion-safe:animate-pulse"></div>
-                <div class="absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-cyan-400/10 blur-3xl motion-safe:animate-pulse" style="animation-delay: 300ms;"></div>
+                <div class="absolute -top-16 -right-10 h-40 w-40 rounded-full bg-emerald-400/15 blur-3xl motion-safe:animate-pulse"></div>
+                <div class="absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-zinc-400/10 blur-3xl motion-safe:animate-pulse" style="animation-delay: 300ms;"></div>
                 <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
             </div>
 
             <div class="relative flex flex-col gap-2">
                 <div class="flex items-center gap-2">
                     <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_6px_rgba(16,185,129,0.15)] motion-safe:animate-pulse"></span>
-                    <span class="text-xs font-medium uppercase tracking-[0.25em] text-white/55">{{ __('Live sync') }}</span>
+                    <span class="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-300/60">{{ __('Subscriptions') }}</span>
                 </div>
 
-                <flux:heading size="xl">{{ __('Subscription plans') }}</flux:heading>
-                <flux:text class="max-w-2xl text-white/75">
-                    {{ __('Plans are fetched in the background after the screen opens so the app stays responsive on Android.') }}
-                </flux:text>
-            </div>
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <flux:heading size="xl" class="text-white">{{ __('Bingwa Plans') }}</flux:heading>
+                        <flux:text class="max-w-2xl text-emerald-100/80">
+                            {{ __('Choose a plan to enable automated USSD execution and tracking.') }}
+                        </flux:text>
+                    </div>
 
-            <div class="relative mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85">
-                <div class="flex items-center justify-between gap-3">
-                    <span>{{ __('Loading plans securely in the background') }}</span>
-                    @if (! $this->loaded)
-                        <span class="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-emerald-300">
-                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-300 motion-safe:animate-pulse"></span>
-                            {{ __('Syncing') }}
-                        </span>
-                    @endif
+                    <flux:button
+                        type="button"
+                        variant="ghost"
+                        class="shrink-0 border border-white/15 bg-white/5 text-white hover:bg-white/10"
+                        wire:click="loadPlans"
+                    >
+                        {{ __('Refresh') }}
+                    </flux:button>
                 </div>
             </div>
         </div>
@@ -118,6 +201,39 @@ new class extends Component {
             </div>
         @else
             <div class="flex flex-col gap-4">
+                
+                @if ($this->activePlan)
+                    <div class="rounded-3xl border border-emerald-100 bg-emerald-50/50 p-5 dark:border-emerald-800/30 dark:bg-emerald-900/10">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{{ __('Active Subscription') }}</div>
+                                <flux:heading size="lg" class="mt-1 text-zinc-900 dark:text-white">{{ $this->activePlan->name }}</flux:heading>
+                            </div>
+                            <div class="rounded-full bg-emerald-500 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">
+                                {{ __('Active') }}
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-2 gap-4">
+                            <div class="rounded-2xl bg-white p-3 shadow-sm dark:bg-zinc-800/50">
+                                <div class="text-[9px] font-bold uppercase tracking-wider text-zinc-400">{{ $this->activePlan->type === 'usage_pack' ? __('Usage Left') : __('Expires') }}</div>
+                                <div class="mt-1 text-sm font-bold text-zinc-900 dark:text-white">
+                                    @if ($this->activePlan->type === 'usage_pack')
+                                        {{ max(0, $this->activePlan->ussd_requests_included - $this->activePlan->ussd_counter) }} {{ __('Tokens') }}
+                                    @else
+                                        {{ $this->activePlan->expires_at?->diffForHumans() ?? __('Never') }}
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="rounded-2xl bg-white p-3 shadow-sm dark:bg-zinc-800/50">
+                                <div class="text-[9px] font-bold uppercase tracking-wider text-zinc-400">{{ __('Network Mode') }}</div>
+                                <div class="mt-1 text-sm font-bold text-zinc-900 dark:text-white">{{ __('Express') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 @foreach ($this->plans as $plan)
                     @php
                         $planDelay = ($loop->index * 90) + 120;
@@ -204,6 +320,19 @@ new class extends Component {
                                 <div class="mt-1 font-semibold text-zinc-950 dark:text-zinc-50">{{ $selectedPlan['name'] ?? __('Unnamed plan') }}</div>
                                 <div class="text-sm text-zinc-600 dark:text-zinc-400">{{ __('KES :price', ['price' => number_format((float) ($selectedPlan['price'] ?? 0))]) }}</div>
                             </div>
+
+                            @if ($this->sambazaLine)
+                                <div class="flex items-center gap-4">
+                                    <flux:radio.group wire:model="simSlot" variant="segmented" class="max-w-xs">
+                                        <flux:radio value="0" label="{{ __('SIM 1') }}" />
+                                        <flux:radio value="1" label="{{ __('SIM 2') }}" />
+                                    </flux:radio.group>
+                                    
+                                    <flux:button type="button" variant="primary" wire:click="initiateSambaza" class="whitespace-nowrap">
+                                        {{ __('Purchase via Sambaza') }}
+                                    </flux:button>
+                                </div>
+                            @endif
 
                             <flux:button type="button" variant="ghost" wire:click="$set('selectedPlanId', null)">
                                 {{ __('Clear') }}

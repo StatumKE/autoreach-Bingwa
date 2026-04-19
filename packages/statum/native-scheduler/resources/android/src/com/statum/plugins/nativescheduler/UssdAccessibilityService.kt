@@ -3,12 +3,11 @@ package com.statum.plugins.nativescheduler
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.graphics.PixelFormat
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -16,35 +15,41 @@ import android.widget.TextView
 import kotlinx.coroutines.channels.Channel
 
 /**
- * Accessibility service that intercepts system USSD dialogs from the Android dialer and
- * automates multi-step ("advanced") USSD sessions invisibly.
+ * Accessibility service that intercepts the system USSD dialog for "advanced" mode offers.
  *
- * The service communicates with [UssdExecutor] via a shared [Channel]. When a USSD dialog
- * appears, it sends the response text back and waits for the next input instruction.
+ * **Architecture**:
+ * - [UssdExecutor] dials the code via ACTION_CALL → system dialer opens a USSD session.
+ * - This service detects the USSD dialog via TYPE_WINDOW_STATE_CHANGED events.
+ * - It sends the dialog text to [responseChannel] → UssdExecutor reads it.
+ * - UssdExecutor calls [injectInput] directly on [instance] → service clicks OK/Send.
+ * - A full-screen overlay hides the raw USSD dialog from the user.
  *
- * An overlay window displays "Processing…" to the user, hiding the raw USSD dialog.
+ * **Required XML config**: res/xml/accessibility_service_config.xml must exist (see companion).
+ * **Manifest**: service entry must declare BIND_ACCESSIBILITY_SERVICE permission and
+ *               reference the XML config via <meta-data android:name="android.accessibilityservice">.
+ *
+ * **User action**: User must enable "Bingwa USSD Automation" once in Android Settings →
+ *                  Accessibility → Installed services.
  */
 class UssdAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "UssdAccessibility"
 
-        /** Live instance — set when the accessibility service connects. */
+        /**
+         * Live singleton set on connect, cleared on destroy.
+         * [UssdExecutor] uses this to call [injectInput] and [dismiss] directly.
+         */
         @Volatile
         var instance: UssdAccessibilityService? = null
 
         /**
-         * Shared channel: UssdExecutor sends input steps, this service receives them
-         * and injects them into the live USSD dialog.
-         */
-        val inputChannel = Channel<String>(Channel.UNLIMITED)
-
-        /**
-         * Shared channel: this service sends the USSD dialog response text back to UssdExecutor.
+         * One-way channel: Service → UssdExecutor.
+         * Sends the USSD dialog text when detected. Unlimited capacity prevents drops.
          */
         val responseChannel = Channel<String>(Channel.UNLIMITED)
 
-        // Known dialer packages across OEMs
+        /** Dialer packages monitored across OEMs (AOSP, Samsung, Google, generic). */
         private val DIALER_PACKAGES = setOf(
             "com.android.phone",
             "com.samsung.android.dialer",
@@ -53,13 +58,25 @@ class UssdAccessibilityService : AccessibilityService() {
         )
     }
 
-    private var overlayView: View? = null
-    private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
+    private var overlayView: TextView? = null
     private val handler = Handler(Looper.getMainLooper())
+    private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
+
+    /**
+     * Track whether we have already sent the current dialog's text to [responseChannel].
+     * This prevents duplicate sends when the dialog fires multiple events for the same state.
+     */
+    @Volatile
+    private var lastSentDialogText: String? = null
+
+    // -------------------------------------------------------------------------
+    // Lifecycle
+    // -------------------------------------------------------------------------
 
     override fun onServiceConnected() {
         instance = this
-        val info = AccessibilityServiceInfo().apply {
+        // Configure programmatically so we can cover all dialer package name variants
+        serviceInfo = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
                     AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
@@ -67,84 +84,117 @@ class UssdAccessibilityService : AccessibilityService() {
             notificationTimeout = 100
             packageNames = DIALER_PACKAGES.toTypedArray()
         }
-        serviceInfo = info
         Log.i(TAG, "Accessibility service connected")
     }
 
+    override fun onInterrupt() {
+        handler.post { hideOverlay() }
+        Log.i(TAG, "Accessibility service interrupted")
+    }
+
+    override fun onDestroy() {
+        handler.post { hideOverlay() }
+        instance = null
+        super.onDestroy()
+    }
+
+    // -------------------------------------------------------------------------
+    // Event handling
+    // -------------------------------------------------------------------------
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
+        if (event.packageName?.toString() !in DIALER_PACKAGES) return
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
         ) return
-        if (event.packageName?.toString() !in DIALER_PACKAGES) return
 
         val root = rootInActiveWindow ?: return
 
-        // Check for a USSD dialog with an EditText (input field) or just a message
-        val editNodes = findNodesByClass(root, "android.widget.EditText")
-        val textNodes = findNodesByClass(root, "android.widget.TextView")
+        // A USSD dialog is identifiable by the presence of a Send/OK button.
+        // We don't require an EditText — confirmation dialogs often have none.
         val sendButton = findSendButton(root)
-
-        if (editNodes.isEmpty() && sendButton == null) {
-            // This isn't a USSD dialog we can interact with
+        if (sendButton == null) {
+            root.recycle()
             return
         }
 
-        // Read the dialog's message text (everything except the input field)
-        val responseText = textNodes
-            .filter { it.text != null && it.text.isNotBlank() }
-            .joinToString("\n") { it.text.toString() }
+        // Extract the dialog message text
+        val textNodes = findNodesByClass(root, "android.widget.TextView")
+        val dialogText = textNodes
+            .mapNotNull { node -> node.text?.toString()?.trim()?.takeIf { it.isNotBlank() } }
+            .joinToString("\n")
             .trim()
 
-        if (responseText.isBlank()) return
+        root.recycle()
 
-        Log.d(TAG, "USSD dialog detected: $responseText")
+        if (dialogText.isBlank()) return
 
-        // Show the processing overlay
+        // Deduplicate: only send once per unique dialog text to avoid flooding the channel
+        if (dialogText == lastSentDialogText) return
+        lastSentDialogText = dialogText
+
+        Log.d(TAG, "USSD dialog detected: $dialogText")
+
         showOverlay()
-
-        // Send the response text to UssdExecutor
-        responseChannel.trySend(responseText)
+        responseChannel.trySend(dialogText)
     }
 
+    // -------------------------------------------------------------------------
+    // Public API — called directly by UssdExecutor
+    // -------------------------------------------------------------------------
+
     /**
-     * Called by [UssdExecutor] to inject text into the open USSD dialog and press Send.
-     * Must be called from the handler thread.
+     * Inject [input] text (may be empty for confirmation-only prompts) and click Send/OK.
+     * Runs on the main thread via [handler] — safe to call from any coroutine.
      */
     fun injectInput(input: String) {
         handler.post {
             val root = rootInActiveWindow ?: run {
-                Log.w(TAG, "No active window to inject input into")
+                Log.w(TAG, "injectInput: no active window")
                 return@post
             }
 
-            val editNode = findNodesByClass(root, "android.widget.EditText").firstOrNull()
-            editNode?.let {
-                val args = android.os.Bundle()
-                args.putCharSequence(
-                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                    input
-                )
-                it.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+            // If the dialog has an input field, populate it
+            if (input.isNotEmpty()) {
+                findNodesByClass(root, "android.widget.EditText").firstOrNull()?.let { editNode ->
+                    val args = Bundle()
+                    args.putCharSequence(
+                        AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                        input
+                    )
+                    editNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                }
             }
 
-            // Click the send/ok button
+            // Click the Send/OK button to submit
             findSendButton(root)?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            root.recycle()
+
+            Log.d(TAG, "injectInput: submitted '$input'")
         }
     }
 
     /**
-     * Dismiss the overlay and cancel any session tracking.
+     * Remove the processing overlay. Call after the USSD session is complete.
      */
     fun dismiss() {
+        lastSentDialogText = null
         handler.post { hideOverlay() }
     }
 
     // -------------------------------------------------------------------------
-    // Node helpers
+    // Node traversal helpers
     // -------------------------------------------------------------------------
 
-    private fun findNodesByClass(root: AccessibilityNodeInfo, className: String): List<AccessibilityNodeInfo> {
+    /**
+     * BFS traversal to find all nodes matching a given [className].
+     * Avoids hardcoded resource IDs which differ across OEMs and Android versions.
+     */
+    private fun findNodesByClass(
+        root: AccessibilityNodeInfo,
+        className: String,
+    ): List<AccessibilityNodeInfo> {
         val result = mutableListOf<AccessibilityNodeInfo>()
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
@@ -158,13 +208,18 @@ class UssdAccessibilityService : AccessibilityService() {
         return result
     }
 
+    /**
+     * Finds the Send/OK button in a USSD dialog.
+     *
+     * Strategy: Match known localized labels first, then fall back to the last button in the
+     * tree (which is typically the "confirm" button by dialog layout convention).
+     */
     private fun findSendButton(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         val buttons = findNodesByClass(root, "android.widget.Button")
-        // Look for Send, OK, or Reply — localized keywords
-        val sendLabels = setOf("send", "ok", "reply", "tuma", "okay")
+        val confirmLabels = setOf("send", "ok", "okay", "reply", "tuma", "confirm", "yes")
         return buttons.firstOrNull { node ->
-            node.text?.toString()?.lowercase() in sendLabels
-        } ?: buttons.lastOrNull() // fallback: last button in dialog
+            node.text?.toString()?.lowercase()?.trim() in confirmLabels
+        } ?: buttons.lastOrNull()
     }
 
     // -------------------------------------------------------------------------
@@ -174,6 +229,7 @@ class UssdAccessibilityService : AccessibilityService() {
     private fun showOverlay() {
         if (overlayView != null) return
         handler.post {
+            if (overlayView != null) return@post // double-check after switch to main thread
             try {
                 val params = WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
@@ -187,19 +243,19 @@ class UssdAccessibilityService : AccessibilityService() {
                     gravity = Gravity.CENTER
                 }
 
-                val view = TextView(applicationContext).apply {
+                overlayView = TextView(applicationContext).apply {
                     text = "⚡ Processing…"
-                    textSize = 18f
-                    setPadding(48, 48, 48, 48)
-                    setBackgroundColor(0xDD000000.toInt())
-                    setTextColor(0xFFFFFFFF.toInt())
+                    textSize = 20f
                     gravity = Gravity.CENTER
+                    setPadding(64, 64, 64, 64)
+                    setBackgroundColor(0xEE111827.toInt()) // dark navy, 93% opacity
+                    setTextColor(0xFFFFFFFF.toInt())
                 }
 
-                overlayView = view
-                windowManager.addView(view, params)
+                windowManager.addView(overlayView, params)
+                Log.d(TAG, "Processing overlay shown")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to show overlay", e)
+                Log.e(TAG, "showOverlay failed", e)
             }
         }
     }
@@ -208,21 +264,12 @@ class UssdAccessibilityService : AccessibilityService() {
         overlayView?.let {
             try {
                 windowManager.removeView(it)
+                Log.d(TAG, "Processing overlay hidden")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to remove overlay", e)
+                Log.e(TAG, "hideOverlay failed", e)
+            } finally {
+                overlayView = null
             }
-            overlayView = null
         }
-    }
-
-    override fun onInterrupt() {
-        hideOverlay()
-        Log.i(TAG, "Accessibility service interrupted")
-    }
-
-    override fun onDestroy() {
-        hideOverlay()
-        instance = null
-        super.onDestroy()
     }
 }

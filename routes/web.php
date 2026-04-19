@@ -11,7 +11,7 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::view('dashboard', 'dashboard')->name('dashboard');
+    Route::livewire('dashboard', 'dashboard')->name('dashboard');
     Route::livewire('offers', 'offers')->name('offers');
     Route::livewire('transactions', 'transactions')->name('transactions');
     Route::livewire('plans', 'plans')->name('plans');

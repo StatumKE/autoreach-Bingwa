@@ -12,16 +12,31 @@ use Illuminate\Console\Command;
 class NextUssdJobCommand extends Command
 {
     /**
+     * Transactions stuck in "processing" longer than this are assumed crashed and recovered.
+     */
+    private const STUCK_THRESHOLD_MINUTES = 2;
+
+    /**
      * Execute the console command.
      *
-     * Outputs a JSON payload consumed by ArtisanSchedulerService.kt to drive the USSD call.
-     * Outputs nothing if there are no pending jobs.
+     * Outputs a single-line JSON payload consumed by ArtisanSchedulerService.kt.
+     * Outputs nothing (exit 0) if there are no pending jobs.
      */
     public function handle(): int
     {
+        // Recover any transactions stuck in "processing" due to a previous crash.
+        // The USSD timeout is 30 seconds, so anything older than 2 minutes is definitively stuck.
+        Transaction::query()
+            ->where('status', 'processing')
+            ->where('updated_at', '<=', now()->subMinutes(self::STUCK_THRESHOLD_MINUTES))
+            ->update([
+                'status' => 'queued',
+                'status_desc' => __('Recovered: previous USSD attempt timed out.'),
+            ]);
+
         $transaction = Transaction::query()
             ->with('offer:id,ussd_code,ussd_mode')
-            ->whereIn('status', ['queued'])
+            ->where('status', 'queued')
             ->whereNotNull('offer_id')
             ->oldest('occurred_at')
             ->first();
@@ -30,13 +45,14 @@ class NextUssdJobCommand extends Command
             return self::SUCCESS;
         }
 
-        $ussdCode = $transaction->offer->ussd_code;
-
         // Replace the PN placeholder with the actual recipient phone number
-        $resolvedCode = str_replace('PN', $transaction->sender_phone, $ussdCode);
+        $resolvedCode = str_replace('PN', $transaction->sender_phone, $transaction->offer->ussd_code);
 
-        // Mark immediately as processing so the next loop iteration skips it
-        $transaction->update(['status' => 'processing', 'status_desc' => __('USSD call in progress.')]);
+        // Mark as processing immediately to prevent double-dispatch on the next cycle
+        $transaction->update([
+            'status' => 'processing',
+            'status_desc' => __('USSD call in progress.'),
+        ]);
 
         $this->line(json_encode([
             'id' => $transaction->id,

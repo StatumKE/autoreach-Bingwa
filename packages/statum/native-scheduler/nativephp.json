@@ -1,6 +1,11 @@
 {
-    "namespace": "NativeScheduler",
-    "bridge_functions": [],
+    "namespace": "BingwaEngine",
+    "bridge_functions": [
+        {
+            "name": "TriggerSambaza",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.TriggerSambaza"
+        }
+    ],
     "android": {
         "min_version": 26,
         "permissions": [
@@ -9,20 +14,14 @@
             "android.permission.POST_NOTIFICATIONS",
             "android.permission.RECEIVE_BOOT_COMPLETED",
             "android.permission.CALL_PHONE",
-            "android.permission.SYSTEM_ALERT_WINDOW"
+            "android.permission.SYSTEM_ALERT_WINDOW",
+            "android.permission.READ_PHONE_STATE"
         ],
-        "init_function": "com.statum.plugins.nativescheduler.initNativeScheduler",
         "services": [
             {
                 "name": "com.statum.plugins.nativescheduler.ArtisanSchedulerService",
                 "exported": false,
                 "foregroundServiceType": "dataSync"
-            },
-            {
-                "name": "com.statum.plugins.nativescheduler.UssdAccessibilityService",
-                "exported": false,
-                "permission": "android.permission.BIND_ACCESSIBILITY_SERVICE",
-                "label": "Bingwa USSD Automation"
             }
         ],
         "receivers": [

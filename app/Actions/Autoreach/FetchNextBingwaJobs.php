@@ -44,6 +44,21 @@ class FetchNextBingwaJobs
         $activeOffers = $user->offers()->where('is_active', true)->get();
         $allJobs = [];
 
+        // Fetch and validate the active subscription plan
+        $activePlan = $user->plans()->where('is_active', true)->first();
+        if ($activePlan) {
+            $shouldDeactivate = false;
+            if ($activePlan->type === 'time_unlimited' && $activePlan->expires_at && now()->isAfter($activePlan->expires_at)) {
+                $shouldDeactivate = true;
+            } elseif ($activePlan->type === 'usage_pack' && $activePlan->ussd_requests_included !== null && $activePlan->ussd_counter >= $activePlan->ussd_requests_included) {
+                $shouldDeactivate = true;
+            }
+            if ($shouldDeactivate) {
+                $activePlan->update(['is_active' => false]);
+                $activePlan = null;
+            }
+        }
+
         foreach ($endpoints as $type => $endpoint) {
             $promises[$type] = Http::async()
                 ->retry(3, 100)
@@ -90,7 +105,7 @@ class FetchNextBingwaJobs
         Utils::settle($promises)->wait();
 
         // Process all gathered jobs in a single database transaction for performance
-        DB::transaction(function () use ($allJobs, $user, $activeOffers, &$synced): void {
+        DB::transaction(function () use ($allJobs, $user, $activeOffers, $activePlan, &$synced): void {
             foreach ($allJobs as $jobGroup) {
                 $type = $jobGroup['type'];
                 $jobs = $jobGroup['jobs'];
@@ -110,7 +125,10 @@ class FetchNextBingwaJobs
                     $statusDesc = __('Pulled from backend job queue.');
                     $offerId = $matchedOffer?->id;
 
-                    if (! $matchedOffer) {
+                    if (! $activePlan) {
+                        $status = 'failed';
+                        $statusDesc = __('No active subscription plan found.');
+                    } elseif (! $matchedOffer) {
                         $status = 'failed';
                         $statusDesc = __("Price mismatch: No active offer found for amount {$amount}.");
                     }

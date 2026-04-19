@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Legacy AndroidManifest.xml for NativePHP plugin.
+
+    This file is merged by AndroidPluginCompiler.php into the main AndroidManifest.xml.
+    It is used here (instead of nativephp.json services[]) because the compiler's
+    buildServiceEntry() does not support <meta-data> inside a <service> block.
+    The <meta-data android:name="android.accessibilityservice"> is required to display
+    service description text to the user in Android Settings → Accessibility.
+
+    The UssdAccessibilityService entry MUST include:
+    1. <intent-filter> with AccessibilityService action — required for the OS to expose
+       the service in Accessibility Settings.
+    2. <meta-data> pointing to the XML config — required for the Settings UI to display
+       the service description and settings.
+
+    IMPORTANT: The resource @xml/ussd_accessibility_service_config referenced here must be
+    placed in the Android Studio project at:
+        app/src/main/res/xml/ussd_accessibility_service_config.xml
+    The file content is provided at:
+        packages/statum/native-scheduler/resources/android/res/xml/ussd_accessibility_service_config.xml
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <service
+            android:name="com.statum.plugins.nativescheduler.UssdAccessibilityService"
+            android:exported="false"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:label="Bingwa USSD Automation">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/ussd_accessibility_service_config" />
+        </service>
+    </application>
+</manifest>

@@ -15,16 +15,24 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.asCoroutineDispatcher
+import java.util.concurrent.Executors
 
 /**
- * A persistent Android Foreground Service that executes the Laravel Artisan
- * "bingwa:sync-transactions" command every 5 seconds using the dedicated
- * PHPBridge worker runtime (independent TSRM context).
+ * A persistent Android Foreground Service that runs the Bingwa background engine.
  *
- * This service starts automatically when the app launches and re-starts after
- * device reboot via [SchedulerBootReceiver]. It survives the app being
- * backgrounded and runs even when the user is not logged in, because it
- * operates at the PHP/Artisan layer, not at the WebView/session layer.
+ * This service implements a fully decoupled concurrency model using two independent loops:
+ * 1. The Sync Poller: Polls the backend for new transactions every 5 seconds.
+ * 2. The USSD Worker: Continuously checks the local SQLite DB for queued transactions
+ *    and executes them.
+ *
+ * Because the underlying NativePHP Ephemeral JNI runtime is NOT thread-safe, all calls to
+ * `phpBridge.nativeEphemeralArtisan` are synchronized using [phpMutex]. This guarantees
+ * the JNI layer never crashes from concurrent PHP execution, while still allowing the USSD
+ * call itself (which suspends for up to 30s) to run concurrently without blocking the Sync Poller.
  */
 class ArtisanSchedulerService : Service() {
 
@@ -33,6 +41,7 @@ class ArtisanSchedulerService : Service() {
         private const val CHANNEL_ID = "bingwa_scheduler"
         private const val NOTIFICATION_ID = 1001
         private const val SYNC_INTERVAL_MS = 5_000L
+        private const val FAST_POLL_INTERVAL_MS = 2_000L
         private const val ARTISAN_COMMAND = "bingwa:sync-transactions"
 
         fun start(context: Context) {
@@ -46,8 +55,17 @@ class ArtisanSchedulerService : Service() {
         }
     }
 
-    private var syncJob: Job? = null
+    private var masterJob: Job? = null
     private val serviceScope = CoroutineScope(Dispatchers.IO)
+    
+    // Dedicated single-thread dispatcher for the PHP runtime.
+    // The PHP JNI layer is NOT thread-safe and requires all calls (boot + artisan)
+    // to occur on the SAME background thread to avoid SIGSEGV.
+    private val phpDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    
+    // Mutex to protect the single-threaded PHP TSRM context from concurrent access
+    private val phpMutex = Mutex()
+    private var phpBridge: PHPBridge? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -68,102 +86,141 @@ class ArtisanSchedulerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startSyncLoop()
-        // Restart the service automatically if killed by the system
+        startDecoupledEngine()
         return START_STICKY
     }
 
     override fun onDestroy() {
-        syncJob?.cancel()
-        Log.i(TAG, "Scheduler service destroyed")
+        masterJob?.cancel()
+        phpBridge?.nativeEphemeralShutdown()
+        Log.i(TAG, "Scheduler service destroyed — ephemeral runtime shut down")
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     // -------------------------------------------------------------------------
-    // Sync loop
+    // Engine Orchestration
     // -------------------------------------------------------------------------
 
-    private fun startSyncLoop() {
-        if (syncJob?.isActive == true) return
+    private fun startDecoupledEngine() {
+        if (masterJob?.isActive == true) return
 
-        syncJob = serviceScope.launch {
-            Log.i(TAG, "Booting ephemeral PHP runtime for scheduler")
-            val phpBridge = PHPBridge(applicationContext)
+        masterJob = serviceScope.launch(phpDispatcher) {
+            Log.i(TAG, "Booting ephemeral PHP runtime for dual-loop engine")
+            val bridge = PHPBridge(applicationContext)
+            phpBridge = bridge
 
-            // Make sure the base PHP environment is initialized
-            phpBridge.ensureRuntimeInitialized()
+            bridge.ensureRuntimeInitialized()
+            val bootstrapScript = "${bridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
 
-            val bootstrapScript = "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
-
-            val booted = phpBridge.nativeEphemeralBoot(bootstrapScript)
+            val booted = bridge.nativeEphemeralBoot(bootstrapScript)
             if (booted != 0) {
-                Log.e(TAG, "Failed to boot ephemeral runtime — scheduler aborting (code=$booted)")
+                Log.e(TAG, "Failed to boot ephemeral runtime — engine aborting (code=$booted)")
                 stopSelf()
                 return@launch
             }
 
-            Log.i(TAG, "Ephemeral runtime ready. Starting sync loop every ${SYNC_INTERVAL_MS}ms")
+            Log.i(TAG, "Ephemeral runtime ready. Launching decoupled Sync and USSD workers.")
 
             val ussdExecutor = UssdExecutor(applicationContext)
-            var heartbeatIntervalMs = 600_000L // 10 minutes
-            var lastHeartbeatTime = 0L
 
-            while (isActive) {
-                val currentTime = System.currentTimeMillis()
+            // Launch Loop A: Sync Poller (Pinned to PHP thread)
+            launch(phpDispatcher) { runSyncPoller(bridge) }
 
-                // 1. Send the heartbeat if the interval has passed
-                if (currentTime - lastHeartbeatTime >= heartbeatIntervalMs) {
-                    try {
-                        phpBridge.nativeEphemeralArtisan("bingwa:heartbeat")
-                        Log.d(TAG, "Heartbeat sent.")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Heartbeat error", e)
+            // Launch Loop B: USSD Worker (Pinned to PHP thread)
+            launch(phpDispatcher) { runUssdWorker(bridge, ussdExecutor) }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Loop A: Sync Poller (Backend -> SQLite)
+    // -------------------------------------------------------------------------
+
+    private suspend fun runSyncPoller(bridge: PHPBridge) {
+        val heartbeatIntervalMs = 600_000L // 10 minutes
+        var lastHeartbeatTime = 0L
+
+        while (kotlinx.coroutines.currentCoroutineContext().isActive) {
+            val currentTime = System.currentTimeMillis()
+
+            if (currentTime - lastHeartbeatTime >= heartbeatIntervalMs) {
+                try {
+                    phpMutex.withLock {
+                        bridge.nativeEphemeralArtisan("bingwa:heartbeat")
                     }
+                    Log.d(TAG, "Heartbeat sent.")
                     lastHeartbeatTime = currentTime
-                }
-
-                // 2. Poll for new transactions from the backend
-                try {
-                    val output = phpBridge.nativeEphemeralArtisan(ARTISAN_COMMAND)
-                    Log.d(TAG, "Sync result: ${output.take(200)}")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Sync error", e)
+                    Log.e(TAG, "Heartbeat error", e)
                 }
-
-                // 3. Execute one pending USSD job (serial — one at a time)
-                try {
-                    val jobJson = phpBridge.nativeEphemeralArtisan("bingwa:next-ussd-job").trim()
-
-                    if (jobJson.isNotEmpty()) {
-                        val job = org.json.JSONObject(jobJson)
-                        val id = job.getInt("id")
-                        val code = job.getString("code")
-                        val mode = job.getString("mode")
-
-                        Log.i(TAG, "Executing USSD job #$id [$mode]: $code")
-
-                        val result = ussdExecutor.execute(code, mode)
-
-                        val status = if (result.success) "completed" else "failed"
-                        val message = result.message.replace("'", "\\'").take(200)
-
-                        phpBridge.nativeEphemeralArtisan(
-                            "bingwa:complete-transaction $id $status --message='$message'"
-                        )
-
-                        Log.i(TAG, "USSD job #$id → $status: ${result.message}")
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "USSD dispatch error", e)
-                }
-
-                delay(SYNC_INTERVAL_MS)
             }
 
-            phpBridge.nativeEphemeralShutdown()
-            Log.i(TAG, "Sync loop ended — ephemeral runtime shut down")
+            try {
+                val output = phpMutex.withLock {
+                    bridge.nativeEphemeralArtisan(ARTISAN_COMMAND)
+                }
+                Log.d(TAG, "Sync result: ${output.take(200)}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Sync error", e)
+            }
+
+            delay(SYNC_INTERVAL_MS)
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Loop B: USSD Worker (SQLite -> Modem)
+    // -------------------------------------------------------------------------
+
+    private suspend fun runUssdWorker(bridge: PHPBridge, ussdExecutor: UssdExecutor) {
+        while (kotlinx.coroutines.currentCoroutineContext().isActive) {
+            try {
+                // 1. Ask PHP for the next local job (Thread-safe lock)
+                val jobJson = phpMutex.withLock {
+                    bridge.nativeEphemeralArtisan("bingwa:next-ussd-job").trim()
+                }
+
+                if (jobJson.isNotEmpty()) {
+                    if (!jobJson.startsWith("{")) {
+                        Log.w(TAG, "Ignoring non-JSON USSD job response: ${jobJson.take(200)}")
+                        delay(FAST_POLL_INTERVAL_MS)
+                        continue
+                    }
+
+                    val job = org.json.JSONObject(jobJson)
+                    val id = job.getInt("id")
+                    val code = job.getString("code")
+                    val mode = job.getString("mode")
+
+                    Log.i(TAG, "Executing USSD job #$id [$mode]: $code")
+
+                    // 2. Execute USSD.
+                    // IMPORTANT: This suspends for up to 30s. Because it is OUTSIDE the phpMutex,
+                    // Loop A (Sync Poller) can continue running normally in the background!
+                    val result = ussdExecutor.execute(code, mode)
+
+                    val status = if (result.success) "completed" else "failed"
+                    val message = result.message.replace("'", "\\'").take(200)
+
+                    // 3. Mark the job completed in PHP (Thread-safe lock)
+                    phpMutex.withLock {
+                        bridge.nativeEphemeralArtisan(
+                            "bingwa:complete-transaction $id $status --message='$message'"
+                        )
+                    }
+
+                    Log.i(TAG, "USSD job #$id → $status: ${result.message}")
+                    
+                    // Proceed immediately to the next job if we just finished one
+                    continue 
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "USSD dispatch error", e)
+            }
+
+            // No jobs found (or an error occurred). Sleep briefly before checking local DB again.
+            delay(FAST_POLL_INTERVAL_MS)
         }
     }
 
@@ -187,7 +244,7 @@ class ArtisanSchedulerService : Service() {
     private fun buildNotification(): Notification =
         Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("Bingwa is running")
-            .setContentText("Syncing transactions in the background…")
+            .setContentText("Syncing and processing transactions…")
             .setSmallIcon(android.R.drawable.ic_popup_sync)
             .setOngoing(true)
             .build()

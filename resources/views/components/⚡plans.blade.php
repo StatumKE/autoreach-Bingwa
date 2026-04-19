@@ -153,28 +153,28 @@ new class extends Component {
                 <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
             </div>
 
-            <div class="relative flex flex-col gap-2">
+            <div class="relative flex flex-col gap-3">
                 <div class="flex items-center gap-2">
                     <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_6px_rgba(16,185,129,0.15)] motion-safe:animate-pulse"></span>
-                    <span class="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-300/60">{{ __('Subscriptions') }}</span>
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">{{ __('Subscriptions') }}</span>
                 </div>
 
-                <div class="flex items-start justify-between gap-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <flux:heading size="xl" class="text-white">{{ __('Bingwa Plans') }}</flux:heading>
-                        <flux:text class="max-w-2xl text-emerald-100/80">
+                        <flux:heading size="xl" class="text-white font-bold tracking-tight">{{ __('Bingwa Plans') }}</flux:heading>
+                        <flux:text class="mt-1 max-w-lg text-emerald-100/70 text-sm leading-relaxed">
                             {{ __('Choose a plan to enable automated USSD execution and tracking.') }}
                         </flux:text>
                     </div>
 
-                    <flux:button
+                    <button
                         type="button"
-                        variant="ghost"
-                        class="shrink-0 border border-white/15 bg-white/5 text-white hover:bg-white/10"
                         wire:click="loadPlans"
+                        class="flex h-10 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 text-xs font-bold text-white transition-all hover:bg-white/10 active:scale-95 sm:h-12"
                     >
-                        {{ __('Refresh') }}
-                    </flux:button>
+                        <flux:icon.arrow-path class="size-4 text-emerald-400" />
+                        {{ __('Refresh Plans') }}
+                    </button>
                 </div>
             </div>
         </div>
@@ -313,30 +313,36 @@ new class extends Component {
                 @endphp
 
                 @if (is_array($selectedPlan))
-                    <div class="sticky bottom-4 z-10 rounded-3xl border border-zinc-200 bg-white/95 p-4 shadow-lg backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95">
-                        <div class="flex items-center justify-between gap-4">
-                            <div>
-                                <div class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Selected plan') }}</div>
-                                <div class="mt-1 font-semibold text-zinc-950 dark:text-zinc-50">{{ $selectedPlan['name'] ?? __('Unnamed plan') }}</div>
-                                <div class="text-sm text-zinc-600 dark:text-zinc-400">{{ __('KES :price', ['price' => number_format((float) ($selectedPlan['price'] ?? 0))]) }}</div>
-                            </div>
-
-                            @if ($this->sambazaLine)
-                                <div class="flex items-center gap-4">
-                                    <flux:radio.group wire:model="simSlot" variant="segmented" class="max-w-xs">
-                                        <flux:radio value="0" label="{{ __('SIM 1') }}" />
-                                        <flux:radio value="1" label="{{ __('SIM 2') }}" />
-                                    </flux:radio.group>
-                                    
-                                    <flux:button type="button" variant="primary" wire:click="initiateSambaza" class="whitespace-nowrap">
-                                        {{ __('Purchase via Sambaza') }}
-                                    </flux:button>
+                    <div class="sticky bottom-4 z-20 mx-auto w-full max-w-lg">
+                        <div class="rounded-3xl border border-zinc-200/50 bg-white/95 p-5 shadow-2xl backdrop-blur-xl dark:border-zinc-700/50 dark:bg-zinc-900/95">
+                            <div class="flex flex-col gap-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex flex-col">
+                                        <div class="text-[10px] font-black uppercase tracking-wider text-zinc-500/80">{{ __('Selected plan') }}</div>
+                                        <div class="text-base font-bold text-zinc-900 dark:text-zinc-50">{{ $selectedPlan['name'] ?? __('Unnamed plan') }}</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-lg font-black text-emerald-600 dark:text-emerald-400">KES {{ number_format((float) ($selectedPlan['price'] ?? 0)) }}</div>
+                                    </div>
                                 </div>
-                            @endif
 
-                            <flux:button type="button" variant="ghost" wire:click="$set('selectedPlanId', null)">
-                                {{ __('Clear') }}
-                            </flux:button>
+                                @if ($this->sambazaLine)
+                                    <div class="flex flex-col gap-3">
+                                        <flux:radio.group wire:model="simSlot" variant="segmented" class="w-full">
+                                            <flux:radio value="0" label="{{ __('SIM 1') }}" />
+                                            <flux:radio value="1" label="{{ __('SIM 2') }}" />
+                                        </flux:radio.group>
+                                        
+                                        <flux:button type="button" variant="primary" wire:click="initiateSambaza" class="h-12 w-full text-base font-bold shadow-lg shadow-emerald-500/20">
+                                            {{ __('Purchase via Sambaza') }}
+                                        </flux:button>
+                                    </div>
+                                @endif
+
+                                <flux:button type="button" variant="ghost" wire:click="$set('selectedPlanId', null)" class="w-full text-xs font-bold text-zinc-500">
+                                    {{ __('Cancel selection') }}
+                                </flux:button>
+                            </div>
                         </div>
                     </div>
                 @endif

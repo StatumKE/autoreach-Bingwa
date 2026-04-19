@@ -149,81 +149,90 @@ new #[Title('Dashboard')] class extends Component
     }
 }; ?>
 
-<div class="flex flex-col gap-6 p-4 md:p-6 pb-20">
+<div class="flex flex-col gap-6 p-4 md:p-6 pb-24 bg-zinc-50/50 dark:bg-zinc-950/50 min-h-screen">
     <!-- Header -->
-    <div class="flex items-center justify-between">
-        <div class="flex items-center gap-4">
-            <div>
-                <flux:text class="text-sm font-medium text-zinc-500 dark:text-zinc-400">{{ $this->greeting }},</flux:text>
-                <flux:heading size="xl" class="mt-0.5">{{ auth()->user()->name }}</flux:heading>
-            </div>
+    <div class="flex flex-col pt-2">
+        <flux:text class="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500/80 dark:text-zinc-400/60">{{ $this->greeting }}</flux:text>
+        <div class="flex items-center justify-between mt-0.5">
+            <flux:heading size="xl" class="text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">{{ auth()->user()->name }}</flux:heading>
+            <button wire:click="refreshData" class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200/50 transition-all hover:bg-zinc-50 active:scale-90 dark:bg-zinc-900 dark:ring-zinc-800">
+                <flux:icon.arrow-path class="size-5 text-zinc-500" />
+            </button>
         </div>
     </div>
 
     <!-- Stat Cards -->
     <div class="grid grid-cols-3 gap-3">
         <!-- Successful -->
-        <div class="flex flex-col items-center justify-center rounded-2xl bg-emerald-900/95 p-4 text-center shadow-lg dark:bg-emerald-800">
-            <div class="text-xl font-bold text-white">{{ $this->stats['successful'] }}</div>
-            <div class="text-[10px] font-medium uppercase tracking-wider text-emerald-200/80">{{ __('Successful') }}</div>
-        </div>
+        <a href="{{ route('transactions', ['filter' => 'success']) }}" wire:navigate class="group relative flex flex-col items-center justify-center rounded-[2.5rem] bg-emerald-600 p-4 text-center shadow-lg shadow-emerald-500/20 transition-all active:scale-95 dark:bg-emerald-700">
+            <div class="absolute inset-0 rounded-[2.5rem] bg-white/10 opacity-0 transition-opacity group-hover:opacity-100"></div>
+            <div class="text-2xl font-black text-white leading-tight tracking-tighter">{{ number_format($this->stats['successful']) }}</div>
+            <div class="text-[8px] font-black uppercase tracking-widest text-emerald-100/70 mt-1">{{ __('SUCCESS') }}</div>
+        </a>
 
         <!-- Failed -->
-        <div class="flex flex-col items-center justify-center rounded-2xl bg-rose-100 p-4 text-center shadow-sm dark:bg-rose-900/30">
-            <div class="text-xl font-bold text-rose-600 dark:text-rose-400">{{ $this->stats['failed'] }}</div>
-            <div class="text-[10px] font-medium uppercase tracking-wider text-rose-500/80 dark:text-rose-400/80">{{ __('Failed') }}</div>
-        </div>
+        <a href="{{ route('transactions', ['filter' => 'failed']) }}" wire:navigate class="group relative flex flex-col items-center justify-center rounded-[2.5rem] bg-white p-4 text-center shadow-sm ring-1 ring-zinc-200/50 transition-all active:scale-95 dark:bg-zinc-900 dark:ring-zinc-800">
+            <div class="absolute inset-0 rounded-[2.5rem] bg-rose-500/5 opacity-0 transition-opacity group-hover:opacity-100"></div>
+            <div class="text-2xl font-black text-rose-600 dark:text-rose-400 leading-tight tracking-tighter">{{ number_format($this->stats['failed']) }}</div>
+            <div class="text-[8px] font-black uppercase tracking-widest text-rose-500/50 mt-1">{{ __('FAILED') }}</div>
+        </a>
 
         <!-- Tokens -->
-        <div class="flex flex-col items-center justify-center rounded-2xl bg-sky-100 p-4 text-center shadow-sm dark:bg-sky-900/30">
-            <div class="text-lg font-bold text-sky-900 dark:text-sky-100">{{ $this->tokenText }}</div>
-            <div class="text-[10px] font-medium uppercase tracking-wider text-sky-700/80 dark:text-sky-400/80">{{ __('Plan Details') }}</div>
-        </div>
+        <a href="{{ route('plans') }}" wire:navigate class="group relative flex flex-col items-center justify-center rounded-[2.5rem] bg-white p-4 text-center shadow-sm ring-1 ring-zinc-200/50 transition-all active:scale-95 dark:bg-zinc-900 dark:ring-zinc-800">
+            <div class="absolute inset-0 rounded-[2.5rem] bg-sky-500/5 opacity-0 transition-opacity group-hover:opacity-100"></div>
+            <div class="text-lg font-black text-sky-900 dark:text-sky-100 leading-tight tracking-tighter">{{ $this->tokenText }}</div>
+            <div class="text-[8px] font-black uppercase tracking-widest text-sky-700/50 dark:text-sky-400/50 mt-1">{{ __('TOKENS') }}</div>
+        </a>
     </div>
 
     <!-- Airtime Bar -->
-    <div class="flex items-center justify-between rounded-2xl bg-zinc-100/80 p-4 dark:bg-zinc-800/50">
-        <div class="flex items-center gap-6">
-            <div class="flex flex-col">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{{ __('Airtime Used Today') }}</div>
-                <div class="mt-0.5 flex items-center gap-2">
-                    <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                        Ksh {{ $this->showBalance ? number_format($this->airtime['used_today'], 2) : '****' }}
+    <div class="relative overflow-hidden rounded-[2.5rem] bg-white p-6 shadow-sm ring-1 ring-zinc-200/50 dark:bg-zinc-900 dark:ring-zinc-800">
+        <div class="absolute top-0 right-0 p-4 opacity-10">
+            <flux:icon.banknotes class="size-12 text-zinc-900 dark:text-white" />
+        </div>
+        
+        <div class="flex items-center gap-8">
+            <div class="flex flex-col gap-1">
+                <div class="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">{{ __('Used Today') }}</div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">
+                        Ksh {{ $this->showBalance ? number_format($this->airtime['used_today'], 2) : '••••' }}
                     </span>
-                    <button wire:click="toggleBalance" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                    <button wire:click="toggleBalance" class="text-zinc-300 hover:text-zinc-500 transition-colors">
                         @if($this->showBalance) <flux:icon.eye class="size-4" /> @else <flux:icon.eye-slash class="size-4" /> @endif
                     </button>
                 </div>
             </div>
-            <div class="h-8 w-px bg-zinc-300 dark:bg-zinc-700"></div>
-            <div class="flex flex-col">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{{ __('Airtime Balance') }}</div>
-                <div class="mt-0.5 flex items-center gap-2">
-                    <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                        Ksh {{ $this->showBalance ? number_format($this->airtime['balance'], 2) : '****' }}
+
+            <div class="h-10 w-px bg-zinc-200 dark:bg-zinc-800"></div>
+
+            <div class="flex flex-col gap-1">
+                <div class="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">{{ __('Balance') }}</div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
+                        Ksh {{ $this->showBalance ? number_format($this->airtime['balance'], 2) : '••••' }}
                     </span>
-                    <button wire:click="toggleBalance" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
-                        @if($this->showBalance) <flux:icon.eye class="size-4" /> @else <flux:icon.eye-slash class="size-4" /> @endif
-                    </button>
                 </div>
             </div>
         </div>
-        <button wire:click="refreshData" class="rounded-full p-1.5 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700">
-            <flux:icon.arrow-path class="size-5" />
-        </button>
     </div>
 
     <!-- Chart -->
-    <div class="flex flex-col rounded-3xl bg-zinc-50/50 p-4 shadow-sm dark:bg-zinc-900/20 border border-zinc-100 dark:border-zinc-800">
-        <flux:heading size="sm" class="text-emerald-600 dark:text-emerald-400 font-bold tracking-tight">
-            {{ __("This week's commission (Ksh. :amount)", ['amount' => number_format($this->commissionData['total'], 2)]) }}
-        </flux:heading>
+    <div class="flex flex-col rounded-[2.5rem] bg-white p-6 shadow-sm ring-1 ring-zinc-200/50 dark:bg-zinc-900 dark:ring-zinc-800">
+        <div class="flex items-center justify-between mb-4">
+            <flux:heading size="sm" class="text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+                {{ __("Weekly Performance") }}
+            </flux:heading>
+            <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-lg">
+                Ksh {{ number_format($this->commissionData['total'], 2) }}
+            </span>
+        </div>
 
-        <div class="mt-4 h-32 w-full">
+        <div class="h-32 w-full mt-2">
             <svg viewBox="0 0 700 130" class="h-full w-full overflow-visible" preserveAspectRatio="none">
                 <defs>
                     <linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="#10b981" stop-opacity="0.3" />
+                        <stop offset="0%" stop-color="#10b981" stop-opacity="0.2" />
                         <stop offset="100%" stop-color="#10b981" stop-opacity="0" />
                     </linearGradient>
                 </defs>
@@ -239,60 +248,60 @@ new #[Title('Dashboard')] class extends Component
                     }
                 @endphp
 
-                <!-- Area fill -->
                 <path d="{{ $path }} L 600 130 L 0 130 Z" fill="url(#gradient)" />
-                
-                <!-- Line -->
-                <path d="{{ $path }}" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="{{ $path }}" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
 
-                <!-- Dots -->
                 @foreach($points as $i => $val)
                     @php
                         $x = $i * 100;
                         $y = 120 - ($val / $max * 100);
                     @endphp
-                    <circle cx="{{ $x }}" cy="{{ $y }}" r="4" fill="#ef4444" />
+                    <circle cx="{{ $x }}" cy="{{ $y }}" r="4.5" fill="white" stroke="#10b981" stroke-width="2.5" class="dark:fill-zinc-900" />
                 @endforeach
             </svg>
         </div>
-        <div class="mt-2 flex justify-between px-1 text-[10px] font-bold uppercase tracking-tighter text-zinc-400">
-            <span>{{ __('Sun') }}</span>
-            <span>{{ __('Mon') }}</span>
-            <span>{{ __('Tue') }}</span>
-            <span>{{ __('Wed') }}</span>
-            <span>{{ __('Thu') }}</span>
-            <span>{{ __('Fri') }}</span>
-            <span>{{ __('Sat') }}</span>
+        <div class="mt-4 flex justify-between px-1 text-[9px] font-black uppercase tracking-[0.15em] text-zinc-400">
+            <span>{{ __('SUN') }}</span>
+            <span>{{ __('MON') }}</span>
+            <span>{{ __('TUE') }}</span>
+            <span>{{ __('WED') }}</span>
+            <span>{{ __('THU') }}</span>
+            <span>{{ __('FRI') }}</span>
+            <span>{{ __('SAT') }}</span>
         </div>
     </div>
 
     <!-- Recent Transactions -->
-    <div class="flex flex-col gap-4" wire:poll.5s>
-        <div class="flex items-center justify-between">
-            <flux:heading size="lg" class="text-zinc-900 dark:text-zinc-50">{{ __('Recent Transactions') }}</flux:heading>
-            <flux:button variant="ghost" size="sm" :href="route('transactions')" wire:navigate class="text-emerald-600 dark:text-emerald-400">
-                {{ __('All') }} <flux:icon.arrow-long-right class="ml-1 size-4" />
+    <div class="flex flex-col gap-4" wire:poll.10s>
+        <div class="flex items-center justify-between px-1">
+            <flux:heading size="lg" class="text-xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">{{ __('Activity') }}</flux:heading>
+            <flux:button variant="ghost" size="sm" :href="route('transactions')" wire:navigate class="text-xs font-bold text-zinc-500 hover:text-emerald-600 transition-colors">
+                {{ __('View All') }}
             </flux:button>
         </div>
 
         <div class="flex flex-col gap-3">
             @forelse($this->recentTransactions as $tx)
-                <div class="flex items-center gap-4 rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                        <flux:icon.check class="size-5" />
+                <div class="flex items-center gap-4 rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-zinc-200/50 dark:bg-zinc-900 dark:ring-zinc-800 transition-transform active:scale-[0.98]">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                        @if($tx->status === 'completed')
+                            <flux:icon.check-circle class="size-6 text-emerald-500" />
+                        @else
+                            <flux:icon.clock class="size-6 text-zinc-400" />
+                        @endif
                     </div>
                     <div class="flex flex-1 flex-col">
-                        <div class="text-sm font-bold text-zinc-900 dark:text-zinc-100">{{ $tx->sender_name ?: $tx->sender_phone }}</div>
-                        <div class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{{ $tx->offer_name }}</div>
+                        <div class="text-sm font-black text-zinc-900 dark:text-zinc-50">{{ $tx->sender_name ?: $tx->sender_phone }}</div>
+                        <div class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{{ $tx->occurred_at->diffForHumans() }}</div>
                     </div>
                     <div class="flex flex-col items-end">
-                        <div class="text-[10px] font-medium text-zinc-500">{{ $tx->occurred_at->diffForHumans() }}</div>
-                        <div class="text-sm font-bold text-emerald-600 dark:text-emerald-400">Ksh {{ number_format($tx->amount) }}</div>
+                        <div class="text-base font-black text-zinc-900 dark:text-zinc-50">Ksh {{ number_format($tx->amount) }}</div>
+                        <div class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{{ $tx->offer_name }}</div>
                     </div>
                 </div>
             @empty
-                <div class="rounded-2xl border border-dashed border-zinc-200 p-8 text-center text-zinc-500 dark:border-zinc-700">
-                    {{ __('No transactions yet.') }}
+                <div class="rounded-[2.5rem] border border-dashed border-zinc-200 p-12 text-center dark:border-zinc-800">
+                    <div class="text-sm font-bold text-zinc-400">{{ __('No recent activity found.') }}</div>
                 </div>
             @endforelse
         </div>

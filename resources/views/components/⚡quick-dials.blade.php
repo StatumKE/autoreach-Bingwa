@@ -252,34 +252,46 @@ new #[Title('Quick Dial')] class extends Component {
 
 <section class="w-full p-4 md:p-6">
     <div class="flex flex-col gap-5">
-        <div class="space-y-2">
-            <flux:heading size="xl" class="text-zinc-950 dark:text-zinc-50">{{ __('Quick Dial') }}</flux:heading>
-            <div class="text-xs font-bold uppercase tracking-[0.28em] text-zinc-500 dark:text-zinc-400">
-                {{ __('Directly award offers to customers') }}
+        <div class="relative overflow-hidden rounded-[2rem] border border-emerald-800 bg-gradient-to-br from-emerald-950 via-emerald-900 to-zinc-900 p-6 text-white shadow-xl dark:border-emerald-700/50">
+            <div class="pointer-events-none absolute inset-0">
+                <div class="absolute -top-12 -right-12 h-48 w-48 rounded-full bg-emerald-400/10 blur-3xl motion-safe:animate-pulse"></div>
+                <div class="absolute -bottom-16 -left-12 h-44 w-44 rounded-full bg-zinc-400/5 blur-3xl motion-safe:animate-pulse" style="animation-delay: 240ms;"></div>
+                <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+            </div>
+
+            <div class="relative flex items-center justify-between gap-4">
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/60">{{ __('Ad-Hoc Awards') }}</span>
+                    <flux:heading size="xl" class="mt-1 text-white font-bold tracking-tight">{{ __('Quick Dial') }}</flux:heading>
+                </div>
+
+                <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-emerald-400 shadow-sm backdrop-blur-sm">
+                    <flux:icon.phone class="size-6" />
+                </div>
             </div>
         </div>
 
-        <div class="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="text-xs font-bold uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">
+        <div class="rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50">
+            <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400/80">
                 {{ __('Customer information') }}
             </div>
 
-            <div class="mt-4 flex gap-3">
-                <div class="relative min-w-0 flex-1">
-                    <flux:icon.device-phone-mobile class="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-zinc-400" />
+            <div class="mt-4 flex flex-col sm:flex-row gap-3">
+                <div class="relative flex-1">
+                    <flux:icon.device-phone-mobile class="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-zinc-400" />
                     <input
                         wire:model.live.debounce.500ms="customerPhone"
                         type="tel"
                         inputmode="tel"
                         autocomplete="tel"
                         placeholder="07XXXXXXXX"
-                        class="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 text-base font-semibold text-zinc-950 outline-none transition focus:border-zinc-950 focus:bg-white dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50 dark:focus:border-zinc-300"
+                        class="h-14 w-full rounded-2xl border border-zinc-100 bg-zinc-50 pl-12 pr-4 text-base font-bold text-zinc-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-50 dark:focus:border-emerald-500"
                     >
                 </div>
 
-                <flux:button type="button" variant="primary" class="h-12 shrink-0 rounded-2xl px-5 font-bold uppercase tracking-[0.18em]" wire:click="searchContacts">
+                <button type="button" class="h-14 rounded-2xl bg-zinc-900 px-6 font-black uppercase tracking-widest text-white shadow-lg shadow-zinc-950/20 transition-all active:scale-95 dark:bg-emerald-600 dark:shadow-emerald-500/20" wire:click="searchContacts">
                     {{ __('Contacts') }}
-                </flux:button>
+                </button>
             </div>
 
             @if ($this->normalizedCustomerPhone !== '')
@@ -327,58 +339,59 @@ new #[Title('Quick Dial')] class extends Component {
             @endif
         </div>
 
-        <div class="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
-                <div class="text-xs font-bold uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">
+        <div class="overflow-hidden rounded-[2rem] border border-zinc-100 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50">
+            <div class="border-b border-zinc-100 px-6 py-5 dark:border-zinc-800">
+                <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400/80">
                     {{ __('Available offers') }}
                 </div>
             </div>
 
             @if ($awardMessage)
-                <div class="mx-5 mt-5 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
+                <div class="mx-6 mt-6 rounded-2xl bg-emerald-50 px-4 py-4 text-xs font-bold text-emerald-700 border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30">
                     {{ $awardMessage }}
                 </div>
             @endif
 
             @if ($awardError)
-                <div class="mx-5 mt-5 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800 dark:bg-rose-500/10 dark:text-rose-200">
+                <div class="mx-6 mt-6 rounded-2xl bg-rose-50 px-4 py-4 text-xs font-bold text-rose-700 border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30">
                     {{ $awardError }}
                 </div>
             @endif
 
             @if ($this->activeOffers->isEmpty())
                 <div class="px-6 py-12 text-center">
-                    <div class="text-base font-bold text-zinc-500 dark:text-zinc-400">
+                    <div class="text-base font-bold text-zinc-400 dark:text-zinc-500 italic">
                         {{ __('No offers available for awarding.') }}
-                    </div>
-                    <div class="mt-2 text-sm text-zinc-400 dark:text-zinc-500">
-                        {{ __('Please add active offers first.') }}
                     </div>
                 </div>
             @else
-                <div class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                <div class="divide-y divide-zinc-100 dark:divide-zinc-800/50">
                     @foreach ($this->activeOffers as $offer)
-                        <article class="flex items-center justify-between gap-4 px-5 py-4">
+                        <article class="flex items-center justify-between gap-4 px-6 py-5 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
                             <div class="min-w-0">
-                                <div class="truncate text-base font-bold text-zinc-950 dark:text-zinc-50">{{ $offer->name }}</div>
-                                <div class="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                                    <span>{{ $offer->category }}</span>
-                                    <span class="h-1 w-1 rounded-full bg-zinc-300"></span>
-                                    <span>{{ __('Ksh :price', ['price' => number_format($offer->price)]) }}</span>
-                                    <span class="h-1 w-1 rounded-full bg-zinc-300"></span>
-                                    <span>{{ str_replace('_', ' ', $offer->ussd_mode) }}</span>
+                                <div class="truncate text-base font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">{{ $offer->name }}</div>
+                                <div class="mt-1.5 flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex items-center rounded-lg bg-zinc-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-500 border border-zinc-100 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700/50">
+                                        {{ $offer->category }}
+                                    </span>
+                                    <span class="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                        KES {{ number_format($offer->price) }}
+                                    </span>
                                 </div>
                             </div>
 
-                            <flux:button
+                            <button
                                 type="button"
-                                variant="primary"
-                                class="shrink-0 rounded-2xl"
-                                :disabled="! $this->canAward || $selectedOfferId === $offer->id"
+                                @disabled(! $this->canAward || $selectedOfferId === $offer->id)
                                 wire:click="awardOffer({{ $offer->id }})"
+                                @class([
+                                    'h-10 rounded-xl px-4 text-xs font-black uppercase tracking-widest transition-all active:scale-95',
+                                    'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' => $this->canAward && $selectedOfferId !== $offer->id,
+                                    'bg-zinc-100 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600' => ! $this->canAward || $selectedOfferId === $offer->id,
+                                ])
                             >
                                 {{ $selectedOfferId === $offer->id ? __('Sending') : __('Award') }}
-                            </flux:button>
+                            </button>
                         </article>
                     @endforeach
                 </div>

@@ -3,6 +3,7 @@
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -11,6 +12,12 @@ new #[Title('Transactions')] class extends Component
     use WithPagination;
 
     public bool $loaded = false;
+
+    #[Url(as: 'q')]
+    public string $search = '';
+
+    #[Url]
+    public string $filter = 'all';
 
     public ?string $errorMessage = null;
 
@@ -33,6 +40,18 @@ new #[Title('Transactions')] class extends Component
 
         return Transaction::query()
             ->where('user_id', Auth::id())
+            ->when($this->filter !== 'all', function ($query) {
+                $status = $this->filter === 'success' ? 'completed' : $this->filter;
+                $query->where('status', $status);
+            })
+            ->when($this->search !== '', function ($query) {
+                $query->where(function ($q) {
+                    $q->where('sender_phone', 'like', '%' . $this->search . '%')
+                        ->orWhere('sender_name', 'like', '%' . $this->search . '%')
+                        ->orWhere('mpesa_code', 'like', '%' . $this->search . '%')
+                        ->orWhere('transaction_id', 'like', '%' . $this->search . '%');
+                });
+            })
             ->orderBy('id', 'desc')
             ->paginate(10);
     }
@@ -54,159 +73,155 @@ new #[Title('Transactions')] class extends Component
 };
 ?>
 
-<section class="w-full p-4 md:p-6" wire:init="loadTransactions" wire:poll.10s="loadTransactions">
+<div class="flex flex-col gap-6 p-4 md:p-6 pb-24 bg-zinc-50/50 dark:bg-zinc-950/50 min-h-screen">
     <style>
         @keyframes transactions-reveal {
-            from {
-                opacity: 0;
-                transform: translateY(12px) scale(0.98);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
+            from { opacity: 0; transform: translateY(12px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
-
-        .transactions-reveal {
-            animation: transactions-reveal 420ms ease-out both;
-        }
+        .transactions-reveal { animation: transactions-reveal 420ms ease-out both; }
     </style>
 
-    <div class="flex flex-col gap-4">
-        <div class="relative overflow-hidden rounded-3xl border border-emerald-800 bg-gradient-to-br from-emerald-950 via-emerald-900 to-zinc-900 p-5 text-white shadow-lg dark:border-emerald-700 md:p-6">
-            <div class="pointer-events-none absolute inset-0">
-                <div class="absolute -top-16 -right-10 h-40 w-40 rounded-full bg-emerald-400/15 blur-3xl motion-safe:animate-pulse"></div>
-                <div class="absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-zinc-400/10 blur-3xl motion-safe:animate-pulse" style="animation-delay: 300ms;"></div>
-                <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
-            </div>
+    <div class="flex flex-col pt-2">
+        <flux:text class="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500/80 dark:text-zinc-400/60">{{ __('Ledger') }}</flux:text>
+        <flux:heading size="xl" class="text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">{{ __('Transactions') }}</flux:heading>
+    </div>
 
-            <div class="relative flex flex-col gap-3">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <flux:heading size="xl" class="text-white">{{ __('Transactions') }}</flux:heading>
-                    </div>
+    <!-- Search & Filters -->
+    <div class="flex flex-col gap-4">
+        <flux:input 
+            wire:model.live.debounce.400ms="search" 
+            placeholder="{{ __('Search phone, name, or M-PESA code...') }}" 
+            class="rounded-[2rem] shadow-sm bg-white dark:bg-zinc-900 ring-1 ring-zinc-200/50 dark:ring-zinc-800"
+        >
+            <x-slot name="icon">
+                <flux:icon.magnifying-glass class="text-zinc-400" />
+            </x-slot>
+        </flux:input>
+
+        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            @foreach (['all' => __('All'), 'success' => __('Success'), 'failed' => __('Failed'), 'queued' => __('Queued')] as $value => $label)
+                <flux:button
+                    type="button"
+                    class="shrink-0 rounded-full px-5 text-[10px] font-black uppercase tracking-widest transition-all"
+                    variant="{{ $this->filter === $value ? 'primary' : 'ghost' }}"
+                    wire:click="$set('filter', '{{ $value }}')"
+                    size="sm"
+                >
+                    {{ $label }}
+                </flux:button>
+            @endforeach
+        </div>
+    </div>
+
+    @if (! $this->loaded)
+        <div class="flex flex-col gap-4">
+            @for ($i = 0; $i < 4; $i++)
+                <div class="relative overflow-hidden rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-zinc-200/50 dark:bg-zinc-900 dark:ring-zinc-800">
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-zinc-100/50 to-transparent motion-safe:animate-[pulse_1.8s_ease-in-out_infinite] dark:via-zinc-800/50"></div>
+                    <div class="relative h-4 w-24 rounded bg-zinc-100 dark:bg-zinc-800"></div>
+                    <div class="relative mt-4 h-6 w-40 rounded bg-zinc-100 dark:bg-zinc-800"></div>
+                    <div class="relative mt-4 h-16 w-full rounded bg-zinc-50 dark:bg-zinc-800/50"></div>
                 </div>
+            @endfor
+        </div>
+    @elseif ($this->errorMessage)
+        <div class="rounded-2xl bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400 font-bold border border-rose-500/20">
+            {{ $this->errorMessage }}
+        </div>
+    @elseif ($this->transactions()->isEmpty())
+        <div class="flex flex-col items-center justify-center rounded-[2.5rem] bg-white p-12 text-center shadow-sm ring-1 ring-zinc-200/50 dark:bg-zinc-900 dark:ring-zinc-800">
+            <div class="flex h-16 w-16 items-center justify-center rounded-3xl bg-zinc-50 text-emerald-600 dark:bg-zinc-800 dark:text-emerald-400 mb-6">
+                <flux:icon.banknotes class="size-8" />
+            </div>
+            <flux:heading size="lg" class="text-zinc-900 dark:text-zinc-100 font-black tracking-tight">
+                {{ __('Empty Ledger') }}
+            </flux:heading>
+            <flux:text class="mt-2 text-sm text-zinc-500 max-w-[200px] mx-auto">
+                {{ __('Once payments arrive, the transaction history will appear here.') }}
+            </flux:text>
+        </div>
+    @else
+        <div class="flex flex-col gap-4">
+            @foreach ($this->transactions() as $transaction)
+                @php
+                    $status = strtolower((string) ($transaction->status ?? ''));
+                    $isSuccess = in_array($status, ['completed', 'successful']);
+                    $isFailed = $status === 'failed';
+                    $delay = ($loop->index * 60) + 100;
+                @endphp
+                <article class="transactions-reveal group relative overflow-hidden rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-zinc-200/50 transition-all hover:shadow-md dark:bg-zinc-900 dark:ring-zinc-800" style="animation-delay: {{ $delay }}ms">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 space-y-3">
+                            <div class="flex items-center gap-3">
+                                <flux:heading class="text-lg font-black tracking-tight text-zinc-900 dark:text-zinc-50">{{ $transaction->transaction_id }}</flux:heading>
+                                <span @class([
+                                    'inline-flex items-center rounded-lg px-2 py-0.5 text-[8px] font-black uppercase tracking-widest',
+                                    'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' => $isSuccess,
+                                    'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400' => $isFailed,
+                                    'bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400' => ! $isSuccess && ! $isFailed,
+                                ])>
+                                    {{ $transaction->status ?? __('Pending') }}
+                                </span>
+                            </div>
+
+                            @if (! empty($transaction->mpesa_code))
+                                <div class="inline-flex items-center gap-2 rounded-xl bg-zinc-50 px-3 py-1.5 text-[10px] font-black text-zinc-600 border border-zinc-100 dark:bg-zinc-800/40 dark:text-zinc-400 dark:border-zinc-700/50">
+                                    <span class="text-[7px] opacity-40 uppercase tracking-[0.2em]">{{ __('M-PESA') }}</span>
+                                    {{ $transaction->mpesa_code }}
+                                </div>
+                            @endif
+                        </div>
+
+                        <div @class([
+                            'text-xl font-black tracking-tighter',
+                            'text-emerald-600 dark:text-emerald-400' => $isSuccess,
+                            'text-zinc-900 dark:text-zinc-50' => ! $isSuccess,
+                        ])>
+                            Ksh {{ number_format((float) ($transaction->amount ?? 0)) }}
+                        </div>
+                    </div>
+
+                    <div class="mt-6 space-y-4">
+                        <div class="flex items-center justify-between gap-6 rounded-2xl bg-zinc-50/50 p-4 dark:bg-zinc-800/30 border border-zinc-100/50 dark:border-zinc-700/50">
+                            <div class="flex flex-col">
+                                <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em]">{{ __('Counterparty') }}</span>
+                                <div class="flex items-center gap-3 mt-1.5">
+                                    <div class="h-8 w-8 rounded-xl bg-white shadow-sm ring-1 ring-zinc-200/50 dark:bg-zinc-800 dark:ring-zinc-700 flex items-center justify-center text-xs font-black text-zinc-500">
+                                        {{ strtoupper(substr($transaction->sender_name ?: '?', 0, 1)) }}
+                                    </div>
+                                    <span class="text-sm font-black text-zinc-900 dark:text-zinc-100">{{ $transaction->sender_name ?: $transaction->sender_phone }}</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-col items-end">
+                                <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em]">{{ __('Product') }}</span>
+                                <span class="text-[11px] font-black text-zinc-600 dark:text-zinc-400 mt-1.5 truncate max-w-[140px] uppercase tracking-tighter">{{ $transaction->offer_name ?: '—' }}</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 px-2">
+                            <div class="flex flex-col">
+                                <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em]">{{ __('Timeline') }}</span>
+                                <span class="text-[10px] font-bold text-zinc-500 mt-1 uppercase">{{ $transaction->occurred_at?->format('H:i, M j') ?? '—' }}</span>
+                            </div>
+                            <div class="flex flex-col items-end">
+                                <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em]">{{ __('Category') }}</span>
+                                <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 mt-1 uppercase tracking-widest">{{ $transaction->offer_type ?: 'PAYMENT' }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (! empty($transaction->status_desc))
+                        <div class="mt-5 rounded-2xl bg-rose-50/50 border border-rose-100/50 px-4 py-3 text-[10px] font-bold text-rose-600/80 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400/80 italic leading-relaxed">
+                            “{{ $transaction->status_desc }}”
+                        </div>
+                    @endif
+                </article>
+            @endforeach
+
+            <div class="mt-4 px-2">
+                {{ $this->transactions()->links() }}
             </div>
         </div>
-
-        @if (! $this->loaded)
-            <div class="flex flex-col gap-4">
-                @for ($i = 0; $i < 4; $i++)
-                    <div class="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 motion-safe:animate-[pulse_1.8s_ease-in-out_infinite] dark:via-white/5"></div>
-                        <div class="relative h-4 w-28 rounded bg-zinc-200 dark:bg-zinc-700"></div>
-                        <div class="relative mt-4 h-6 w-40 rounded bg-zinc-200 dark:bg-zinc-700"></div>
-                        <div class="relative mt-3 h-4 w-full rounded bg-zinc-200 dark:bg-zinc-700"></div>
-                        <div class="relative mt-2 h-4 w-2/3 rounded bg-zinc-200 dark:bg-zinc-700"></div>
-                    </div>
-                @endfor
-            </div>
-        @elseif ($this->errorMessage)
-            <div class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-4 text-sm text-rose-50">
-                {{ $this->errorMessage }}
-            </div>
-        @elseif ($this->transactions()->isEmpty())
-            <div class="rounded-[28px] border border-dashed border-zinc-200 bg-white px-6 py-12 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 text-3xl dark:bg-zinc-800 text-emerald-600">
-                    ₭
-                </div>
-                <div class="mt-5 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
-                    {{ __('No transactions found yet.') }}
-                </div>
-                <div class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                    {{ __('Once payments arrive, the transaction history will appear here.') }}
-                </div>
-            </div>
-        @else
-            <div class="flex flex-col gap-4">
-                @foreach ($this->transactions() as $transaction)
-                    @php
-                        $status = strtolower((string) ($transaction->status ?? ''));
-                        $statusClasses = match ($status) {
-                            'completed', 'successful' => 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-                            'failed' => 'bg-rose-500/10 text-rose-700 dark:text-rose-400',
-                            default => 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
-                        };
-                        $delay = ($loop->index * 90) + 120;
-                    @endphp
-
-                    <article class="transactions-reveal rounded-3xl border border-zinc-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50" style="animation-delay: {{ $delay }}ms">
-                        <div class="flex items-start justify-between gap-4">
-                            <div class="space-y-1">
-                                <div class="flex items-center gap-2">
-                                    <flux:heading size="lg" class="text-zinc-900 dark:text-zinc-100">{{ $transaction->transaction_id }}</flux:heading>
-
-                                    <span @class([
-                                        'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide',
-                                        $statusClasses,
-                                    ])>
-                                        {{ $transaction->status ?? __('Unknown') }}
-                                    </span>
-                                </div>
-
-                                @if (! empty($transaction->mpesa_code))
-                                    <div class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                                        {{ __('M-Pesa :code', ['code' => $transaction->mpesa_code]) }}
-                                    </div>
-                                @endif
-                            </div>
-
-                            <div class="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                                {{ __('Ksh :amount', ['amount' => number_format((float) ($transaction->amount ?? 0))]) }}
-                            </div>
-                        </div>
-
-                        <div class="mt-4 grid gap-3 text-sm text-zinc-600 dark:text-zinc-400">
-                            <div class="flex items-center justify-between gap-3">
-                                <span>{{ __('Sender phone') }}</span>
-                                <span class="font-medium text-zinc-950 dark:text-zinc-50">{{ $transaction->sender_phone ?? '—' }}</span>
-                            </div>
-
-                            @if (! empty($transaction->sender_name))
-                                <div class="flex items-center justify-between gap-3">
-                                    <span>{{ __('Sender name') }}</span>
-                                    <span class="font-medium text-zinc-950 dark:text-zinc-50">{{ $transaction->sender_name }}</span>
-                                </div>
-                            @endif
-
-                            <div class="flex items-center justify-between gap-3">
-                                <span>{{ __('Offer name') }}</span>
-                                <span class="font-medium text-zinc-950 dark:text-zinc-50">{{ $transaction->offer_name ?? '—' }}</span>
-                            </div>
-
-                            <div class="flex items-center justify-between gap-3">
-                                <span>{{ __('Offer type') }}</span>
-                                <span class="font-medium text-zinc-950 dark:text-zinc-50">{{ ucfirst((string) ($transaction->offer_type ?? '')) }}</span>
-                            </div>
-
-                            @if (! empty($transaction->matched_offer))
-                                <div class="flex items-center justify-between gap-3">
-                                    <span>{{ __('Matched offer') }}</span>
-                                    <span class="font-medium text-zinc-950 dark:text-zinc-50">{{ $this->matchedOfferSummary($transaction->matched_offer) }}</span>
-                                </div>
-                            @endif
-
-                            @if (! empty($transaction->occurred_at))
-                                <div class="flex items-center justify-between gap-3">
-                                    <span>{{ __('Occurred at') }}</span>
-                                    <span class="font-medium text-zinc-950 dark:text-zinc-50">{{ $transaction->occurred_at->format('M j, Y g:i A') }}</span>
-                                </div>
-                            @endif
-
-                            @if (! empty($transaction->status_desc))
-                                <div class="rounded-2xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                                    {{ $transaction->status_desc }}
-                                </div>
-                            @endif
-                        </div>
-                    </article>
-                @endforeach
-
-                <div class="mt-4">
-                    {{ $this->transactions()->links() }}
-                </div>
-            </div>
-        @endif
-    </div>
-</section>
+    @endif
+</div>

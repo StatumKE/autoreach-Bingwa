@@ -3,8 +3,8 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-white dark:bg-zinc-950 overscroll-y-none touch-manipulation">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-100 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-zinc-50 dark:bg-zinc-950 overscroll-y-none touch-manipulation">
+        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200/50 bg-zinc-50 dark:border-zinc-800/50 dark:bg-zinc-950">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden" />
@@ -44,7 +44,7 @@
         </flux:sidebar>
 
         <!-- Mobile User Menu -->
-        <flux:header class="lg:hidden">
+        <flux:header class="lg:hidden !px-4" container="false">
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
             <flux:spacer />

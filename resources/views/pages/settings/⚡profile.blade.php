@@ -82,16 +82,9 @@ new #[Title('Profile settings')] class extends Component {
     {
         return Auth::user()->bingwaDeviceRegistration instanceof BingwaDeviceRegistration;
     }
-
-    #[Computed]
-    public function showDeleteUser(): bool
-    {
-        return ! Auth::user() instanceof MustVerifyEmail
-            || (Auth::user() instanceof MustVerifyEmail && Auth::user()->hasVerifiedEmail());
-    }
 }; ?>
 
-<section class="w-full">
+<section class="w-full p-4 md:p-6">
     @include('partials.settings-heading')
 
     <flux:heading class="sr-only">{{ __('Profile settings') }}</flux:heading>
@@ -143,8 +136,5 @@ new #[Title('Profile settings')] class extends Component {
                 </div>
         </form>
 
-        @if ($this->showDeleteUser)
-            <livewire:pages::settings.delete-user-form />
-        @endif
     </x-pages::settings.layout>
 </section>

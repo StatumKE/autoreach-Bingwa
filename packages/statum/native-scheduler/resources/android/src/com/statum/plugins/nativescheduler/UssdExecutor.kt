@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -176,10 +177,21 @@ class UssdExecutor(private val context: Context) {
      */
     private suspend fun runAdvanced(code: String, subId: Int, isSambaza: Boolean): UssdResult {
         val service = UssdAccessibilityService.instance
-            ?: return UssdResult(
+        if (service == null) {
+            Log.w(TAG, "Accessibility service not active — redirecting user to Settings")
+            try {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to open accessibility settings", e)
+            }
+            return UssdResult(
                 success = false,
-                message = "Accessibility service not active — user must enable Bingwa USSD Automation in Settings"
+                message = "Accessibility service not active — please enable 'Bingwa USSD Automation' in the settings page that just opened."
             )
+        }
 
         // Drain any stale responses left over from a previous session
         while (UssdAccessibilityService.responseChannel.tryReceive().isSuccess) { /* drain */ }

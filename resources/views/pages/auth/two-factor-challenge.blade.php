@@ -76,7 +76,7 @@
                     <flux:button
                         variant="primary"
                         type="submit"
-                        class="w-full"
+                        class="w-full shadow-lg shadow-emerald-500/10"
                     >
                         {{ __('Continue') }}
                     </flux:button>

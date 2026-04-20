@@ -5,7 +5,7 @@
         </flux:text>
 
         @if (session('status') == 'verification-link-sent')
-            <flux:text class="text-center font-medium !dark:text-green-400 !text-green-600">
+            <flux:text class="text-center font-medium text-emerald-600 dark:text-emerald-400">
                 {{ __('A new verification link has been sent to the email address you provided during registration.') }}
             </flux:text>
         @endif
@@ -13,7 +13,7 @@
         <div class="flex flex-col items-center justify-between space-y-3">
             <form method="POST" action="{{ route('verification.send') }}">
                 @csrf
-                <flux:button type="submit" variant="primary" class="w-full">
+                <flux:button type="submit" variant="primary" class="w-full shadow-lg shadow-emerald-500/10">
                     {{ __('Resend verification email') }}
                 </flux:button>
             </form>

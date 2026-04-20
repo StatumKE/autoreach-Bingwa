@@ -1,22 +1,24 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
     </head>
-    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-neutral-100 antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900">
-        <div class="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-            <div class="flex w-full max-w-md flex-col gap-6">
-                <a href="{{ route('home') }}" class="flex flex-col items-center gap-2 font-medium" wire:navigate>
-                    <span class="flex h-9 w-9 items-center justify-center rounded-md">
-                        <x-app-logo-icon class="size-9 fill-current text-black dark:text-white" />
-                    </span>
+    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-zinc-50 antialiased dark:bg-zinc-950">
+        <div class="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
+            <div class="flex w-full max-w-sm flex-col gap-10">
+                <a href="{{ route('home') }}" class="flex flex-col items-center gap-4 font-medium" wire:navigate>
+                    <div class="h-16 w-16 flex items-center justify-center rounded-[1.5rem] bg-white shadow-xl shadow-emerald-500/10 border border-emerald-50 dark:bg-zinc-900 dark:border-zinc-800">
+                        <x-app-logo-icon class="size-10 text-emerald-600 dark:text-emerald-400" />
+                    </div>
 
-                    <span class="sr-only">{{ config('app.name', 'Laravel') }}</span>
+                    <div class="text-center">
+                        <h1 class="text-2xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">{{ config('app.name', 'Bingwa') }}</h1>
+                    </div>
                 </a>
 
                 <div class="flex flex-col gap-6">
-                    <div class="rounded-xl border bg-white dark:bg-stone-950 dark:border-stone-800 text-stone-800 shadow-xs">
-                        <div class="px-10 py-8">{{ $slot }}</div>
+                    <div class="rounded-[2.5rem] border border-zinc-100 bg-white dark:bg-zinc-900 dark:border-zinc-800 text-zinc-900 shadow-sm">
+                        <div class="px-8 py-10">{{ $slot }}</div>
                     </div>
                 </div>
             </div>

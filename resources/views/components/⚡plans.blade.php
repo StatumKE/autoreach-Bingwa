@@ -26,6 +26,7 @@ new class extends Component {
      */
     public function loadPlans(): void
     {
+        \Illuminate\Support\Facades\Log::debug('⚡ Livewire: loadPlans triggered');
         $this->loaded = true;
         $this->errorMessage = null;
 
@@ -55,6 +56,17 @@ new class extends Component {
      */
     public function initiateSambaza(): void
     {
+        \Illuminate\Support\Facades\Log::info('⚡ Livewire: initiateSambaza triggered', [
+            'selectedPlanId' => $this->selectedPlanId,
+            'activePlanId' => $this->activePlan?->backend_plan_id,
+            'sambazaLine' => $this->sambazaLine
+        ]);
+
+        if ($this->activePlan) {
+            $this->errorMessage = __('You already have an active subscription. Please wait for it to expire before purchasing another.');
+            return;
+        }
+
         $selectedPlan = collect($this->plans)->firstWhere('id', $this->selectedPlanId);
         if (!$selectedPlan || !$this->sambazaLine) return;
 
@@ -62,6 +74,7 @@ new class extends Component {
         $code = "*140*{$price}*{$this->sambazaLine}#";
 
         $this->js("
+            console.log('Initiating Sambaza:', { code: '{$code}', simSlot: {$this->simSlot} });
             fetch('/_native/api/call', {
                 method: 'POST',
                 headers: {
@@ -70,19 +83,28 @@ new class extends Component {
                 },
                 body: JSON.stringify({
                     method: 'TriggerSambaza',
-                    params: {
-                        code: '{$code}',
-                        simSlot: {$this->simSlot}
-                    }
+                    params: { code: '{$code}', simSlot: {$this->simSlot} }
                 })
-            }).then(res => res.json()).then(res => {
-                if(res.status === 'success' && res.data && res.data.success) {
-                    @this.saveSubscription({$selectedPlan['id']});
-                    alert('Sambaza successful! Transfer complete.');
+            }).then(res => {
+                console.log('Sambaza response received:', res.status);
+                return res.json();
+            }).then(res => {
+                console.log('Sambaza decoded response:', res);
+                
+                // Unwrap nested data if present (BridgeRouter sometimes wraps twice)
+                let finalData = res.data || {};
+                if (finalData.data) finalData = finalData.data;
+
+                const message = (finalData.message || '').toLowerCase();
+                const isSuccess = (res.status === 'success' || finalData.status === 'success') && 
+                                 (finalData.success === true || message.includes('transferred') || message.includes('successful'));
+
+                if(isSuccess) {
+                    \$wire.saveSubscription({$selectedPlan['id']});
                 } else {
-                    alert('Sambaza failed: ' + (res.data?.message || res.message || 'Unknown error'));
+                    \$wire.set('errorMessage', finalData.message || res.message || 'Unknown error');
                 }
-            }).catch(e => alert('Error communicating with device: ' + e.message));
+            }).catch(e => \$wire.set('errorMessage', 'Error communicating with device: ' + e.message));
         ");
     }
 
@@ -126,7 +148,7 @@ new class extends Component {
 };
 ?>
 
-<section class="w-full p-4 md:p-6" wire:init="loadPlans">
+<section class="w-full p-4 md:p-6 bg-slate-950 min-h-screen" wire:init="loadPlans">
     <style>
         @keyframes plans-reveal {
             from {
@@ -141,39 +163,40 @@ new class extends Component {
         }
 
         .plans-reveal {
-            animation: plans-reveal 420ms ease-out both;
+            animation: plans-reveal 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
         }
     </style>
 
     <div class="flex flex-col gap-4">
-        <div class="relative overflow-hidden rounded-3xl border border-emerald-800 bg-gradient-to-br from-emerald-950 via-emerald-900 to-zinc-900 p-5 text-white shadow-lg dark:border-emerald-700 md:p-6">
+        <div class="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-6 shadow-2xl ring-1 ring-slate-800 md:p-8">
             <div class="pointer-events-none absolute inset-0">
-                <div class="absolute -top-16 -right-10 h-40 w-40 rounded-full bg-emerald-400/15 blur-3xl motion-safe:animate-pulse"></div>
-                <div class="absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-zinc-400/10 blur-3xl motion-safe:animate-pulse" style="animation-delay: 300ms;"></div>
-                <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+                <div class="absolute -top-16 -right-10 h-40 w-40 rounded-full bg-teal-500/5 blur-3xl"></div>
+                <div class="absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-indigo-500/5 blur-3xl"></div>
             </div>
 
-            <div class="relative flex flex-col gap-3">
+            <div class="relative flex flex-col gap-4">
                 <div class="flex items-center gap-2">
-                    <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_6px_rgba(16,185,129,0.15)] motion-safe:animate-pulse"></span>
-                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">{{ __('Subscriptions') }}</span>
+                    <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-teal-500/10">
+                        <flux:icon.sparkles class="size-3.5 text-teal-400" />
+                    </div>
+                    <span class="text-[10px] font-black uppercase tracking-[0.3em] text-teal-400/40">{{ __('Subscriptions') }}</span>
                 </div>
 
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <flux:heading size="xl" class="text-white font-bold tracking-tight">{{ __('Bingwa Plans') }}</flux:heading>
-                        <flux:text class="mt-1 max-w-lg text-emerald-100/70 text-sm leading-relaxed">
-                            {{ __('Choose a plan to enable automated USSD execution and tracking.') }}
+                    <div class="space-y-1">
+                        <flux:heading size="xl" class="text-3xl font-black tracking-tight text-white">{{ __('Bingwa Plans') }}</flux:heading>
+                        <flux:text class="max-w-lg text-sm font-medium text-slate-500">
+                            {{ __('Automate your USSD operations with a premium plan.') }}
                         </flux:text>
                     </div>
 
                     <button
                         type="button"
                         wire:click="loadPlans"
-                        class="flex h-10 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 text-xs font-bold text-white transition-all hover:bg-white/10 active:scale-95 sm:h-12"
+                        class="group flex h-11 items-center justify-center gap-3 rounded-2xl bg-slate-900 px-5 text-xs font-black uppercase tracking-widest text-slate-100 shadow-xl ring-1 ring-slate-800 transition-all hover:ring-indigo-500/30 active:scale-95"
                     >
-                        <flux:icon.arrow-path class="size-4 text-emerald-400" />
-                        {{ __('Refresh Plans') }}
+                        <flux:icon.arrow-path class="size-4 text-indigo-400 transition-transform group-hover:rotate-180 duration-500" />
+                        {{ __('Refresh') }}
                     </button>
                 </div>
             </div>
@@ -182,53 +205,70 @@ new class extends Component {
         @if (! $this->loaded)
             <div class="grid gap-4 md:grid-cols-2">
                 @for ($i = 0; $i < 4; $i++)
-                    <div class="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 motion-safe:animate-[pulse_1.8s_ease-in-out_infinite] dark:via-white/5"></div>
-                        <div class="relative h-4 w-24 rounded bg-zinc-200 dark:bg-zinc-700"></div>
-                        <div class="relative mt-4 h-6 w-40 rounded bg-zinc-200 dark:bg-zinc-700"></div>
-                        <div class="relative mt-3 h-4 w-full rounded bg-zinc-200 dark:bg-zinc-700"></div>
-                        <div class="relative mt-2 h-4 w-2/3 rounded bg-zinc-200 dark:bg-zinc-700"></div>
+                    <div class="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-6 shadow-2xl ring-1 ring-slate-800">
+                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-teal-500/5 to-transparent motion-safe:animate-[pulse_1.8s_ease-in-out_infinite]"></div>
+                        <div class="relative h-4 w-24 rounded bg-slate-800"></div>
+                        <div class="relative mt-4 h-6 w-40 rounded bg-slate-800"></div>
+                        <div class="relative mt-3 h-4 w-full rounded bg-slate-800/50"></div>
+                        <div class="relative mt-2 h-4 w-2/3 rounded bg-slate-800/50"></div>
                     </div>
                 @endfor
             </div>
         @elseif ($this->errorMessage)
-            <div class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-4 text-sm text-rose-50">
-                {{ $this->errorMessage }}
+            <div class="relative overflow-hidden rounded-[2rem] bg-rose-950/20 p-6 shadow-2xl ring-1 ring-rose-900/50">
+                <div class="flex items-start gap-4">
+                    <div class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-lg shadow-rose-600/20">
+                        <flux:icon.exclamation-triangle class="size-6" />
+                    </div>
+                    <div class="flex-1 space-y-1 py-1">
+                        <flux:heading size="sm" class="text-xs font-black uppercase tracking-[0.2em] text-rose-400">{{ __('Action Required') }}</flux:heading>
+                        <flux:text class="text-sm font-bold text-rose-100/70 leading-relaxed">
+                            {{ $this->errorMessage }}
+                        </flux:text>
+                    </div>
+                    <button type="button" wire:click="$set('errorMessage', null)" class="mt-1 p-1 text-rose-900 hover:text-rose-500 transition-colors">
+                        <flux:icon.x-mark class="size-5" />
+                    </button>
+                </div>
             </div>
         @elseif ($this->plans === [])
-            <div class="rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm text-zinc-600 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-                {{ __('No active subscription plans were returned for this device right now.') }}
+            <div class="rounded-[2rem] bg-slate-900 p-8 text-center ring-1 ring-slate-800 shadow-2xl">
+                <div class="text-sm font-bold text-slate-500">
+                    {{ __('No active subscription plans were returned for this device right now.') }}
+                </div>
             </div>
         @else
             <div class="flex flex-col gap-4">
                 
                 @if ($this->activePlan)
-                    <div class="rounded-3xl border border-emerald-100 bg-emerald-50/50 p-5 dark:border-emerald-800/30 dark:bg-emerald-900/10">
-                        <div class="flex items-start justify-between">
+                    <div class="relative overflow-hidden rounded-[2.5rem] bg-indigo-600 p-6 shadow-[0_20px_40px_-15px_rgba(79,70,229,0.3)]">
+                        <div class="absolute top-0 right-0 p-6 opacity-10">
+                            <flux:icon.sparkles class="size-16 text-white" />
+                        </div>
+                        
+                        <div class="relative flex items-start justify-between">
                             <div>
-                                <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{{ __('Active Subscription') }}</div>
-                                <flux:heading size="lg" class="mt-1 text-zinc-900 dark:text-white">{{ $this->activePlan->name }}</flux:heading>
+                                <div class="text-[10px] font-black uppercase tracking-[0.3em] text-white/70">{{ __('Active Subscription') }}</div>
+                                <flux:heading size="lg" class="mt-2 text-2xl font-black text-white tracking-tight">{{ $this->activePlan->name }}</flux:heading>
                             </div>
-                            <div class="rounded-full bg-emerald-500 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">
-                                {{ __('Active') }}
+                            <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md text-white ring-1 ring-white/30">
+                                <flux:icon.check class="size-5" />
                             </div>
                         </div>
 
-                        <div class="mt-4 grid grid-cols-2 gap-4">
-                            <div class="rounded-2xl bg-white p-3 shadow-sm dark:bg-zinc-800/50">
-                                <div class="text-[9px] font-bold uppercase tracking-wider text-zinc-400">{{ $this->activePlan->type === 'usage_pack' ? __('Usage Left') : __('Expires') }}</div>
-                                <div class="mt-1 text-sm font-bold text-zinc-900 dark:text-white">
-                                    @if ($this->activePlan->type === 'usage_pack')
-                                        {{ max(0, $this->activePlan->ussd_requests_included - $this->activePlan->ussd_counter) }} {{ __('Tokens') }}
-                                    @else
-                                        {{ $this->activePlan->expires_at?->diffForHumans() ?? __('Never') }}
-                                    @endif
+                        <div class="relative mt-6 flex gap-4">
+                            <div class="flex-1 rounded-2xl bg-white/10 p-3 backdrop-blur-md ring-1 ring-white/10">
+                                <div class="text-[8px] font-black uppercase tracking-[0.2em] text-white/60">{{ __('Started') }}</div>
+                                <div class="mt-1 text-[11px] font-black text-white">
+                                    {{ $this->activePlan->created_at?->format('d M, H:i') ?? __('N/A') }}
                                 </div>
                             </div>
 
-                            <div class="rounded-2xl bg-white p-3 shadow-sm dark:bg-zinc-800/50">
-                                <div class="text-[9px] font-bold uppercase tracking-wider text-zinc-400">{{ __('Network Mode') }}</div>
-                                <div class="mt-1 text-sm font-bold text-zinc-900 dark:text-white">{{ __('Express') }}</div>
+                            <div class="flex-1 rounded-2xl bg-white/10 p-3 backdrop-blur-md ring-1 ring-white/10">
+                                <div class="text-[8px] font-black uppercase tracking-[0.2em] text-white/60">{{ __('Expires') }}</div>
+                                <div class="mt-1 text-[11px] font-black text-white">
+                                    {{ $this->activePlan->expires_at?->format('d M, H:i') ?? __('Never') }}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -240,67 +280,63 @@ new class extends Component {
                     @endphp
 
                     <article @class([
-                        'plans-reveal rounded-3xl border bg-white p-5 shadow-sm transition-colors dark:bg-zinc-900',
-                        'border-emerald-500 ring-2 ring-emerald-500/20' => $this->selectedPlanId === ($plan['id'] ?? null),
-                        'border-zinc-200 dark:border-zinc-700' => $this->selectedPlanId !== ($plan['id'] ?? null),
+                        'plans-reveal relative overflow-hidden rounded-[2.5rem] transition-all duration-500',
+                        'bg-slate-900 ring-2 ring-indigo-500 shadow-[0_20px_50px_-20px_rgba(79,70,229,0.3)]' => $this->selectedPlanId === ($plan['id'] ?? null),
+                        'bg-slate-900 shadow-xl ring-1 ring-slate-800' => $this->selectedPlanId !== ($plan['id'] ?? null),
+                        'opacity-40 grayscale-[0.8]' => $this->activePlan && ($this->activePlan->backend_plan_id !== ($plan['id'] ?? null))
                     ]) style="animation-delay: {{ $planDelay }}ms">
-                        <div class="flex items-start justify-between gap-4">
-                            <div class="space-y-1">
-                                <div class="flex items-center gap-2">
-                                    <flux:heading size="lg">{{ $plan['name'] ?? __('Unnamed plan') }}</flux:heading>
-                                    @if ($this->selectedPlanId === ($plan['id'] ?? null))
-                                        <span class="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                                            {{ __('Selected') }}
-                                        </span>
-                                    @endif
+                        
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex flex-col gap-1">
+                                    <div class="flex items-center gap-2">
+                                        <flux:heading size="lg" class="text-xl font-black tracking-tight text-white">{{ $plan['name'] ?? __('Plan') }}</flux:heading>
+                                        @if ($this->activePlan?->backend_plan_id === ($plan['id'] ?? null))
+                                            <div class="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg shadow-indigo-500/20">
+                                                <flux:icon.check class="size-3" />
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">{{ str_replace('_', ' ', $plan['type'] ?? 'PLAN') }}</div>
                                 </div>
+                                <div class="flex flex-col items-end">
+                                    <div class="text-xl font-black text-teal-400">KES {{ number_format((float) ($plan['price'] ?? 0)) }}</div>
+                                    <div class="text-[8px] font-black uppercase tracking-[0.2em] text-slate-600">{{ __('PRICE') }}</div>
+                                </div>
+                            </div>
 
-                                @if (! empty($plan['code']))
-                                    <div class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                                        {{ $plan['code'] }}
+                            <div class="grid grid-cols-2 gap-3 mb-6">
+                                @if (($plan['type'] ?? null) === 'usage_pack' && ! is_null($plan['ussd_requests_included']))
+                                    <div class="rounded-2xl bg-slate-950 p-3 ring-1 ring-slate-800/50">
+                                        <div class="text-[8px] font-black uppercase tracking-[0.2em] text-slate-600">{{ __('Requests') }}</div>
+                                        <div class="mt-1 text-xs font-black text-slate-100">{{ number_format((int) $plan['ussd_requests_included']) }}</div>
+                                    </div>
+                                @endif
+
+                                @if (! empty($plan['duration_days']))
+                                    <div class="rounded-2xl bg-slate-950 p-3 ring-1 ring-slate-800/50">
+                                        <div class="text-[8px] font-black uppercase tracking-[0.2em] text-slate-600">{{ __('Validity') }}</div>
+                                        <div class="mt-1 text-xs font-black text-slate-100">
+                                            {{ trans_choice(':count Day|:count Days', (int) $plan['duration_days'], ['count' => (int) $plan['duration_days']]) }}
+                                        </div>
                                     </div>
                                 @endif
                             </div>
 
-                            <div class="rounded-full bg-emerald-500/10 px-3 py-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                                {{ __('KES :price', ['price' => number_format((float) ($plan['price'] ?? 0))]) }}
-                            </div>
-                        </div>
-
-                        <div class="mt-4 flex flex-wrap gap-2">
-                            @if (! empty($plan['type']))
-                                <span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                    {{ str_replace('_', ' ', $plan['type']) }}
-                                </span>
-                            @endif
-                        </div>
-
-                        <dl class="mt-5 grid gap-3 text-sm text-zinc-600 dark:text-zinc-400">
-                            @if (($plan['type'] ?? null) === 'usage_pack' && ! is_null($plan['ussd_requests_included']))
-                                <div class="flex items-center justify-between gap-3">
-                                    <dt>{{ __('USSD requests') }}</dt>
-                                    <dd class="font-medium text-zinc-950 dark:text-zinc-50">{{ number_format((int) $plan['ussd_requests_included']) }}</dd>
-                                </div>
-                            @endif
-
-                            @if (($plan['type'] ?? null) === 'time_unlimited' && ! empty($plan['duration_days']))
-                                <div class="flex items-center justify-between gap-3">
-                                    <dt>{{ __('Duration') }}</dt>
-                                    <dd class="font-medium text-zinc-950 dark:text-zinc-50">
-                                        {{ trans_choice(':count day|:count days', (int) $plan['duration_days'], ['count' => (int) $plan['duration_days']]) }}
-                                    </dd>
-                                </div>
-                            @endif
-                        </dl>
-
-                        <div class="mt-5">
                             <flux:button
-                                class="w-full"
+                                class="h-12 w-full font-black uppercase tracking-[0.25em] text-[10px]"
                                 type="button"
                                 variant="{{ $this->selectedPlanId === ($plan['id'] ?? null) ? 'primary' : 'ghost' }}"
                                 wire:click="selectPlan({{ (int) ($plan['id'] ?? 0) }})"
+                                :disabled="$this->activePlan !== null"
                             >
-                                {{ $this->selectedPlanId === ($plan['id'] ?? null) ? __('Selected plan') : __('Select plan') }}
+                                @if ($this->activePlan?->backend_plan_id === ($plan['id'] ?? null))
+                                    {{ __('ACTIVE') }}
+                                @elseif ($this->activePlan)
+                                    {{ __('LOCKED') }}
+                                @else
+                                    {{ $this->selectedPlanId === ($plan['id'] ?? null) ? __('SELECTED') : __('SELECT PLAN') }}
+                                @endif
                             </flux:button>
                         </div>
                     </article>
@@ -313,35 +349,41 @@ new class extends Component {
                 @endphp
 
                 @if (is_array($selectedPlan))
-                    <div class="sticky bottom-4 z-20 mx-auto w-full max-w-lg">
-                        <div class="rounded-3xl border border-zinc-200/50 bg-white/95 p-5 shadow-2xl backdrop-blur-xl dark:border-zinc-700/50 dark:bg-zinc-900/95">
-                            <div class="flex flex-col gap-4">
+                    <div class="fixed inset-x-0 bottom-0 z-[60] flex flex-col p-6 animate-in slide-in-from-bottom duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none"></div>
+                        <div class="relative mx-auto w-full max-w-lg rounded-[2.5rem] bg-slate-900/90 p-6 shadow-2xl ring-1 ring-slate-800 backdrop-blur-3xl">
+                            <div class="flex flex-col gap-5">
                                 <div class="flex items-center justify-between">
                                     <div class="flex flex-col">
-                                        <div class="text-[10px] font-black uppercase tracking-wider text-zinc-500/80">{{ __('Selected plan') }}</div>
-                                        <div class="text-base font-bold text-zinc-900 dark:text-zinc-50">{{ $selectedPlan['name'] ?? __('Unnamed plan') }}</div>
+                                        <div class="text-[10px] font-black uppercase tracking-[0.3em] text-teal-400/60">{{ __('Review Order') }}</div>
+                                        <div class="text-xl font-black text-white tracking-tight">{{ $selectedPlan['name'] ?? __('Plan') }}</div>
                                     </div>
                                     <div class="text-right">
-                                        <div class="text-lg font-black text-emerald-600 dark:text-emerald-400">KES {{ number_format((float) ($selectedPlan['price'] ?? 0)) }}</div>
+                                        <div class="text-2xl font-black text-teal-400">KES {{ number_format((float) ($selectedPlan['price'] ?? 0)) }}</div>
                                     </div>
                                 </div>
 
+                                <div class="h-px w-full bg-slate-800"></div>
+
                                 @if ($this->sambazaLine)
-                                    <div class="flex flex-col gap-3">
-                                        <flux:radio.group wire:model="simSlot" variant="segmented" class="w-full">
-                                            <flux:radio value="0" label="{{ __('SIM 1') }}" />
-                                            <flux:radio value="1" label="{{ __('SIM 2') }}" />
-                                        </flux:radio.group>
+                                    <div class="flex flex-col gap-4">
+                                        <div class="space-y-2">
+                                            <div class="text-[9px] font-black uppercase tracking-widest text-slate-600 px-1">{{ __('Choose SIM Slot') }}</div>
+                                            <flux:radio.group wire:model="simSlot" variant="segmented" class="w-full h-12 bg-slate-950 p-1 rounded-2xl ring-1 ring-slate-800">
+                                                <flux:radio value="0" label="{{ __('SIM 1') }}" class="font-bold text-white" />
+                                                <flux:radio value="1" label="{{ __('SIM 2') }}" class="font-bold text-white" />
+                                            </flux:radio.group>
+                                        </div>
                                         
-                                        <flux:button type="button" variant="primary" wire:click="initiateSambaza" class="h-12 w-full text-base font-bold shadow-lg shadow-emerald-500/20">
-                                            {{ __('Purchase via Sambaza') }}
+                                        <flux:button type="button" variant="primary" wire:click="initiateSambaza" class="h-14 w-full text-base font-black uppercase tracking-widest shadow-2xl shadow-indigo-500/20">
+                                            {{ __('Purchase Now') }}
                                         </flux:button>
                                     </div>
                                 @endif
 
-                                <flux:button type="button" variant="ghost" wire:click="$set('selectedPlanId', null)" class="w-full text-xs font-bold text-zinc-500">
+                                <button type="button" wire:click="$set('selectedPlanId', null)" class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-600 hover:text-slate-400 transition-colors">
                                     {{ __('Cancel selection') }}
-                                </flux:button>
+                                </button>
                             </div>
                         </div>
                     </div>

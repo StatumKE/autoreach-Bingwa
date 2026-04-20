@@ -84,9 +84,7 @@ new #[Title('Profile settings')] class extends Component {
     }
 }; ?>
 
-<section class="w-full p-4 md:p-6">
-    @include('partials.settings-heading')
-
+<section class="w-full">
     <flux:heading class="sr-only">{{ __('Profile settings') }}</flux:heading>
 
         <x-pages::settings.layout :heading="__('Profile')" :subheading="__('Update your name and review your registered device details')">
@@ -103,7 +101,7 @@ new #[Title('Profile settings')] class extends Component {
                         readonly
                     />
 
-                    <flux:text class="mt-2 text-sm text-zinc-500">
+                    <flux:text class="mt-3 text-xs font-medium text-slate-500">
                         {{ __('Email is linked to your device account and cannot be edited here.') }}
                     </flux:text>
                 </div>
@@ -118,18 +116,18 @@ new #[Title('Profile settings')] class extends Component {
                         readonly
                     />
 
-                    <flux:text class="mt-2 text-sm text-zinc-500">
+                    <flux:text class="mt-3 text-xs font-medium text-slate-500">
                         {{ __('Autoreach Connect ID is tied to the registered device and cannot be edited here.') }}
                     </flux:text>
                 </div>
 
-                <div class="flex items-center gap-4">
-                    <flux:button variant="primary" type="submit" data-test="update-profile-button">
-                        {{ __('Save') }}
+                <div class="flex items-center gap-4 pt-4">
+                    <flux:button variant="primary" type="submit" data-test="update-profile-button" class="bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-600/20 px-8 font-black uppercase tracking-widest text-[10px]">
+                        {{ __('Save Changes') }}
                     </flux:button>
 
                     @if ($this->hasBingwaDeviceRegistration)
-                        <flux:button variant="ghost" type="button" wire:click="recoverDeviceToken">
+                        <flux:button variant="ghost" type="button" wire:click="recoverDeviceToken" class="text-slate-500 hover:text-teal-400 font-black uppercase tracking-widest text-[10px]">
                             {{ __('Recover token') }}
                         </flux:button>
                     @endif

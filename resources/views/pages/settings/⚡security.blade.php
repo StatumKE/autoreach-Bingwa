@@ -86,9 +86,7 @@ new #[Title('Security settings')] class extends Component {
     }
 }; ?>
 
-<section class="w-full p-4 md:p-6">
-    @include('partials.settings-heading')
-
+<section class="w-full">
     <flux:heading class="sr-only">{{ __('Security settings') }}</flux:heading>
 
     <x-pages::settings.layout :heading="__('Update password')" :subheading="__('Ensure your account is using a long, random password to stay secure')">
@@ -118,22 +116,22 @@ new #[Title('Security settings')] class extends Component {
                 viewable
             />
 
-            <div class="flex items-center gap-4">
-                <flux:button variant="primary" type="submit" data-test="update-password-button">
-                    {{ __('Save') }}
+            <div class="flex items-center gap-4 pt-4">
+                <flux:button variant="primary" type="submit" data-test="update-password-button" class="bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-600/20 px-8 font-black uppercase tracking-widest text-[10px]">
+                    {{ __('Save Changes') }}
                 </flux:button>
             </div>
         </form>
 
         @if ($canManageTwoFactor)
             <section class="mt-12">
-                <flux:heading>{{ __('Two-factor authentication') }}</flux:heading>
-                <flux:subheading>{{ __('Manage your two-factor authentication settings') }}</flux:subheading>
+                <flux:heading class="text-white font-black tracking-tight text-xl">{{ __('Two-factor authentication') }}</flux:heading>
+                <flux:subheading class="text-slate-500 font-medium mt-1">{{ __('Manage your two-factor authentication settings') }}</flux:subheading>
 
                 <div class="flex flex-col w-full mx-auto space-y-6 text-sm" wire:cloak>
                     @if ($twoFactorEnabled)
                         <div class="space-y-4">
-                            <flux:text>
+                            <flux:text class="text-slate-500 font-medium">
                                 {{ __('You will be prompted for a secure, random pin during login, which you can retrieve from the TOTP-supported application on your phone.') }}
                             </flux:text>
 
@@ -150,7 +148,7 @@ new #[Title('Security settings')] class extends Component {
                         </div>
                     @else
                         <div class="space-y-4">
-                            <flux:text variant="subtle">
+                            <flux:text variant="subtle" class="text-slate-500 font-medium">
                                 {{ __('When you enable two-factor authentication, you will be prompted for a secure pin during login. This pin can be retrieved from a TOTP-supported application on your phone.') }}
                             </flux:text>
 
@@ -158,6 +156,7 @@ new #[Title('Security settings')] class extends Component {
                                 <flux:button
                                     variant="primary"
                                     wire:click="$dispatch('start-two-factor-setup')"
+                                    class="bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-600/20 px-8 font-black uppercase tracking-widest text-[10px]"
                                 >
                                     {{ __('Enable 2FA') }}
                                 </flux:button>

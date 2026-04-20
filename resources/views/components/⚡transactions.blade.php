@@ -73,7 +73,7 @@ new #[Title('Transactions')] class extends Component
 };
 ?>
 
-<div class="flex flex-col gap-6 p-4 md:p-6 pb-24 bg-zinc-50/50 dark:bg-zinc-950/50 min-h-screen">
+<div class="flex flex-col gap-6 p-4 md:p-6 pb-24 bg-slate-950 text-slate-100 min-h-screen">
     <style>
         @keyframes transactions-reveal {
             from { opacity: 0; transform: translateY(12px) scale(0.98); }
@@ -83,8 +83,8 @@ new #[Title('Transactions')] class extends Component
     </style>
 
     <div class="flex flex-col pt-2">
-        <flux:text class="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500/80 dark:text-zinc-400/60">{{ __('Ledger') }}</flux:text>
-        <flux:heading size="xl" class="text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">{{ __('Transactions') }}</flux:heading>
+        <flux:text class="text-[10px] font-black uppercase tracking-[0.3em] text-teal-400/50">{{ __('Ledger') }}</flux:text>
+        <flux:heading size="xl" class="text-3xl font-black tracking-tight text-white">{{ __('Transactions') }}</flux:heading>
     </div>
 
     <!-- Search & Filters -->
@@ -92,10 +92,10 @@ new #[Title('Transactions')] class extends Component
         <flux:input 
             wire:model.live.debounce.400ms="search" 
             placeholder="{{ __('Search phone, name, or M-PESA code...') }}" 
-            class="rounded-[2rem] shadow-sm bg-white dark:bg-zinc-900 ring-1 ring-zinc-200/50 dark:ring-zinc-800"
+            class="rounded-[2rem] shadow-2xl bg-slate-900 ring-1 ring-slate-800 text-white"
         >
             <x-slot name="icon">
-                <flux:icon.magnifying-glass class="text-zinc-400" />
+                <flux:icon.magnifying-glass class="text-slate-500" />
             </x-slot>
         </flux:input>
 
@@ -117,11 +117,11 @@ new #[Title('Transactions')] class extends Component
     @if (! $this->loaded)
         <div class="flex flex-col gap-4">
             @for ($i = 0; $i < 4; $i++)
-                <div class="relative overflow-hidden rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-zinc-200/50 dark:bg-zinc-900 dark:ring-zinc-800">
-                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-zinc-100/50 to-transparent motion-safe:animate-[pulse_1.8s_ease-in-out_infinite] dark:via-zinc-800/50"></div>
-                    <div class="relative h-4 w-24 rounded bg-zinc-100 dark:bg-zinc-800"></div>
-                    <div class="relative mt-4 h-6 w-40 rounded bg-zinc-100 dark:bg-zinc-800"></div>
-                    <div class="relative mt-4 h-16 w-full rounded bg-zinc-50 dark:bg-zinc-800/50"></div>
+                <div class="relative overflow-hidden rounded-[2rem] bg-slate-900 p-6 shadow-2xl ring-1 ring-slate-800">
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-teal-500/5 to-transparent motion-safe:animate-[pulse_1.8s_ease-in-out_infinite]"></div>
+                    <div class="relative h-4 w-24 rounded bg-slate-800"></div>
+                    <div class="relative mt-4 h-6 w-40 rounded bg-slate-800"></div>
+                    <div class="relative mt-4 h-16 w-full rounded bg-slate-800/50"></div>
                 </div>
             @endfor
         </div>
@@ -130,14 +130,14 @@ new #[Title('Transactions')] class extends Component
             {{ $this->errorMessage }}
         </div>
     @elseif ($this->transactions()->isEmpty())
-        <div class="flex flex-col items-center justify-center rounded-[2.5rem] bg-white p-12 text-center shadow-sm ring-1 ring-zinc-200/50 dark:bg-zinc-900 dark:ring-zinc-800">
-            <div class="flex h-16 w-16 items-center justify-center rounded-3xl bg-zinc-50 text-emerald-600 dark:bg-zinc-800 dark:text-emerald-400 mb-6">
+        <div class="flex flex-col items-center justify-center rounded-[2.5rem] bg-slate-900 p-12 text-center shadow-2xl ring-1 ring-slate-800">
+            <div class="flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-950 text-indigo-400 mb-6 shadow-inner">
                 <flux:icon.banknotes class="size-8" />
             </div>
-            <flux:heading size="lg" class="text-zinc-900 dark:text-zinc-100 font-black tracking-tight">
+            <flux:heading size="lg" class="text-white font-black tracking-tight">
                 {{ __('Empty Ledger') }}
             </flux:heading>
-            <flux:text class="mt-2 text-sm text-zinc-500 max-w-[200px] mx-auto">
+            <flux:text class="mt-2 text-sm text-slate-500 max-w-[200px] mx-auto">
                 {{ __('Once payments arrive, the transaction history will appear here.') }}
             </flux:text>
         </div>
@@ -150,24 +150,24 @@ new #[Title('Transactions')] class extends Component
                     $isFailed = $status === 'failed';
                     $delay = ($loop->index * 60) + 100;
                 @endphp
-                <article class="transactions-reveal group relative overflow-hidden rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-zinc-200/50 transition-all hover:shadow-md dark:bg-zinc-900 dark:ring-zinc-800" style="animation-delay: {{ $delay }}ms">
+                <article class="transactions-reveal group relative overflow-hidden rounded-[2rem] bg-slate-900 p-6 shadow-2xl ring-1 ring-slate-800 transition-all hover:ring-indigo-500/30" style="animation-delay: {{ $delay }}ms">
                     <div class="flex items-start justify-between gap-4">
                         <div class="flex-1 space-y-3">
                             <div class="flex items-center gap-3">
-                                <flux:heading class="text-lg font-black tracking-tight text-zinc-900 dark:text-zinc-50">{{ $transaction->transaction_id }}</flux:heading>
+                                <flux:heading class="text-lg font-black tracking-tight text-white">{{ $transaction->transaction_id }}</flux:heading>
                                 <span @class([
                                     'inline-flex items-center rounded-lg px-2 py-0.5 text-[8px] font-black uppercase tracking-widest',
-                                    'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' => $isSuccess,
-                                    'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400' => $isFailed,
-                                    'bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400' => ! $isSuccess && ! $isFailed,
+                                    'bg-teal-500/10 text-teal-400' => $isSuccess,
+                                    'bg-rose-500/10 text-rose-400' => $isFailed,
+                                    'bg-slate-800 text-slate-500 ring-1 ring-slate-700' => ! $isSuccess && ! $isFailed,
                                 ])>
                                     {{ $transaction->status ?? __('Pending') }}
                                 </span>
                             </div>
 
                             @if (! empty($transaction->mpesa_code))
-                                <div class="inline-flex items-center gap-2 rounded-xl bg-zinc-50 px-3 py-1.5 text-[10px] font-black text-zinc-600 border border-zinc-100 dark:bg-zinc-800/40 dark:text-zinc-400 dark:border-zinc-700/50">
-                                    <span class="text-[7px] opacity-40 uppercase tracking-[0.2em]">{{ __('M-PESA') }}</span>
+                                <div class="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-1.5 text-[10px] font-black text-teal-400/60 ring-1 ring-slate-800">
+                                    <span class="text-[7px] opacity-40 uppercase tracking-[0.2em] text-slate-500">{{ __('M-PESA') }}</span>
                                     {{ $transaction->mpesa_code }}
                                 </div>
                             @endif
@@ -175,19 +175,19 @@ new #[Title('Transactions')] class extends Component
 
                         <div @class([
                             'text-xl font-black tracking-tighter',
-                            'text-emerald-600 dark:text-emerald-400' => $isSuccess,
-                            'text-zinc-900 dark:text-zinc-50' => ! $isSuccess,
+                            'text-teal-400' => $isSuccess,
+                            'text-white' => ! $isSuccess,
                         ])>
                             Ksh {{ number_format((float) ($transaction->amount ?? 0)) }}
                         </div>
                     </div>
 
                     <div class="mt-6 space-y-4">
-                        <div class="flex items-center justify-between gap-6 rounded-2xl bg-zinc-50/50 p-4 dark:bg-zinc-800/30 border border-zinc-100/50 dark:border-zinc-700/50">
+                        <div class="flex items-center justify-between gap-6 rounded-2xl bg-zinc-50 p-4 border border-zinc-100 dark:bg-zinc-800/30 dark:border-zinc-700">
                             <div class="flex flex-col">
                                 <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em]">{{ __('Counterparty') }}</span>
                                 <div class="flex items-center gap-3 mt-1.5">
-                                    <div class="h-8 w-8 rounded-xl bg-white shadow-sm ring-1 ring-zinc-200/50 dark:bg-zinc-800 dark:ring-zinc-700 flex items-center justify-center text-xs font-black text-zinc-500">
+                                    <div class="h-8 w-8 rounded-xl bg-white shadow-sm ring-1 ring-zinc-200 flex items-center justify-center text-xs font-black text-emerald-600 dark:bg-zinc-950 dark:ring-zinc-800">
                                         {{ strtoupper(substr($transaction->sender_name ?: '?', 0, 1)) }}
                                     </div>
                                     <span class="text-sm font-black text-zinc-900 dark:text-zinc-100">{{ $transaction->sender_name ?: $transaction->sender_phone }}</span>
@@ -195,18 +195,18 @@ new #[Title('Transactions')] class extends Component
                             </div>
                             <div class="flex flex-col items-end">
                                 <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em]">{{ __('Product') }}</span>
-                                <span class="text-[11px] font-black text-zinc-600 dark:text-zinc-400 mt-1.5 truncate max-w-[140px] uppercase tracking-tighter">{{ $transaction->offer_name ?: '—' }}</span>
+                                <span class="text-[11px] font-black text-emerald-600/50 mt-1.5 truncate max-w-[140px] uppercase tracking-tighter dark:text-emerald-500/50">{{ $transaction->offer_name ?: '—' }}</span>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4 px-2">
                             <div class="flex flex-col">
-                                <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em]">{{ __('Timeline') }}</span>
-                                <span class="text-[10px] font-bold text-zinc-500 mt-1 uppercase">{{ $transaction->occurred_at?->format('H:i, M j') ?? '—' }}</span>
+                                <span class="text-[8px] font-black text-emerald-500/30 uppercase tracking-[0.2em]">{{ __('Timeline') }}</span>
+                                <span class="text-[10px] font-bold text-emerald-500/40 mt-1 uppercase">{{ $transaction->occurred_at?->format('H:i, M j') ?? '—' }}</span>
                             </div>
                             <div class="flex flex-col items-end">
-                                <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em]">{{ __('Category') }}</span>
-                                <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 mt-1 uppercase tracking-widest">{{ $transaction->offer_type ?: 'PAYMENT' }}</span>
+                                <span class="text-[8px] font-black text-emerald-500/30 uppercase tracking-[0.2em]">{{ __('Category') }}</span>
+                                <span class="text-[10px] font-black text-emerald-400 mt-1 uppercase tracking-widest">{{ $transaction->offer_type ?: 'PAYMENT' }}</span>
                             </div>
                         </div>
                     </div>

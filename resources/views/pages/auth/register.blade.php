@@ -64,25 +64,25 @@
                 />
 
                 <div class="flex items-center justify-end">
-                    <flux:button type="submit" variant="primary" class="w-full" data-test="register-user-button">
+                    <flux:button type="submit" variant="primary" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-2xl shadow-indigo-600/20 h-12 rounded-2xl font-black uppercase tracking-widest text-[10px]" data-test="register-user-button">
                         {{ __('Create account') }}
                     </flux:button>
                 </div>
             </form>
         @else
-            <div class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-5 text-sm leading-6 text-amber-50">
-                <p class="font-medium text-amber-100">
+            <div class="rounded-[1.5rem] bg-indigo-500/10 p-6 ring-1 ring-indigo-500/20">
+                <p class="font-black text-indigo-400 text-sm">
                     {{ __('This account is already registered on this device.') }}
                 </p>
-                <p class="mt-2 text-amber-50/90">
+                <p class="mt-2 text-xs font-medium text-slate-500 leading-relaxed">
                     {{ __('Use the APK on a new device to register another installation.') }}
                 </p>
             </div>
         @endif
 
-        <div class="space-x-1 rtl:space-x-reverse text-center text-sm text-zinc-600 dark:text-zinc-400">
+        <div class="space-x-1 rtl:space-x-reverse text-center text-sm text-slate-500 font-medium">
             <span>{{ __('Already have an account?') }}</span>
-            <flux:link :href="route('login')" wire:navigate>{{ __('Log in') }}</flux:link>
+            <flux:link :href="route('login')" wire:navigate class="text-teal-400 hover:text-teal-300 transition-colors font-black">{{ __('Log in') }}</flux:link>
         </div>
     </div>
 </x-layouts::auth>

@@ -272,35 +272,38 @@ new #[Title('My Offers')] class extends Component {
     }
 }; ?>
 
-<section class="w-full p-4 md:p-6">
+<section class="w-full p-4 md:p-6 bg-slate-950 min-h-screen">
     <div class="flex flex-col gap-4">
-        <div class="relative overflow-hidden rounded-[2rem] border border-emerald-800 bg-gradient-to-br from-emerald-950 via-emerald-900 to-zinc-900 p-6 text-white shadow-xl dark:border-emerald-700/50">
+        <div class="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-6 shadow-2xl ring-1 ring-slate-800 md:p-8">
             <div class="pointer-events-none absolute inset-0">
-                <div class="absolute -top-12 -right-12 h-48 w-48 rounded-full bg-emerald-400/10 blur-3xl motion-safe:animate-pulse"></div>
-                <div class="absolute -bottom-16 -left-12 h-44 w-44 rounded-full bg-zinc-400/5 blur-3xl motion-safe:animate-pulse" style="animation-delay: 240ms;"></div>
-                <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+                <div class="absolute -top-12 -right-12 h-48 w-48 rounded-full bg-teal-500/5 blur-3xl"></div>
+                <div class="absolute -bottom-16 -left-12 h-44 w-44 rounded-full bg-indigo-500/5 blur-3xl"></div>
             </div>
 
             <div class="relative flex items-center justify-between gap-4">
                 <div>
-                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/60">{{ __('Service Portfolio') }}</span>
-                    <flux:heading size="xl" class="mt-1 text-white font-bold tracking-tight">{{ __('My Offers') }}</flux:heading>
+                    <span class="text-[10px] font-black uppercase tracking-[0.3em] text-teal-400/40">{{ __('Service Portfolio') }}</span>
+                    <flux:heading size="xl" class="mt-1 text-white font-black tracking-tight text-3xl">{{ __('My Offers') }}</flux:heading>
                 </div>
 
-                <div class="flex flex-col items-end rounded-2xl border border-white/10 bg-white/5 px-5 py-3 shadow-sm backdrop-blur-sm">
-                    <div class="text-[9px] font-black uppercase tracking-wider text-emerald-300/50">{{ __('Active') }}</div>
-                    <div class="text-2xl font-black text-white leading-none mt-1">{{ $this->offersCount }}</div>
+                <div class="flex flex-col items-end rounded-[1.5rem] bg-slate-950 px-6 py-4 shadow-inner ring-1 ring-slate-800">
+                    <div class="text-[9px] font-black uppercase tracking-widest text-teal-400/40">{{ __('Active') }}</div>
+                    <div class="text-2xl font-black text-teal-400 leading-none mt-1">{{ $this->offersCount }}</div>
                 </div>
             </div>
         </div>
 
-        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        <div class="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
             @foreach ($this->categoryFilters() as $value => $label)
                 <flux:button
                     type="button"
-                    class="shrink-0 rounded-full px-4"
+                    class="shrink-0 rounded-2xl px-6 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
                     variant="{{ $this->activeCategory === $value ? 'primary' : 'ghost' }}"
                     wire:click="setCategoryFilter('{{ $value }}')"
+                    @class([
+                        'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' => $this->activeCategory === $value,
+                        'bg-slate-900 text-slate-400 ring-1 ring-slate-800' => $this->activeCategory !== $value,
+                    ])
                 >
                     {{ $label }}
                 </flux:button>
@@ -308,21 +311,21 @@ new #[Title('My Offers')] class extends Component {
         </div>
 
         @if ($this->offers->isEmpty())
-            <div class="rounded-[28px] border border-dashed border-zinc-200 bg-white px-6 py-12 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 text-3xl dark:bg-zinc-800">
-                    +
+            <div class="rounded-[2.5rem] bg-slate-900 px-6 py-16 text-center shadow-2xl ring-1 ring-slate-800">
+                <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-slate-950 text-indigo-400 shadow-inner mb-6">
+                    <flux:icon.sparkles class="size-8" />
                 </div>
-                <div class="mt-5 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
-                    {{ __('No offers found in this category.') }}
+                <div class="text-xl font-black text-white tracking-tight">
+                    {{ __('No offers found') }}
                 </div>
-                <div class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                    {{ __('Tap the button below to add your first offer.') }}
+                <div class="mt-2 text-sm font-medium text-slate-500">
+                    {{ __('Define your first automated USSD service to get started.') }}
                 </div>
 
-                <div class="mt-6">
+                <div class="mt-8">
                     <flux:modal.trigger name="offer-form">
-                        <flux:button variant="primary" type="button" wire:click="createOffer">
-                            {{ __('Add offer') }}
+                        <flux:button variant="primary" type="button" wire:click="createOffer" class="h-12 px-8 font-black uppercase tracking-widest text-[10px]">
+                            {{ __('Create first offer') }}
                         </flux:button>
                     </flux:modal.trigger>
                 </div>
@@ -330,62 +333,68 @@ new #[Title('My Offers')] class extends Component {
         @else
             <div class="flex flex-col gap-3">
                 @foreach ($this->offers as $offer)
-                    <article class="group relative overflow-hidden rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/50">
+                    <article @class([
+                        'group relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-6 shadow-2xl ring-1 transition-all hover:ring-indigo-500/30',
+                        'ring-teal-500/20' => $offer->is_active,
+                        'ring-slate-800 grayscale-[0.5]' => !$offer->is_active,
+                    ])>
+                        @if ($offer->is_active)
+                            <div class="absolute inset-y-0 left-0 w-1 bg-teal-500/40"></div>
+                        @endif
+
                         <div class="flex items-start justify-between gap-4">
-                            <div class="flex-1 space-y-2">
+                            <div class="flex-1 space-y-2.5">
                                 <div class="flex items-center gap-3">
-                                    <flux:heading size="lg" class="text-zinc-900 dark:text-zinc-100 font-bold tracking-tight">{{ $offer->name }}</flux:heading>
+                                    <flux:heading size="lg" class="text-white font-black tracking-tight">{{ $offer->name }}</flux:heading>
                                     @if ($offer->is_active)
-                                        <span class="flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.1)]"></span>
+                                        <span class="inline-flex items-center rounded-lg bg-teal-500/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-teal-400">
+                                            {{ __('Active') }}
+                                        </span>
                                     @endif
                                 </div>
 
-                                <div class="flex flex-wrap gap-2">
-                                    <span class="inline-flex items-center rounded-lg bg-zinc-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-zinc-500 border border-zinc-100 dark:bg-zinc-800/40 dark:text-zinc-400 dark:border-zinc-700/50">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex items-center rounded-xl bg-slate-950 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-teal-400/40 ring-1 ring-slate-800">
                                         {{ $this->categoryLabel($offer->category) }}
                                     </span>
-                                    <span @class([
-                                        'inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider border',
-                                        'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/50' => $offer->is_active,
-                                        'bg-zinc-50 text-zinc-400 border-zinc-100 dark:bg-zinc-800/20 dark:text-zinc-500 dark:border-zinc-800/50' => !$offer->is_active,
-                                    ])>
-                                        {{ $offer->is_active ? __('Active') : __('Paused') }}
+                                    <span class="font-mono text-[10px] font-black text-slate-600 tracking-tighter">
+                                        {{ $offer->ussd_code }}
                                     </span>
                                 </div>
                             </div>
 
-                            <div class="flex flex-col items-end">
-                                <div class="text-xl font-black text-emerald-600 dark:text-emerald-400">
-                                    {{ __('KES :price', ['price' => number_format($offer->price)]) }}
+                             <div class="text-right">
+                                <div class="text-xl font-black text-teal-400 leading-none">
+                                    <span class="text-[10px] font-bold text-slate-500 mr-0.5 uppercase">KES</span>{{ number_format($offer->price) }}
                                 </div>
-                                <div class="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-1">{{ __('Cost') }}</div>
+                                <div class="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mt-2">{{ __('UNIT PRICE') }}</div>
                             </div>
                         </div>
 
-                        <div class="mt-6 flex items-center justify-between gap-6 rounded-2xl bg-zinc-50/80 p-4 dark:bg-zinc-800/30 border border-zinc-100/50 dark:border-zinc-700/50">
-                            <div class="flex flex-col">
-                                <span class="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{{ __('USSD Payload') }}</span>
-                                <span class="text-sm font-mono font-bold text-zinc-700 dark:text-zinc-300 mt-1">{{ $offer->ussd_code }}</span>
+                        <div class="mt-6 flex items-center justify-between border-t border-slate-800/50 pt-5">
+                            <div class="flex items-center gap-2">
+                                <div @class([
+                                    'h-1.5 w-1.5 rounded-full',
+                                    'bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.5)] animate-pulse' => $offer->is_active,
+                                    'bg-slate-700' => !$offer->is_active,
+                                ])></div>
+                                <span class="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                                    {{ $offer->ussd_mode === 'express' ? __('Direct execution') : __('Guided flow') }}
+                                </span>
                             </div>
-                            <div class="flex flex-col items-end">
-                                <span class="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{{ __('Execution') }}</span>
-                                <span class="text-xs font-bold text-zinc-600 dark:text-zinc-400 mt-1">{{ $offer->ussd_mode === 'express' ? __('Direct') : __('Guided') }}</span>
+
+                            <div class="flex items-center gap-2">
+                                <flux:button variant="ghost" size="sm" type="button" wire:click="editOffer({{ $offer->id }})" class="rounded-2xl bg-slate-950 text-slate-400 ring-1 ring-slate-800 hover:text-white">
+                                    <flux:icon.pencil-square class="size-4" />
+                                </flux:button>
+
+                                <flux:button variant="ghost" size="sm" type="button" wire:click="confirmDeleteOffer({{ $offer->id }})" class="rounded-2xl bg-rose-950/20 text-rose-500 ring-1 ring-rose-900/30 hover:bg-rose-900/40">
+                                    <flux:icon.trash class="size-4" />
+                                </flux:button>
                             </div>
-                        </div>
-
-                        <div class="mt-6 grid grid-cols-2 gap-3">
-                            <flux:button variant="ghost" type="button" wire:click="editOffer({{ $offer->id }})" class="rounded-2xl font-bold text-xs bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800">
-                                <flux:icon.pencil-square class="mr-2 size-3.5" />
-                                {{ __('Edit') }}
-                            </flux:button>
-
-                            <flux:button variant="danger" type="button" wire:click="confirmDeleteOffer({{ $offer->id }})" class="rounded-2xl font-bold text-xs shadow-sm">
-                                <flux:icon.trash class="mr-2 size-3.5" />
-                                {{ __('Delete') }}
-                            </flux:button>
                         </div>
                     </article>
-                @endforeach
+@endforeach
 
                 <div class="mt-4">
                     {{ $this->offers->links() }}
@@ -399,10 +408,10 @@ new #[Title('My Offers')] class extends Component {
             <flux:button
                 variant="primary"
                 type="button"
-                class="h-14 w-14 rounded-full shadow-lg"
+                class="h-16 w-16 rounded-[2rem] shadow-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 ring-4 ring-slate-950"
                 wire:click="createOffer"
             >
-                <span class="text-3xl leading-none">+</span>
+                <flux:icon.plus class="size-8 text-white" />
             </flux:button>
         </flux:modal.trigger>
     </div>
@@ -434,7 +443,7 @@ new #[Title('My Offers')] class extends Component {
                 <flux:select.option value="advanced">{{ __('Advanced Mode - Step by Step Dials') }}</flux:select.option>
             </flux:select>
 
-            <div class="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-4 dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="rounded-[2rem] bg-slate-950 p-6 ring-1 ring-slate-800 shadow-inner">
                 <flux:checkbox wire:model="is_active" :label="__('Enable this offer immediately')" />
             </div>
 

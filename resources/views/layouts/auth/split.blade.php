@@ -1,17 +1,19 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900">
+    <body class="min-h-screen bg-zinc-50 antialiased dark:bg-zinc-950">
         <div class="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
-            <div class="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex dark:border-e dark:border-neutral-800">
-                <div class="absolute inset-0 bg-neutral-900"></div>
-                <a href="{{ route('home') }}" class="relative z-20 flex items-center text-lg font-medium" wire:navigate>
-                    <span class="flex h-10 w-10 items-center justify-center rounded-md">
-                        <x-app-logo-icon class="me-2 h-7 fill-current text-white" />
-                    </span>
-                    {{ config('app.name', 'Laravel') }}
+            <div class="relative hidden h-full flex-col p-12 text-zinc-900 lg:flex border-e border-zinc-100 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+                <div class="absolute inset-0 bg-white dark:bg-zinc-900"></div>
+                <div class="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-emerald-500/5 blur-[100px]"></div>
+                
+                <a href="{{ route('home') }}" class="relative z-20 flex items-center gap-3 text-xl font-black uppercase tracking-tighter" wire:navigate>
+                    <div class="h-12 w-12 flex items-center justify-center rounded-2xl bg-white shadow-xl shadow-emerald-500/10 border border-emerald-50 dark:bg-zinc-800 dark:border-zinc-700">
+                        <x-app-logo-icon class="h-8 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    {{ config('app.name', 'Bingwa') }}
                 </a>
 
                 @php
@@ -19,20 +21,22 @@
                 @endphp
 
                 <div class="relative z-20 mt-auto">
-                    <blockquote class="space-y-2">
-                        <flux:heading size="lg">&ldquo;{{ trim($message) }}&rdquo;</flux:heading>
-                        <footer><flux:heading>{{ trim($author) }}</flux:heading></footer>
+                    <blockquote class="space-y-4">
+                        <flux:heading size="xl" class="font-black tracking-tight leading-tight text-zinc-900 dark:text-white">&ldquo;{{ trim($message) }}&rdquo;</flux:heading>
+                        <footer><flux:heading class="text-emerald-600 font-bold uppercase tracking-widest text-xs">{{ trim($author) }}</flux:heading></footer>
                     </blockquote>
                 </div>
             </div>
             <div class="w-full lg:p-8">
                 <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-                    <a href="{{ route('home') }}" class="z-20 flex flex-col items-center gap-2 font-medium lg:hidden" wire:navigate>
-                        <span class="flex h-9 w-9 items-center justify-center rounded-md">
-                            <x-app-logo-icon class="size-9 fill-current text-black dark:text-white" />
-                        </span>
+                    <a href="{{ route('home') }}" class="z-20 flex flex-col items-center gap-4 font-medium lg:hidden mb-6" wire:navigate>
+                        <div class="h-16 w-16 flex items-center justify-center rounded-[1.5rem] bg-white shadow-xl shadow-emerald-500/10 border border-emerald-50 dark:bg-zinc-900 dark:border-zinc-800">
+                            <x-app-logo-icon class="size-10 text-emerald-600 dark:text-emerald-400" />
+                        </div>
 
-                        <span class="sr-only">{{ config('app.name', 'Laravel') }}</span>
+                        <div class="text-center">
+                            <h1 class="text-2xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">{{ config('app.name', 'Bingwa') }}</h1>
+                        </div>
                     </a>
                     {{ $slot }}
                 </div>

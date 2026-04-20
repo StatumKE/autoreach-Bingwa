@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 #[Signature('bingwa:sync-transactions')]
 #[Description('Pull the next queued Bingwa jobs from the backend and store them locally.')]
@@ -17,10 +18,15 @@ class SyncBingwaTransactions extends Command
      */
     public function handle(FetchNextBingwaJobs $fetchNextBingwaJobs): int
     {
+        Log::info('🔄 Starting Bingwa transactions sync...');
         $user = User::query()
             ->with('bingwaDeviceRegistration')
             ->whereHas('bingwaDeviceRegistration')
             ->first();
+
+        if ($user) {
+            Log::debug("👤 Syncing for user ID: {$user->id}");
+        }
 
         if (! $user) {
             $this->warn('No user found with a Bingwa device registration. Skipping sync.');
@@ -34,7 +40,9 @@ class SyncBingwaTransactions extends Command
         $failed = $result['failed'];
         $skipped = $result['skipped'];
 
-        $this->info("Synced {$synced} transaction(s). Skipped {$skipped} account(s). Failed {$failed} endpoint(s).");
+        $message = "✅ Sync complete: {$synced} synced, {$skipped} skipped, {$failed} failed.";
+        Log::info($message);
+        $this->info($message);
 
         return self::SUCCESS;
     }

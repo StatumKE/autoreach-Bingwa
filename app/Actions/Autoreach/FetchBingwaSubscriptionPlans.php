@@ -5,6 +5,7 @@ namespace App\Actions\Autoreach;
 use App\Models\User;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class FetchBingwaSubscriptionPlans
@@ -30,7 +31,10 @@ class FetchBingwaSubscriptionPlans
             ]);
         }
 
-        $response = Http::baseUrl(rtrim((string) config('services.autoreach.backend_url'), '/'))
+        $baseUrl = rtrim((string) config('services.autoreach.backend_url'), '/');
+        Log::debug("🌐 Fetching plans from: {$baseUrl}/api/v1/subscription/plans/hybrid");
+
+        $response = Http::baseUrl($baseUrl)
             ->retry(3, 100)
             ->acceptJson()
             ->asJson()
@@ -39,8 +43,12 @@ class FetchBingwaSubscriptionPlans
             ->get('/api/v1/subscription/plans/hybrid');
 
         if ($response->successful()) {
+            Log::debug('📦 Plans response received', ['plans_count' => count($response->json('plans') ?? $response->json('data') ?? [])]);
+
             return $this->normalizePlansResponse($response);
         }
+
+        Log::error('❌ Plans fetch failed', ['status' => $response->status(), 'body' => $response->json()]);
 
         $this->throwValidationException($response);
     }

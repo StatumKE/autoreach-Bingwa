@@ -1,7 +1,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#18181b" />
-<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#fafafa" />
+<meta name="color-scheme" content="light dark" />
 
 <title>
     {{ filled($title ?? null) ? $title.' - '.config('app.name', 'Laravel') : config('app.name', 'Laravel') }}

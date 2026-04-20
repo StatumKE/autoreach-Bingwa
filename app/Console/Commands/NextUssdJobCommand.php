@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 #[Signature('bingwa:next-ussd-job')]
 #[Description('Get the next queued transaction and output its USSD details as JSON for the Android scheduler.')]
@@ -34,6 +35,10 @@ class NextUssdJobCommand extends Command
                 'status_desc' => __('Recovered: previous USSD attempt timed out.'),
             ]);
 
+        if ($recoveredCount = Transaction::query()->where('status', 'processing')->where('updated_at', '<=', now()->subMinutes(self::STUCK_THRESHOLD_MINUTES))->count()) {
+            Log::warning("♻️ Recovered {$recoveredCount} stuck transactions.");
+        }
+
         $transaction = Transaction::query()
             ->with(['offer:id,ussd_code,ussd_mode', 'user.deviceSetting'])
             ->where('status', 'queued')
@@ -42,6 +47,8 @@ class NextUssdJobCommand extends Command
             ->first();
 
         if ($transaction === null || $transaction->offer === null) {
+            Log::debug('📭 No queued transactions found.');
+
             return self::SUCCESS;
         }
 
@@ -53,6 +60,8 @@ class NextUssdJobCommand extends Command
             'status' => 'processing',
             'status_desc' => __('USSD call in progress.'),
         ]);
+
+        Log::info("📤 Dispatching job #{$transaction->id} | Code: {$resolvedCode} | Mode: {$transaction->offer->ussd_mode}");
 
         $settings = $transaction->user?->deviceSetting;
         $simSlot = ($settings?->primary_transaction_sim === 'slot_2') ? 1 : 0;

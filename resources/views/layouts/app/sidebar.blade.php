@@ -1,38 +1,38 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
     </head>
-    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-zinc-50 dark:bg-zinc-950 overscroll-y-none touch-manipulation">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200/50 bg-zinc-50 dark:border-zinc-800/50 dark:bg-zinc-950">
+    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-slate-950 text-slate-100 overscroll-y-none touch-manipulation">
+        <flux:sidebar sticky collapsible="mobile" class="bg-slate-900 border-e border-slate-800">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
-                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
+                <flux:sidebar.group :heading="__('Platform')" class="grid text-teal-400/50">
+                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate class="text-slate-300 hover:text-white">
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="tag" :href="route('offers')" :current="request()->routeIs('offers')" wire:navigate>
+                    <flux:sidebar.item icon="tag" :href="route('offers')" :current="request()->routeIs('offers')" wire:navigate class="text-slate-300 hover:text-white">
                         {{ __('Offers') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="arrows-right-left" :href="route('transactions')" :current="request()->routeIs('transactions')" wire:navigate>
+                    <flux:sidebar.item icon="arrows-right-left" :href="route('transactions')" :current="request()->routeIs('transactions')" wire:navigate class="text-slate-300 hover:text-white">
                         {{ __('Transactions') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="book-open-text" :href="route('plans')" :current="request()->routeIs('plans')" wire:navigate>
+                    <flux:sidebar.item icon="book-open-text" :href="route('plans')" :current="request()->routeIs('plans')" wire:navigate class="text-slate-300 hover:text-white">
                         {{ __('Plans') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="phone" :href="route('quick-dials')" :current="request()->routeIs('quick-dials')" wire:navigate>
+                    <flux:sidebar.item icon="phone" :href="route('quick-dials')" :current="request()->routeIs('quick-dials')" wire:navigate class="text-slate-300 hover:text-white">
                         {{ __('Quick Dial') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="cog" :href="route('device.edit')" :current="request()->routeIs('device.edit')" wire:navigate>
+                    <flux:sidebar.item icon="cog" :href="route('device.edit')" :current="request()->routeIs('device.edit')" wire:navigate class="text-slate-300 hover:text-white">
                         {{ __('Device settings') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
@@ -44,8 +44,8 @@
         </flux:sidebar>
 
         <!-- Mobile User Menu -->
-        <flux:header class="lg:hidden !px-4" container="false">
-            <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+        <flux:header class="lg:hidden !px-4 bg-slate-950 border-b border-slate-900" container="false">
+            <flux:sidebar.toggle class="lg:hidden text-teal-400" icon="bars-2" inset="left" />
 
             <flux:spacer />
 

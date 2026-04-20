@@ -7,8 +7,8 @@
 6 silly config load:file:/Users/statum/Library/Application Support/Herd/config/nvm/versions/node/v22.22.0/etc/npmrc
 7 verbose title npm run build --mode=android
 8 verbose argv "run" "build" "--" "--mode=android"
-9 verbose logfile logs-max:10 dir:/Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-19T15_22_53_824Z-
-10 verbose logfile /Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-19T15_22_53_824Z-debug-0.log
+9 verbose logfile logs-max:10 dir:/Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-20T07_00_14_790Z-
+10 verbose logfile /Users/statum/Herd/autoreachBingwaApp/.npm-cache/_logs/2026-04-20T07_00_14_790Z-debug-0.log
 11 silly logfile start cleaning logs, removing 1 files
 12 silly logfile done cleaning log files
 13 verbose cwd /Users/statum/Herd/autoreachBingwaApp

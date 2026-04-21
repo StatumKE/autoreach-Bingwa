@@ -4,12 +4,12 @@
         @include('partials.head')
         <title>{{ __('Welcome') }} - {{ config('app.name', 'Laravel') }}</title>
     </head>
-    <body class="nativephp-safe-area min-h-screen bg-zinc-50 antialiased dark:bg-zinc-950 flex flex-col items-center justify-center p-6">
+    <body class="nativephp-safe-area min-h-screen bg-app-bg antialiased dark:bg-zinc-950 flex flex-col items-center justify-center p-6">
         <div class="w-full max-w-sm flex flex-col items-center gap-12">
             <!-- Logo Section -->
             <div class="flex flex-col items-center gap-4">
-                <div class="h-20 w-20 flex items-center justify-center rounded-[2rem] bg-white shadow-xl shadow-emerald-500/10 border border-emerald-50 dark:bg-zinc-900 dark:border-zinc-800">
-                    <x-app-logo-icon class="size-12 text-emerald-600 dark:text-emerald-400" />
+                <div class="h-20 w-20 flex items-center justify-center rounded-[1.5rem] bg-white shadow-sm shadow-green-500/10 border border-green-50 dark:bg-zinc-900 dark:border-zinc-800">
+                    <x-app-logo-icon class="size-12 text-green-600 dark:text-green-400" />
                 </div>
                 <div class="text-center">
                     <h1 class="text-3xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">{{ config('app.name', 'Bingwa') }}</h1>
@@ -18,7 +18,7 @@
             </div>
 
             <!-- Content Card -->
-            <div class="w-full bg-white rounded-[2.5rem] p-8 shadow-sm border border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800">
+            <div class="w-full bg-white rounded-[1.75rem] p-8 shadow-sm border border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800">
                 <div class="text-center mb-10">
                     <h2 class="text-xl font-bold text-zinc-900 dark:text-white">{{ __('Welcome Back') }}</h2>
                     <p class="text-sm text-zinc-500 mt-2">{{ __('Manage your USSD transactions and device settings with ease.') }}</p>
@@ -26,11 +26,11 @@
 
                 <div class="flex flex-col gap-4">
                     @auth
-                        <flux:button :href="route('dashboard')" variant="primary" class="h-14 rounded-2xl font-black shadow-lg shadow-emerald-500/20" wire:navigate>
+                        <flux:button :href="route('dashboard')" variant="primary" class="h-14 rounded-2xl font-black shadow-lg shadow-green-500/20" wire:navigate>
                             {{ __('Go to Dashboard') }}
                         </flux:button>
                     @else
-                        <flux:button :href="route('login')" variant="primary" class="h-14 rounded-2xl font-black shadow-lg shadow-emerald-500/20" wire:navigate>
+                        <flux:button :href="route('login')" variant="primary" class="h-14 rounded-2xl font-black shadow-lg shadow-green-500/20" wire:navigate>
                             {{ __('Log In') }}
                         </flux:button>
 
@@ -45,11 +45,11 @@
 
             <!-- Footer Section -->
             <div class="flex items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
-                <a href="#" class="hover:text-emerald-600 transition-colors">{{ __('Privacy') }}</a>
+                <a href="#" class="hover:text-green-600 transition-colors">{{ __('Privacy') }}</a>
                 <span class="h-1 w-1 rounded-full bg-zinc-300"></span>
-                <a href="#" class="hover:text-emerald-600 transition-colors">{{ __('Terms') }}</a>
+                <a href="#" class="hover:text-green-600 transition-colors">{{ __('Terms') }}</a>
                 <span class="h-1 w-1 rounded-full bg-zinc-300"></span>
-                <a href="#" class="hover:text-emerald-600 transition-colors">{{ __('Support') }}</a>
+                <a href="#" class="hover:text-green-600 transition-colors">{{ __('Support') }}</a>
             </div>
         </div>
 

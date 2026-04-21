@@ -16,9 +16,7 @@ test('quick dial page can be rendered', function () {
         ->assertSee('Customer information')
         ->assertSee('Available offers')
         ->assertSee('Contacts')
-        ->assertDontSee('Phone Book')
-        ->assertDontSee('Search your device contacts')
-        ->assertDontSee('Securely browse your native contacts');
+        ->assertSee('Find contact');
 });
 
 test('quick dial page searches native contacts', function () {
@@ -33,7 +31,7 @@ test('quick dial page searches native contacts', function () {
 
         $mock->shouldReceive('search')
             ->once()
-            ->with('Jane', 12)
+            ->with('Jane', 100)
             ->andReturn([
                 [
                     'name' => 'Jane Doe',
@@ -51,6 +49,15 @@ test('quick dial page searches native contacts', function () {
         ->assertSee('Mobile');
 });
 
+test('quick dial contact picker starts in search mode instead of dumping all contacts', function () {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test('quick-dials')
+        ->call('openContactPicker')
+        ->assertSet('showContactPicker', true)
+        ->assertSee('Type a name or number to search contacts.');
+});
+
 test('quick dial page requests contacts permission when missing', function () {
     $this->actingAs(User::factory()->create());
 
@@ -65,6 +72,7 @@ test('quick dial page requests contacts permission when missing', function () {
     });
 
     Livewire::test('quick-dials')
+        ->set('contactSearch', 'Jane')
         ->call('searchContacts')
         ->assertSee('Contacts permission is required');
 });

@@ -6,6 +6,7 @@ use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Native\Mobile\Facades\Device;
@@ -40,17 +41,23 @@ class RegisterBingwaDevice
         ];
 
         $deviceInfo = $this->deviceInfo($hardwareId);
+        $payload['device_info'] = $deviceInfo;
 
-        if ($deviceInfo !== []) {
-            $payload['device_info'] = $deviceInfo;
-        }
+        Log::debug('Submitting Bingwa device registration request.', [
+            'url' => rtrim((string) config('services.autoreach.backend_url'), '/').'/api/v1/auth/device/register/hybrid',
+            'payload' => $payload,
+        ]);
 
         $response = Http::baseUrl(rtrim((string) config('services.autoreach.backend_url'), '/'))
-            ->retry(3, 100)
+            ->retry(3, 100, throw: false)
             ->acceptJson()
             ->asJson()
             ->timeout(30)
             ->post('/api/v1/auth/device/register/hybrid', $payload);
+
+        Log::debug('Bingwa device registration response received.', [
+            'status' => $response->status(),
+        ]);
 
         if ($response->successful()) {
             return array_merge(
@@ -67,16 +74,46 @@ class RegisterBingwaDevice
      */
     private function deviceInfo(string $hardwareId): array
     {
+        Log::debug('Bingwa native device info bridge probe.', [
+            'hardware_id' => $hardwareId,
+            'nativephp_call_available' => function_exists('nativephp_call'),
+        ]);
+
+        $rawDeviceInfo = $this->nativeBridgeCall('Device.GetInfo', '{}');
+
+        Log::debug('Bingwa native device info raw response.', [
+            'hardware_id' => $hardwareId,
+            'response' => is_string($rawDeviceInfo) ? $rawDeviceInfo : null,
+        ]);
+
+        $deviceInfo = $this->decodeNativeBridgeDeviceInfo($rawDeviceInfo, $hardwareId);
+
+        if ($deviceInfo !== []) {
+            return $deviceInfo;
+        }
+
         $deviceInfo = Device::getInfo();
 
         if (! is_string($deviceInfo) || $deviceInfo === '') {
-            return [];
+            Log::debug('Bingwa native device info bridge returned an empty value.', [
+                'hardware_id' => $hardwareId,
+            ]);
+
+            return [
+                'uuid' => $hardwareId,
+            ];
         }
 
         $decoded = json_decode($deviceInfo, true);
 
         if (! is_array($decoded)) {
-            return [];
+            Log::debug('Bingwa native device info bridge returned invalid JSON.', [
+                'hardware_id' => $hardwareId,
+            ]);
+
+            return [
+                'uuid' => $hardwareId,
+            ];
         }
 
         return array_filter([
@@ -147,7 +184,7 @@ class RegisterBingwaDevice
 
     private function resolveHardwareId(): string
     {
-        $hardwareId = Device::getId();
+        $hardwareId = $this->nativeHardwareId();
 
         if (is_string($hardwareId) && $hardwareId !== '') {
             return $hardwareId;
@@ -156,5 +193,105 @@ class RegisterBingwaDevice
         return cache()->rememberForever('autoreach.hardware_id', function (): string {
             return (string) Str::uuid();
         });
+    }
+
+    /**
+     * Call a NativePHP bridge function when available.
+     */
+    protected function nativeBridgeCall(string $functionName, string $payload): mixed
+    {
+        if (! function_exists('nativephp_call')) {
+            return null;
+        }
+
+        return nativephp_call($functionName, $payload);
+    }
+
+    private function nativeHardwareId(): ?string
+    {
+        Log::debug('Bingwa native hardware id bridge probe.', [
+            'nativephp_call_available' => function_exists('nativephp_call'),
+        ]);
+
+        $rawHardwareId = $this->nativeBridgeCall('Device.GetId', '{}');
+
+        Log::debug('Bingwa native hardware id raw response.', [
+            'response' => is_string($rawHardwareId) ? $rawHardwareId : null,
+        ]);
+
+        if (is_string($rawHardwareId) && $rawHardwareId !== '') {
+            $decodedResponse = json_decode($rawHardwareId, true);
+
+            if (is_array($decodedResponse)) {
+                $bridgeHardwareId = $decodedResponse['data']['id'] ?? null;
+
+                if (is_string($bridgeHardwareId) && $bridgeHardwareId !== '' && $bridgeHardwareId !== 'unknown') {
+                    Log::debug('Bingwa native hardware id resolved from bridge.', [
+                        'hardware_id' => $bridgeHardwareId,
+                    ]);
+
+                    return $bridgeHardwareId;
+                }
+            }
+        }
+
+        $hardwareId = Device::getId();
+
+        if (is_string($hardwareId) && $hardwareId !== '' && $hardwareId !== 'unknown') {
+            return $hardwareId;
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeNativeBridgeDeviceInfo(mixed $rawResponse, string $hardwareId): array
+    {
+        if (! is_string($rawResponse) || $rawResponse === '') {
+            return [];
+        }
+
+        $decodedResponse = json_decode($rawResponse, true);
+
+        if (! is_array($decodedResponse)) {
+            Log::debug('Bingwa native device info raw response was not valid JSON.', [
+                'hardware_id' => $hardwareId,
+            ]);
+
+            return [];
+        }
+
+        $deviceInfoJson = $decodedResponse['data']['info'] ?? null;
+
+        if (! is_string($deviceInfoJson) || $deviceInfoJson === '') {
+            Log::debug('Bingwa native device info response did not contain info data.', [
+                'hardware_id' => $hardwareId,
+            ]);
+
+            return [];
+        }
+
+        $decodedDeviceInfo = json_decode($deviceInfoJson, true);
+
+        if (! is_array($decodedDeviceInfo)) {
+            Log::debug('Bingwa native device info payload was not valid JSON.', [
+                'hardware_id' => $hardwareId,
+            ]);
+
+            return [];
+        }
+
+        return array_filter([
+            'name' => $decodedDeviceInfo['name'] ?? null,
+            'model' => $decodedDeviceInfo['model'] ?? null,
+            'manufacturer' => $decodedDeviceInfo['manufacturer'] ?? null,
+            'os_name' => $decodedDeviceInfo['operatingSystem'] ?? $decodedDeviceInfo['os_name'] ?? null,
+            'os_version' => $decodedDeviceInfo['osVersion'] ?? $decodedDeviceInfo['os_version'] ?? null,
+            'platform' => $decodedDeviceInfo['platform'] ?? null,
+            'is_virtual' => $decodedDeviceInfo['isVirtual'] ?? $decodedDeviceInfo['is_virtual'] ?? null,
+            'uuid' => $hardwareId,
+        ], static fn ($value): bool => $value !== null);
     }
 }

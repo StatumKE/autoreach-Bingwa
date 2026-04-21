@@ -46,13 +46,13 @@ new class extends Component {
 }; ?>
 
 <div
-    class="py-8 space-y-6 border shadow-sm rounded-[2rem] border-zinc-100 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+    class="py-8 space-y-6 border shadow-sm rounded-[1.75rem] border-zinc-100 bg-white dark:border-zinc-800 dark:bg-zinc-900"
     wire:cloak
     x-data="{ showRecoveryCodes: false }"
 >
     <div class="px-8 space-y-2">
         <div class="flex items-center gap-2">
-            <flux:icon.lock-closed variant="outline" class="size-4 text-emerald-600 dark:text-emerald-400"/>
+            <flux:icon.lock-closed variant="outline" class="size-4 text-green-600 dark:text-green-400"/>
             <flux:heading size="lg" level="3" class="font-black uppercase tracking-tight">{{ __('2FA recovery codes') }}</flux:heading>
         </div>
         <flux:text variant="subtle" class="font-medium text-zinc-500">
@@ -68,7 +68,7 @@ new class extends Component {
                 icon:variant="outline"
                 variant="primary"
                 @click="showRecoveryCodes = true;"
-                class="shadow-lg shadow-emerald-500/10 rounded-2xl h-11"
+                class="shadow-lg shadow-green-500/10 rounded-2xl h-11"
                 aria-expanded="false"
                 aria-controls="recovery-codes-section"
             >
@@ -81,7 +81,7 @@ new class extends Component {
                 icon:variant="outline"
                 variant="primary"
                 @click="showRecoveryCodes = false"
-                class="shadow-lg shadow-emerald-500/10 rounded-2xl h-11"
+                class="shadow-lg shadow-green-500/10 rounded-2xl h-11"
                 aria-expanded="true"
                 aria-controls="recovery-codes-section"
             >
@@ -89,16 +89,22 @@ new class extends Component {
             </flux:button>
 
             @if (filled($recoveryCodes))
-                <flux:button
-                    x-show="showRecoveryCodes"
-                    icon="arrow-path"
-                    variant="ghost"
-                    class="rounded-2xl h-11 text-zinc-500"
-                    wire:click="regenerateRecoveryCodes"
-                >
-                    {{ __('Regenerate codes') }}
-                </flux:button>
-            @endif
+            <flux:button
+                x-show="showRecoveryCodes"
+                icon="arrow-path"
+                variant="ghost"
+                class="rounded-2xl h-11 text-zinc-500"
+                wire:click="regenerateRecoveryCodes"
+                wire:loading.attr="disabled"
+                wire:target="regenerateRecoveryCodes"
+            >
+                <span wire:loading.remove wire:target="regenerateRecoveryCodes">{{ __('Regenerate codes') }}</span>
+                <span wire:loading wire:target="regenerateRecoveryCodes" class="inline-flex items-center justify-center gap-2">
+                    <flux:icon.loading variant="mini" class="size-4" />
+                    {{ __('Regenerating…') }}
+                </span>
+            </flux:button>
+        @endif
         </div>
 
         <div

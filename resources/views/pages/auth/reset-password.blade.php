@@ -5,7 +5,7 @@
         <!-- Session Status -->
         <x-auth-session-status class="text-center" :status="session('status')" />
 
-        <form method="POST" action="{{ route('password.update') }}" class="flex flex-col gap-6">
+        <form method="POST" action="{{ route('password.update') }}" class="flex flex-col gap-6" x-data="{ submitting: false }" x-on:submit="submitting = true">
             @csrf
             <!-- Token -->
             <input type="hidden" name="token" value="{{ request()->route('token') }}">
@@ -43,8 +43,12 @@
             />
 
             <div class="flex items-center justify-end">
-                <flux:button type="submit" variant="primary" class="w-full shadow-lg shadow-emerald-500/10" data-test="reset-password-button">
-                    {{ __('Reset password') }}
+                <flux:button type="submit" variant="primary" class="w-full shadow-lg shadow-green-500/10" data-test="reset-password-button" x-bind:disabled="submitting">
+                    <span x-cloak x-show="!submitting">{{ __('Reset password') }}</span>
+                    <span x-cloak x-show="submitting" class="inline-flex items-center justify-center gap-2">
+                        <flux:icon.loading variant="mini" class="size-4" />
+                        {{ __('Resetting…') }}
+                    </span>
                 </flux:button>
             </div>
         </form>

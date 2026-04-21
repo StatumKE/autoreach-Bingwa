@@ -20,18 +20,6 @@ $result = NativeScheduler::execute(['option1' => 'value']);
 $status = NativeScheduler::getStatus();
 ```
 
-## Listening for Events
-
-```php
-use Livewire\Attributes\On;
-
-#[On('native:Statum\NativeScheduler\Events\NativeSchedulerCompleted')]
-public function handleNativeSchedulerCompleted($result, $id = null)
-{
-    // Handle the event
-}
-```
-
 ## License
 
 MIT

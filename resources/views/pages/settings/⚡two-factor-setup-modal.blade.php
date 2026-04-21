@@ -159,7 +159,7 @@ new class extends Component {
 >
         <div class="space-y-6">
             <div class="flex flex-col items-center space-y-4">
-                <div class="p-0.5 w-auto rounded-full border border-emerald-50 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+                <div class="p-0.5 w-auto rounded-full border border-green-50 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
                     <div class="p-2.5 rounded-full border border-zinc-200 dark:border-zinc-700 overflow-hidden bg-zinc-50 dark:bg-zinc-800 relative">
                         <div class="flex items-stretch absolute inset-0 w-full h-full divide-x [&>div]:flex-1 divide-zinc-200 dark:divide-zinc-700 justify-around opacity-50">
                             @for ($i = 1; $i <= 5; $i++)
@@ -173,7 +173,7 @@ new class extends Component {
                             @endfor
                         </div>
 
-                        <flux:icon.qr-code class="relative z-20 text-emerald-600 dark:text-emerald-400"/>
+                        <flux:icon.qr-code class="relative z-20 text-green-600 dark:text-green-400"/>
                     </div>
                 </div>
 
@@ -207,11 +207,17 @@ new class extends Component {
 
                         <flux:button
                             variant="primary"
-                            class="flex-1 rounded-2xl shadow-lg shadow-emerald-500/10"
+                            class="flex-1 rounded-2xl shadow-lg shadow-green-500/10"
                             wire:click="confirmTwoFactor"
                             x-bind:disabled="$wire.code.length < 6"
+                            wire:loading.attr="disabled"
+                            wire:target="confirmTwoFactor"
                         >
-                            {{ __('Confirm') }}
+                            <span wire:loading.remove wire:target="confirmTwoFactor">{{ __('Confirm') }}</span>
+                            <span wire:loading wire:target="confirmTwoFactor" class="inline-flex items-center justify-center gap-2">
+                                <flux:icon.loading variant="mini" class="size-4" />
+                                {{ __('Confirming…') }}
+                            </span>
                         </flux:button>
                     </div>
                 </div>
@@ -221,7 +227,7 @@ new class extends Component {
                 @enderror
 
                 <div class="flex justify-center">
-                    <div class="relative w-64 overflow-hidden border rounded-[2rem] border-zinc-100 dark:border-zinc-800 aspect-square shadow-sm">
+                    <div class="relative w-64 overflow-hidden border rounded-[1.5rem] border-zinc-100 dark:border-zinc-800 aspect-square shadow-sm">
                         @empty($qrCodeSvg)
                             <div class="absolute inset-0 flex items-center justify-center bg-white dark:bg-zinc-800 animate-pulse">
                                 <flux:icon.loading/>
@@ -243,10 +249,16 @@ new class extends Component {
                     <flux:button
                         :disabled="$errors->has('setupData')"
                         variant="primary"
-                        class="w-full rounded-2xl shadow-lg shadow-emerald-500/10 h-12"
+                        class="w-full rounded-2xl shadow-lg shadow-green-500/10 h-12"
                         wire:click="showVerificationIfNecessary"
+                        wire:loading.attr="disabled"
+                        wire:target="showVerificationIfNecessary"
                     >
-                        {{ $this->modalConfig['buttonText'] }}
+                        <span wire:loading.remove wire:target="showVerificationIfNecessary">{{ $this->modalConfig['buttonText'] }}</span>
+                        <span wire:loading wire:target="showVerificationIfNecessary" class="inline-flex items-center justify-center gap-2">
+                            <flux:icon.loading variant="mini" class="size-4" />
+                            {{ __('Loading…') }}
+                        </span>
                     </flux:button>
                 </div>
 
@@ -294,13 +306,14 @@ new class extends Component {
                                     <flux:icon.check
                                         x-show="copied"
                                         variant="solid"
-                                        class="text-emerald-500 size-4"
+                                        class="text-green-500 size-4"
                                     ></flux:icon>
                                 </button>
                             @endempty
                         </div>
                     </div>
                 </div>
+
             @endif
         </div>
 </flux:modal>

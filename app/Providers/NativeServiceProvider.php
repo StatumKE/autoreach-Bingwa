@@ -3,27 +3,12 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Native\Mobile\Providers\DeviceServiceProvider;
 use Statum\NativeContacts\NativeContactsServiceProvider;
 use Statum\NativeScheduler\NativeSchedulerServiceProvider;
 
 class NativeServiceProvider extends ServiceProvider
 {
-    /**
-     * Register services.
-     */
-    public function register(): void
-    {
-        //
-    }
-
-    /**
-     * Bootstrap services.
-     */
-    public function boot(): void
-    {
-        //
-    }
-
     /**
      * The NativePHP plugins to enable.
      *
@@ -34,6 +19,7 @@ class NativeServiceProvider extends ServiceProvider
         return [
             NativeContactsServiceProvider::class,
             NativeSchedulerServiceProvider::class,
+            DeviceServiceProvider::class,
         ];
     }
 }

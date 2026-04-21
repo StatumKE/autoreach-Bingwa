@@ -8,6 +8,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $user_id
+ * @property string|null $operator_identity
+ * @property string|null $primary_transaction_sim
+ * @property string|null $sms_auto_reply_sim
+ * @property string|null $app_interface_mode
+ * @property bool $auto_reschedule_rejected
+ * @property string|null $retry_tomorrow_at
+ * @property int $ussd_timeout_seconds
+ * @property bool $intelligent_auto_retry
+ * @property int $retry_interval_minutes
+ * @property int $max_attempts
+ * @property bool $retry_network_issues
+ * @property-read User $user
+ */
 #[Fillable([
     'user_id',
     'operator_identity',

@@ -27,7 +27,7 @@ class NextUssdJobCommand extends Command
     {
         // Recover any transactions stuck in "processing" due to a previous crash.
         // The USSD timeout is 30 seconds, so anything older than 2 minutes is definitively stuck.
-        Transaction::query()
+        $recoveredCount = Transaction::query()
             ->where('status', 'processing')
             ->where('updated_at', '<=', now()->subMinutes(self::STUCK_THRESHOLD_MINUTES))
             ->update([
@@ -35,7 +35,7 @@ class NextUssdJobCommand extends Command
                 'status_desc' => __('Recovered: previous USSD attempt timed out.'),
             ]);
 
-        if ($recoveredCount = Transaction::query()->where('status', 'processing')->where('updated_at', '<=', now()->subMinutes(self::STUCK_THRESHOLD_MINUTES))->count()) {
+        if ($recoveredCount > 0) {
             Log::warning("♻️ Recovered {$recoveredCount} stuck transactions.");
         }
 
@@ -55,17 +55,11 @@ class NextUssdJobCommand extends Command
         // Replace the PN placeholder with the actual recipient phone number
         $resolvedCode = str_replace('PN', $transaction->sender_phone, $transaction->offer->ussd_code);
 
-        // Mark as processing immediately to prevent double-dispatch on the next cycle
-        $transaction->update([
-            'status' => 'processing',
-            'status_desc' => __('USSD call in progress.'),
-        ]);
-
         Log::info("📤 Dispatching job #{$transaction->id} | Code: {$resolvedCode} | Mode: {$transaction->offer->ussd_mode}");
 
         $settings = $transaction->user?->deviceSetting;
         $simSlot = ($settings?->primary_transaction_sim === 'slot_2') ? 1 : 0;
-        $timeout = $settings?->ussd_timeout_seconds ?? 30;
+        $timeout = $settings->ussd_timeout_seconds ?? 30;
 
         $this->line(json_encode([
             'id' => $transaction->id,

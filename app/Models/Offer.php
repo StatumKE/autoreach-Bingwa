@@ -8,6 +8,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property string $name
+ * @property string $category
+ * @property int $price
+ * @property string $ussd_code
+ * @property string $ussd_mode
+ * @property bool $is_active
+ * @property-read User $user
+ */
 #[Fillable([
     'user_id',
     'name',

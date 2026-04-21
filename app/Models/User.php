@@ -6,6 +6,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -14,6 +15,16 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
+/**
+ * @property string $name
+ * @property string $email
+ * @property string|null $autoreach_connect_id
+ * @property-read BingwaDeviceRegistration|null $bingwaDeviceRegistration
+ * @property-read Collection<int, Offer> $offers
+ * @property-read Collection<int, Plan> $plans
+ * @property-read DeviceSetting|null $deviceSetting
+ * @property-read Collection<int, Transaction> $transactions
+ */
 #[Fillable(['name', 'email', 'autoreach_connect_id', 'password'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable

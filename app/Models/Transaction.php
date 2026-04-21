@@ -7,7 +7,29 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int|null $offer_id
+ * @property string $transaction_id
+ * @property string $mpesa_code
+ * @property string $sender_phone
+ * @property string|null $sender_name
+ * @property float $amount
+ * @property string $offer_name
+ * @property string $offer_type
+ * @property array<string, mixed>|null $matched_offer
+ * @property array<string, mixed>|null $balance
+ * @property Carbon|null $occurred_at
+ * @property string $status
+ * @property string|null $status_desc
+ * @property int $retry_count
+ * @property Carbon|null $processed_at
+ * @property-read User|null $user
+ * @property-read Offer|null $offer
+ */
 #[Fillable([
     'user_id',
     'offer_id',

@@ -50,3 +50,63 @@ test('transactions load and display the requested details', function () {
     $response->assertSee('Transaction completed successfully.');
     $response->assertSee('successful');
 });
+
+test('failed transactions can be retried from the transactions page', function () {
+    $user = User::factory()->create();
+
+    $transaction = Transaction::factory()->for($user)->create([
+        'transaction_id' => 'TX-RETRY-FAILED',
+        'status' => 'failed',
+        'status_desc' => 'USSD call failed.',
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($user);
+
+    $response = Livewire::test('transactions')
+        ->call('loadTransactions');
+
+    $response->assertSee('Retry');
+
+    $response->call('retryTransaction', $transaction->id);
+
+    $response->assertHasNoErrors();
+
+    $this->assertDatabaseHas('transactions', [
+        'id' => $transaction->id,
+        'status' => 'queued',
+        'processed_at' => null,
+    ]);
+
+    expect($transaction->fresh()->status_desc)->toBe('Retry requested from the Transactions page.');
+});
+
+test('pending transactions can be retried from the transactions page', function () {
+    $user = User::factory()->create();
+
+    $transaction = Transaction::factory()->for($user)->create([
+        'transaction_id' => 'TX-RETRY-PENDING',
+        'status' => 'pending',
+        'status_desc' => 'Waiting for USSD processing.',
+        'processed_at' => null,
+    ]);
+
+    $this->actingAs($user);
+
+    $response = Livewire::test('transactions')
+        ->call('loadTransactions');
+
+    $response->assertSee('Retry');
+
+    $response->call('retryTransaction', $transaction->id);
+
+    $response->assertHasNoErrors();
+
+    $this->assertDatabaseHas('transactions', [
+        'id' => $transaction->id,
+        'status' => 'queued',
+        'processed_at' => null,
+    ]);
+
+    expect($transaction->fresh()->status_desc)->toBe('Retry requested from the Transactions page.');
+});

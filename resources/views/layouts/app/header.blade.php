@@ -3,11 +3,11 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-zinc-50 antialiased dark:bg-zinc-950">
-        <flux:header container="false" class="border-b border-zinc-100 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-            <flux:sidebar.toggle class="lg:hidden mr-2" icon="bars-2" inset="left" />
+    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg antialiased dark:bg-zinc-950">
+        <flux:header container="false" class="border-b border-black/10 bg-app-shell text-white dark:border-zinc-800 dark:bg-app-shell">
+            <flux:sidebar.toggle class="lg:hidden mr-2 text-white" icon="bars-2" inset="left" />
 
-            <x-app-logo href="{{ route('dashboard') }}" wire:navigate />
+            <x-app-logo href="{{ route('dashboard') }}" wire:navigate class="text-white" />
 
             <flux:navbar class="-mb-px max-lg:hidden">
                 <flux:navbar.item icon="layout-grid" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
@@ -61,31 +61,31 @@
         </flux:header>
 
         <!-- Mobile Menu -->
-        <flux:sidebar collapsible="mobile" sticky class="lg:hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
-            <flux:sidebar.header>
+        <flux:sidebar collapsible="mobile" sticky class="lg:hidden border-e border-white/5 bg-app-drawer text-zinc-200 dark:border-white/5 dark:bg-app-drawer">
+            <flux:sidebar.header class="px-3 py-4">
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
-                <flux:sidebar.collapse class="in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
+                <flux:sidebar.collapse class="text-zinc-300 hover:text-white in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')">
-                    <flux:sidebar.item icon="layout-grid" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
+                <flux:sidebar.group :heading="__('Workspace')" class="grid text-zinc-400">
+                    <flux:sidebar.item icon="layout-grid" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate class="app-nav-item">
                         {{ __('Dashboard')  }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="tag" :href="route('offers')" :current="request()->routeIs('offers')" wire:navigate>
+                    <flux:sidebar.item icon="tag" :href="route('offers')" :current="request()->routeIs('offers')" wire:navigate class="app-nav-item">
                         {{ __('Offers') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="arrows-right-left" :href="route('transactions')" :current="request()->routeIs('transactions')" wire:navigate>
+                    <flux:sidebar.item icon="arrows-right-left" :href="route('transactions')" :current="request()->routeIs('transactions')" wire:navigate class="app-nav-item">
                         {{ __('Transactions') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="book-open-text" :href="route('plans')" :current="request()->routeIs('plans')" wire:navigate>
+                    <flux:sidebar.item icon="book-open-text" :href="route('plans')" :current="request()->routeIs('plans')" wire:navigate class="app-nav-item">
                         {{ __('Plans') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="phone" :href="route('quick-dials')" :current="request()->routeIs('quick-dials')" wire:navigate>
+                    <flux:sidebar.item icon="phone" :href="route('quick-dials')" :current="request()->routeIs('quick-dials')" wire:navigate class="app-nav-item">
                         {{ __('Quick Dial') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>

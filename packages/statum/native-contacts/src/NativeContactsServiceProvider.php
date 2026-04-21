@@ -10,9 +10,4 @@ class NativeContactsServiceProvider extends ServiceProvider
     {
         $this->app->singleton(NativeContactsPlugin::class, fn (): NativeContactsPlugin => new NativeContactsPlugin);
     }
-
-    public function boot(): void
-    {
-        //
-    }
 }

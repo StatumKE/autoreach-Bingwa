@@ -11,25 +11,41 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
-    /* Premium Neutral Palette */
-    --color-zinc-50: #f8fafc;
-    --color-zinc-100: #f1f5f9;
-    --color-zinc-200: #e2e8f0;
-    --color-zinc-300: #cbd5e1;
-    --color-zinc-400: #94a3b8;
-    --color-zinc-500: #64748b;
-    --color-zinc-600: #475569;
-    --color-zinc-700: #334155;
-    --color-zinc-800: #1e293b;
-    --color-zinc-900: #0f172a;
-    --color-zinc-950: #020617;
+    /* Light operations palette */
+    --color-zinc-50: #fafafa;
+    --color-zinc-100: #f4f4f5;
+    --color-zinc-200: #e4e4e7;
+    --color-zinc-300: #d4d4d8;
+    --color-zinc-400: #a1a1aa;
+    --color-zinc-500: #71717a;
+    --color-zinc-600: #52525b;
+    --color-zinc-700: #3f3f46;
+    --color-zinc-800: #27272a;
+    --color-zinc-900: #18181b;
+    --color-zinc-950: #09090b;
+
+    /* Safaricom-inspired accent, darkened enough for white button text. */
+    --color-green-50: #f2faf2;
+    --color-green-100: #dcf2dc;
+    --color-green-300: #7ac977;
+    --color-green-400: #3aa335;
+    --color-green-500: #2a8732;
+    --color-green-600: #237a2d;
+    --color-green-700: #176626;
+    --color-green-950: #062b10;
 
     --color-surface: #ffffff;
-    --color-on-surface: #0f172a;
-    --color-surface-variant: #f8fafc;
-    --color-on-surface-variant: #64748b;
+    --color-app-bg: oklch(88.2% 0.059 254.128);
+    --color-app-shell: #001107;
+    --color-app-drawer: #17151d;
+    --color-app-active: #554f69;
+    --color-on-surface: #18181b;
+    --color-surface-variant: #f4f4f5;
+    --color-on-surface-variant: #71717a;
 
-    --color-accent: var(--color-emerald-600);
+    --color-accent: var(--color-green-600);
+    --color-accent-content: var(--color-green-700);
+    --color-accent-foreground: var(--color-white);
 }
 
 @layer theme {
@@ -37,14 +53,83 @@
         --color-surface: var(--color-zinc-950);
         --color-on-surface: #f8fafc;
         --color-surface-variant: var(--color-zinc-900);
-        --color-on-surface-variant: #94a3b8;
-        --color-accent: var(--color-emerald-400);
+        --color-on-surface-variant: #a1a1aa;
+        --color-app-bg: #07111f;
+        --color-app-shell: #02130d;
+        --color-app-drawer: #0f1720;
+        --color-app-active: #1f2937;
+        --color-accent: var(--color-green-500);
+        --color-accent-content: var(--color-green-300);
+        --color-accent-foreground: var(--color-white);
+    }
+}
+
+@layer components {
+    .app-card {
+        @apply rounded-[1.75rem] bg-white shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:ring-zinc-800;
+    }
+
+    .app-kicker {
+        @apply text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600/70 dark:text-zinc-400;
+    }
+
+    .app-soft-action {
+        @apply rounded-[1.5rem] bg-green-50 text-zinc-950 ring-1 ring-green-100 transition hover:bg-green-100 active:scale-[0.98] dark:bg-zinc-800 dark:text-zinc-100 dark:ring-zinc-700 dark:hover:bg-zinc-700;
+    }
+
+    .app-primary-button {
+        @apply rounded-2xl bg-green-600 text-white shadow-sm shadow-green-600/20 ring-1 ring-green-700/15 transition hover:bg-green-500 active:scale-[0.98];
+    }
+
+    .app-secondary-button {
+        @apply rounded-2xl bg-zinc-100 text-zinc-900 ring-1 ring-zinc-200 transition hover:bg-zinc-200 active:scale-[0.98] dark:bg-zinc-800 dark:text-zinc-100 dark:ring-zinc-700 dark:hover:bg-zinc-700;
+    }
+
+    .app-danger-button {
+        @apply rounded-2xl bg-rose-600 text-white shadow-sm shadow-rose-600/20 ring-1 ring-rose-700/15 transition hover:bg-rose-500 active:scale-[0.98];
+    }
+
+    .app-mobile-menu-toggle {
+        @apply relative mt-2 text-white;
+    }
+
+    .app-mobile-menu-toggle svg {
+        stroke-width: 2.75;
+    }
+
+    .app-nav-item {
+        border-radius: 9999px !important;
+        color: var(--color-zinc-300) !important;
+    }
+
+    .app-nav-item:hover {
+        background-color: rgb(255 255 255 / 0.1) !important;
+        color: var(--color-white) !important;
+    }
+
+    .app-nav-item[data-current] {
+        background-color: var(--color-app-active) !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
+        color: var(--color-white) !important;
     }
 }
 
 @layer base {
+    [x-cloak] {
+        display: none !important;
+    }
+
+    html {
+        color-scheme: light;
+    }
+
+    html.dark {
+        color-scheme: dark;
+    }
+
     ::selection {
-        @apply bg-emerald-500/20 text-emerald-900;
+        @apply bg-green-500/20 text-green-950;
     }
 
     *,
@@ -66,7 +151,7 @@
     }
 
     ::-webkit-scrollbar-thumb {
-        @apply bg-zinc-200 rounded-full hover:bg-emerald-500/30 transition-colors;
+        @apply bg-zinc-200 rounded-full hover:bg-green-500/30 transition-colors;
     }
 }
 
@@ -81,7 +166,7 @@
 input:focus[data-flux-control],
 textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
-    @apply outline-hidden ring-2 ring-emerald-500/20 ring-offset-0 border-emerald-500/50;
+    @apply outline-hidden ring-2 ring-green-500/20 ring-offset-0 border-green-500/50;
 }
 
 /* \[:where(&)\]:size-4 {

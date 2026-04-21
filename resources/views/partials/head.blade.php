@@ -1,6 +1,6 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#fafafa" />
+<meta name="theme-color" content="#bedbff" />
 <meta name="color-scheme" content="light dark" />
 
 <title>
@@ -15,4 +15,9 @@
 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
 @vite(['resources/css/app.css', 'resources/js/app.js'])
+<script>
+    if (! window.localStorage.getItem('flux.appearance')) {
+        window.localStorage.setItem('flux.appearance', 'light');
+    }
+</script>
 @fluxAppearance

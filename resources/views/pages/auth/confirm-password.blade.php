@@ -7,7 +7,7 @@
 
         <x-auth-session-status class="text-center" :status="session('status')" />
 
-        <form method="POST" action="{{ route('password.confirm.store') }}" class="flex flex-col gap-6">
+        <form method="POST" action="{{ route('password.confirm.store') }}" class="flex flex-col gap-6" x-data="{ submitting: false }" x-on:submit="submitting = true">
             @csrf
 
             <flux:input
@@ -20,8 +20,12 @@
                 viewable
             />
 
-            <flux:button variant="primary" type="submit" class="w-full shadow-lg shadow-emerald-500/10" data-test="confirm-password-button">
-                {{ __('Confirm') }}
+            <flux:button variant="primary" type="submit" class="w-full shadow-lg shadow-green-500/10" data-test="confirm-password-button" x-bind:disabled="submitting">
+                <span x-cloak x-show="!submitting">{{ __('Confirm') }}</span>
+                <span x-cloak x-show="submitting" class="inline-flex items-center justify-center gap-2">
+                    <flux:icon.loading variant="mini" class="size-4" />
+                    {{ __('Confirming…') }}
+                </span>
             </flux:button>
         </form>
     </div>

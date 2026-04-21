@@ -5,9 +5,11 @@ namespace App\Actions\Autoreach;
 use App\Models\Transaction;
 use App\Models\User;
 use GuzzleHttp\Promise\Utils;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class FetchNextBingwaJobs
 {
@@ -18,6 +20,7 @@ class FetchNextBingwaJobs
      */
     public function sync(User $user, int $limit = 10): array
     {
+        $limit = $this->normalizeLimit($limit);
         $registration = $user->bingwaDeviceRegistration;
 
         if ($registration === null || blank($registration->device_token)) {
@@ -66,8 +69,21 @@ class FetchNextBingwaJobs
                 ->acceptJson()
                 ->withToken($token)
                 ->get("{$baseUrl}{$endpoint}", ['limit' => $limit])
-                ->then(function ($response) use ($type, $user, &$allJobs, &$failed): void {
-                    if ($response->status() === 204) {
+                ->then(function (Response $response) use ($type, $user, &$allJobs, &$failed): void {
+                    if ($response->noContent()) {
+                        return;
+                    }
+
+                    if ($response->status() === 403) {
+                        $failed++;
+
+                        Log::warning('Autoreach backend stopped job polling for a device.', [
+                            'user_id' => $user->id,
+                            'endpoint' => $type,
+                            'status' => $response->status(),
+                        ]);
+                        report(new \RuntimeException("Autoreach backend reported the device as stopped while fetching {$type} jobs."));
+
                         return;
                     }
 
@@ -88,11 +104,26 @@ class FetchNextBingwaJobs
 
                     $payload = $response->json();
 
-                    if (is_array($payload)) {
+                    if (! is_array($payload)) {
+                        $failed++;
+                        report(new \RuntimeException("Autoreach backend returned an invalid {$type} jobs payload."));
+
+                        return;
+                    }
+
+                    $jobs = $this->extractJobs($payload);
+
+                    if ($jobs === null) {
+                        $failed++;
+                        report(new \RuntimeException("Autoreach backend returned an unexpected {$type} jobs payload shape."));
+
+                        return;
+                    }
+
+                    if ($jobs !== []) {
                         $allJobs[] = [
                             'type' => $type,
-                            'jobs' => $this->extractJobs($payload),
-                            'balance' => $payload['balance'] ?? null,
+                            'jobs' => $jobs,
                         ];
                     }
                 })->otherwise(function (\Throwable $e) use ($type, &$failed): void {
@@ -109,21 +140,20 @@ class FetchNextBingwaJobs
             foreach ($allJobs as $jobGroup) {
                 $type = $jobGroup['type'];
                 $jobs = $jobGroup['jobs'];
-                $balance = $jobGroup['balance'];
 
                 foreach ($jobs as $job) {
-                    if (! is_array($job) || blank($job['transaction_id'] ?? null)) {
+                    if (blank($job['transaction_id'] ?? null)) {
                         continue;
                     }
 
                     $amount = (float) ($job['amount'] ?? 0);
 
                     // Find a matching offer by price only
-                    $matchedOffer = $activeOffers->first(fn ($offer) => (int) $offer->price === (int) $amount);
+                    $matchedOffer = $activeOffers->firstWhere('price', (int) $amount);
 
                     $status = 'queued';
                     $statusDesc = __('Pulled from backend job queue.');
-                    $offerId = $matchedOffer?->id;
+                    $offerId = $matchedOffer?->getKey();
 
                     if (! $activePlan) {
                         $status = 'failed';
@@ -145,8 +175,9 @@ class FetchNextBingwaJobs
                             'offer_name' => $job['offer_name'] ?? __('Unknown offer'),
                             'offer_type' => $job['offer_type'] ?? $type,
                             'matched_offer' => $job['matched_offer'] ?? null,
-                            'balance' => $balance,
-                            'occurred_at' => Carbon::parse($job['occurred_at'] ?? now()),
+                            'balance' => null,
+                            'occurred_at' => Carbon::parse($job['occurred_at'] ?? now())
+                                ->setTimezone((string) config('app.timezone')),
                             'status' => $status,
                             'status_desc' => $statusDesc,
                         ]
@@ -166,18 +197,23 @@ class FetchNextBingwaJobs
 
     /**
      * @param  array<string, mixed>  $payload
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array<string, mixed>>|null
      */
-    private function extractJobs(array $payload): array
+    private function extractJobs(array $payload): ?array
     {
         if (isset($payload['jobs']) && is_array($payload['jobs'])) {
-            return $payload['jobs'];
+            return array_values(array_filter($payload['jobs'], fn (mixed $job): bool => is_array($job)));
         }
 
-        if (array_is_list($payload)) {
-            return $payload;
+        if (blank($payload['transaction_id'] ?? null)) {
+            return null;
         }
 
-        return [array_filter($payload, fn ($value, string $key): bool => ! in_array($key, ['balance', 'count'], true), ARRAY_FILTER_USE_BOTH)];
+        return [$payload];
+    }
+
+    private function normalizeLimit(int $limit): int
+    {
+        return max(1, min($limit, 10));
     }
 }

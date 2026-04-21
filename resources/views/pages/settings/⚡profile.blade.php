@@ -16,6 +16,8 @@ new #[Title('Profile settings')] class extends Component {
     public string $name = '';
     public string $email = '';
     public string $autoreach_connect_id = '';
+    public string $appVersion = '';
+    public int $appVersionCode = 1;
 
     /**
      * Mount the component.
@@ -25,6 +27,8 @@ new #[Title('Profile settings')] class extends Component {
         $this->name = Auth::user()->name;
         $this->email = Auth::user()->email;
         $this->autoreach_connect_id = Auth::user()->autoreach_connect_id ?? '';
+        $this->appVersion = (string) config('nativephp.app_version', 'DEBUG');
+        $this->appVersionCode = (int) config('nativephp.app_version_code', 1);
     }
 
     /**
@@ -87,8 +91,8 @@ new #[Title('Profile settings')] class extends Component {
 <section class="w-full">
     <flux:heading class="sr-only">{{ __('Profile settings') }}</flux:heading>
 
-        <x-pages::settings.layout :heading="__('Profile')" :subheading="__('Update your name and review your registered device details')">
-            <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6">
+    <x-pages::settings.layout :heading="__('Profile')" :subheading="__('Update your name and review your registered device details')">
+        <form wire:submit="updateProfileInformation" class="app-card w-full space-y-5 p-5 md:p-8">
                 <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
 
                 <div>
@@ -101,7 +105,7 @@ new #[Title('Profile settings')] class extends Component {
                         readonly
                     />
 
-                    <flux:text class="mt-3 text-xs font-medium text-slate-500">
+                    <flux:text class="mt-3 text-xs font-medium text-zinc-500">
                         {{ __('Email is linked to your device account and cannot be edited here.') }}
                     </flux:text>
                 </div>
@@ -116,19 +120,45 @@ new #[Title('Profile settings')] class extends Component {
                         readonly
                     />
 
-                    <flux:text class="mt-3 text-xs font-medium text-slate-500">
+                    <flux:text class="mt-3 text-xs font-medium text-zinc-500">
                         {{ __('Autoreach Connect ID is tied to the registered device and cannot be edited here.') }}
                     </flux:text>
                 </div>
 
-                <div class="flex items-center gap-4 pt-4">
-                    <flux:button variant="primary" type="submit" data-test="update-profile-button" class="bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-600/20 px-8 font-black uppercase tracking-widest text-[10px]">
-                        {{ __('Save Changes') }}
+                <div class="rounded-[1.25rem] border border-zinc-200 bg-zinc-50 p-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <div class="text-[8px] font-black uppercase tracking-[0.25em] text-zinc-500">{{ __('App version') }}</div>
+                            <div class="mt-1 text-sm font-black text-zinc-950">{{ $this->appVersion }}</div>
+                        </div>
+
+                        <div class="text-right">
+                            <div class="text-[8px] font-black uppercase tracking-[0.25em] text-zinc-500">{{ __('Build number') }}</div>
+                            <div class="mt-1 text-sm font-black text-zinc-950">{{ $this->appVersionCode }}</div>
+                        </div>
+                    </div>
+
+                    <flux:text class="mt-3 text-xs font-medium text-zinc-500">
+                        {{ __('Use a higher build number for each APK release. For Play Store bundles, NativePHP can auto-increment during packaging.') }}
+                    </flux:text>
+                </div>
+
+                <div class="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
+                    <flux:button variant="ghost" type="submit" data-test="update-profile-button" class="app-primary-button w-full px-8 font-black uppercase tracking-widest text-[10px] sm:w-auto" wire:loading.attr="disabled" wire:target="updateProfileInformation">
+                        <span wire:loading.remove wire:target="updateProfileInformation">{{ __('Save Changes') }}</span>
+                        <span wire:loading wire:target="updateProfileInformation" class="inline-flex items-center justify-center gap-2">
+                            <flux:icon.loading variant="mini" class="size-4" />
+                            {{ __('Saving…') }}
+                        </span>
                     </flux:button>
 
                     @if ($this->hasBingwaDeviceRegistration)
-                        <flux:button variant="ghost" type="button" wire:click="recoverDeviceToken" class="text-slate-500 hover:text-teal-400 font-black uppercase tracking-widest text-[10px]">
-                            {{ __('Recover token') }}
+                        <flux:button variant="ghost" type="button" wire:click="recoverDeviceToken" class="app-secondary-button w-full font-black uppercase tracking-widest text-[10px] sm:w-auto" wire:loading.attr="disabled" wire:target="recoverDeviceToken">
+                            <span wire:loading.remove wire:target="recoverDeviceToken">{{ __('Recover token') }}</span>
+                            <span wire:loading wire:target="recoverDeviceToken" class="inline-flex items-center justify-center gap-2">
+                                <flux:icon.loading variant="mini" class="size-4" />
+                                {{ __('Recovering…') }}
+                            </span>
                         </flux:button>
                     @endif
                 </div>

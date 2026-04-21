@@ -5,7 +5,7 @@
         <!-- Session Status -->
         <x-auth-session-status class="text-center" :status="session('status')" />
 
-        <form method="POST" action="{{ route('login.store') }}" class="flex flex-col gap-6">
+        <form method="POST" action="{{ route('login.store') }}" class="flex flex-col gap-6" x-data="{ submitting: false }" x-on:submit="submitting = true">
             @csrf
 
             <!-- Email Address -->
@@ -33,7 +33,7 @@
                 />
 
                 @if (Route::has('password.request'))
-                    <flux:link class="absolute top-0 text-sm end-0 text-teal-400 hover:text-teal-300 transition-colors" :href="route('password.request')" wire:navigate>
+                    <flux:link class="absolute top-0 text-sm end-0 text-green-600 hover:text-green-700 transition-colors" :href="route('password.request')" wire:navigate>
                         {{ __('Forgot your password?') }}
                     </flux:link>
                 @endif
@@ -43,16 +43,26 @@
             <flux:checkbox name="remember" :label="__('Remember me')" :checked="old('remember')" />
 
             <div class="flex items-center justify-end">
-                <flux:button variant="primary" type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-2xl shadow-indigo-600/20 h-12 rounded-2xl font-black uppercase tracking-widest text-[10px]" data-test="login-button">
-                    {{ __('Log in') }}
+                <flux:button
+                    variant="primary"
+                    type="submit"
+                    class="w-full bg-green-600 hover:bg-green-500 text-white shadow-sm shadow-green-600/20 h-12 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+                    data-test="login-button"
+                    x-bind:disabled="submitting"
+                >
+                    <span x-cloak x-show="!submitting">{{ __('Log in') }}</span>
+                    <span x-cloak x-show="submitting" class="inline-flex items-center justify-center gap-2">
+                        <flux:icon.loading variant="mini" class="size-4" />
+                        {{ __('Logging in…') }}
+                    </span>
                 </flux:button>
             </div>
         </form>
 
         @if (Route::has('register'))
-            <div class="space-x-1 text-sm text-center rtl:space-x-reverse text-slate-500 font-medium">
+            <div class="space-x-1 text-sm text-center rtl:space-x-reverse text-zinc-500 font-medium">
                 <span>{{ __('Don\'t have an account?') }}</span>
-                <flux:link :href="route('register')" wire:navigate class="text-teal-400 hover:text-teal-300 transition-colors font-black">{{ __('Sign up') }}</flux:link>
+                <flux:link :href="route('register')" wire:navigate class="text-green-600 hover:text-green-700 transition-colors font-black">{{ __('Sign up') }}</flux:link>
             </div>
         @endif
     </div>

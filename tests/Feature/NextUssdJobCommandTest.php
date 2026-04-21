@@ -48,12 +48,13 @@ it('outputs valid JSON payload for a queued transaction with an offer', function
     ]);
 
     $this->artisan('bingwa:next-ussd-job')
+        ->expectsOutputToContain('"id":'.$transaction->id)
         ->assertExitCode(0);
 
-    // Transaction must be marked processing immediately
+    // Transaction must remain queued until Android explicitly claims it.
     $this->assertDatabaseHas('transactions', [
         'id' => $transaction->id,
-        'status' => 'processing',
+        'status' => 'queued',
     ]);
 });
 
@@ -76,10 +77,10 @@ it('replaces PN placeholder in the ussd_code with sender_phone', function () {
     $this->artisan('bingwa:next-ussd-job')
         ->assertExitCode(0);
 
-    // The transaction should be marked processing (no longer queued)
+    // The transaction should remain queued until Android explicitly claims it.
     $this->assertDatabaseHas('transactions', [
         'sender_phone' => '0799123456',
-        'status' => 'processing',
+        'status' => 'queued',
     ]);
 });
 
@@ -108,8 +109,8 @@ it('picks the oldest queued transaction first', function () {
 
     $this->artisan('bingwa:next-ussd-job')->assertExitCode(0);
 
-    // Older one should be picked and marked processing; newer remains queued
-    $this->assertDatabaseHas('transactions', ['id' => $older->id, 'status' => 'processing']);
+    // Older one should be selected but remain queued until Android claims it; newer remains queued.
+    $this->assertDatabaseHas('transactions', ['id' => $older->id, 'status' => 'queued']);
     $this->assertDatabaseHas('transactions', ['id' => $newer->id, 'status' => 'queued']);
 });
 
@@ -129,18 +130,19 @@ it('recovers stuck processing transactions older than 2 minutes', function () {
     ]);
 
     // Simulate the transaction being stuck for 3 minutes (past the 2-minute threshold)
-    $stuckTransaction->update(['updated_at' => now()->subMinutes(3)]);
+    Transaction::query()
+        ->whereKey($stuckTransaction->id)
+        ->update(['updated_at' => now()->subMinutes(3)]);
 
     $this->artisan('bingwa:next-ussd-job')->assertExitCode(0);
 
     $this->assertDatabaseHas('transactions', [
         'id' => $stuckTransaction->id,
-        'status' => 'processing', // It was recovered to queued, then immediately dispatched as the only queued job
+        'status' => 'queued',
     ]);
 
-    // Verify status_desc was set at some point to the recovery message or the dispatch message
-    $fresh = $stuckTransaction->fresh();
-    expect($fresh->status)->toBe('processing'); // picked up as the only queued job after recovery
+    // Verify status_desc was set to the recovery message.
+    expect($stuckTransaction->fresh()->status_desc)->toContain('Recovered');
 });
 
 it('does not recover recently processing transactions', function () {
@@ -164,6 +166,60 @@ it('does not recover recently processing transactions', function () {
     // Should remain processing — it was just dispatched 10 seconds ago
     $this->assertDatabaseHas('transactions', [
         'id' => $recentTransaction->id,
+        'status' => 'processing',
+    ]);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// bingwa:claim-ussd-job
+// ─────────────────────────────────────────────────────────────────────────────
+
+it('claims a queued transaction for execution', function () {
+    $user = User::factory()->create();
+    $offer = Offer::factory()->create([
+        'user_id' => $user->id,
+        'ussd_code' => '*180*5*PN#',
+        'ussd_mode' => 'express',
+        'is_active' => true,
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'offer_id' => $offer->id,
+        'status' => 'queued',
+    ]);
+
+    $this->artisan("bingwa:claim-ussd-job --id={$transaction->id}")
+        ->expectsOutputToContain('"claimed":true')
+        ->assertExitCode(0);
+
+    $this->assertDatabaseHas('transactions', [
+        'id' => $transaction->id,
+        'status' => 'processing',
+    ]);
+});
+
+it('does not claim a transaction that is already processing', function () {
+    $user = User::factory()->create();
+    $offer = Offer::factory()->create([
+        'user_id' => $user->id,
+        'ussd_code' => '*180*5*PN#',
+        'ussd_mode' => 'express',
+        'is_active' => true,
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'offer_id' => $offer->id,
+        'status' => 'processing',
+    ]);
+
+    $this->artisan("bingwa:claim-ussd-job --id={$transaction->id}")
+        ->expectsOutputToContain('"claimed":false')
+        ->assertExitCode(0);
+
+    $this->assertDatabaseHas('transactions', [
+        'id' => $transaction->id,
         'status' => 'processing',
     ]);
 });

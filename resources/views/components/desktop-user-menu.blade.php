@@ -1,8 +1,9 @@
-<flux:dropdown position="bottom" align="start">
+<flux:dropdown position="bottom" align="start" {{ $attributes }}>
     <flux:sidebar.profile
         :name="auth()->user()->name"
         :initials="auth()->user()->initials()"
         icon:trailing="chevrons-up-down"
+        class="rounded-[1.5rem] text-zinc-200 hover:bg-white/10 hover:text-white data-open:bg-white/10"
         data-test="sidebar-menu-button"
     />
 

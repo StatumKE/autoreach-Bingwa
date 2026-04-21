@@ -9,10 +9,14 @@ test('device settings page is displayed', function () {
 
     $this->get(route('device.edit'))
         ->assertOk()
+        ->assertSee('Autoreach Bingwa')
         ->assertSeeInOrder(['Quick Dial', 'Device', 'Hardware'])
         ->assertDontSee('Security')
         ->assertSee('Configure radio slots, SIM mapping, and automated retry resilience.')
         ->assertSee('SIM Slot Mapping')
+        ->assertSee('Android')
+        ->assertDontSee('Android Unknown')
+        ->assertDontSee('App interface mode')
         ->assertSee('Retry & resilience rules');
 });
 
@@ -27,7 +31,6 @@ test('device settings can be updated and stored in the database', function () {
         ->set('primary_transaction_sim', 'slot_2')
         ->set('sms_auto_reply_sim', 'slot_1')
         ->call('saveHardwareMapping')
-        ->set('app_interface_mode', 'advanced')
         ->set('auto_reschedule_rejected', true)
         ->set('retry_tomorrow_at', '12:30 AM')
         ->set('ussd_timeout_seconds', '45')
@@ -44,7 +47,6 @@ test('device settings can be updated and stored in the database', function () {
         'operator_identity' => 'Bob Mwenda',
         'primary_transaction_sim' => 'slot_2',
         'sms_auto_reply_sim' => 'slot_1',
-        'app_interface_mode' => 'advanced',
         'auto_reschedule_rejected' => true,
         'retry_tomorrow_at' => '12:30 AM',
         'ussd_timeout_seconds' => 45,
@@ -63,7 +65,6 @@ test('device settings mount from the existing database record', function () {
         'operator_identity' => 'Alice Admin',
         'primary_transaction_sim' => 'slot_2',
         'sms_auto_reply_sim' => 'slot_1',
-        'app_interface_mode' => 'advanced',
         'auto_reschedule_rejected' => false,
         'retry_tomorrow_at' => null,
         'ussd_timeout_seconds' => 30,
@@ -80,7 +81,6 @@ test('device settings mount from the existing database record', function () {
     $component->assertSet('operator_identity', 'Alice Admin');
     $component->assertSet('primary_transaction_sim', 'slot_2');
     $component->assertSet('sms_auto_reply_sim', 'slot_1');
-    $component->assertSet('app_interface_mode', 'advanced');
     $component->assertSet('auto_reschedule_rejected', false);
     $component->assertSet('retry_interval_minutes', '5');
     $component->assertSet('retry_network_issues', false);

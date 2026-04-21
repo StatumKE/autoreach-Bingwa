@@ -177,15 +177,15 @@ class ArtisanSchedulerService : Service() {
         while (kotlinx.coroutines.currentCoroutineContext().isActive) {
             try {
                 // 1. Ask PHP for the next local job (Thread-safe lock)
-                val jobJson = phpMutex.withLock {
+                val rawJobOutput = phpMutex.withLock {
                     bridge.nativeEphemeralArtisan("bingwa:next-ussd-job").trim()
                 }
 
-                if (jobJson.isNotEmpty()) {
-                    if (!jobJson.startsWith("{")) {
-                        Log.w(TAG, "Ignoring non-JSON USSD job response: ${jobJson.take(200)}")
-                        delay(FAST_POLL_INTERVAL_MS)
-                        continue
+                val jobJson = extractJsonPayload(rawJobOutput)
+
+                if (jobJson != null) {
+                    if (rawJobOutput != jobJson) {
+                        Log.d(TAG, "Recovered JSON payload from bridge output: ${rawJobOutput.take(200)}")
                     }
 
                     val job = org.json.JSONObject(jobJson)
@@ -194,6 +194,23 @@ class ArtisanSchedulerService : Service() {
                     val mode = job.getString("mode")
                     val simSlot = job.optInt("sim_slot", 0)
                     val timeout = job.optInt("timeout", 30)
+
+                    val claimOutput = phpMutex.withLock {
+                        bridge.nativeEphemeralArtisan("bingwa:claim-ussd-job --id=$id").trim()
+                    }
+                    val claimJson = extractJsonPayload(claimOutput)
+                    if (claimJson == null) {
+                        Log.w(TAG, "Failed to claim USSD job #$id: ${claimOutput.take(200)}")
+                        delay(FAST_POLL_INTERVAL_MS)
+                        continue
+                    }
+
+                    val claim = org.json.JSONObject(claimJson)
+                    if (!claim.optBoolean("claimed", false)) {
+                        Log.w(TAG, "USSD job #$id was not claimable: ${claimJson.take(200)}")
+                        delay(FAST_POLL_INTERVAL_MS)
+                        continue
+                    }
 
                     Log.i(TAG, "Executing USSD job #$id [$mode] on SIM $simSlot (timeout ${timeout}s): $code")
 
@@ -213,9 +230,18 @@ class ArtisanSchedulerService : Service() {
                     }
 
                     Log.i(TAG, "USSD job #$id → $status: ${result.message}")
-                    
+
                     // Proceed immediately to the next job if we just finished one
-                    continue 
+                    continue
+                }
+
+                if (rawJobOutput.isNotBlank()) {
+                    Log.w(TAG, "Ignoring non-JSON USSD job response: ${rawJobOutput.take(200)}")
+                }
+
+                if (rawJobOutput.isNotBlank()) {
+                    delay(FAST_POLL_INTERVAL_MS)
+                    continue
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "USSD dispatch error", e)
@@ -224,6 +250,22 @@ class ArtisanSchedulerService : Service() {
             // No jobs found (or an error occurred). Sleep briefly before checking local DB again.
             delay(FAST_POLL_INTERVAL_MS)
         }
+    }
+
+    private fun extractJsonPayload(rawOutput: String): String? {
+        val trimmed = rawOutput.trim()
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            return trimmed
+        }
+
+        val startIndex = trimmed.indexOf('{')
+        val endIndex = trimmed.lastIndexOf('}')
+
+        if (startIndex >= 0 && endIndex > startIndex) {
+            return trimmed.substring(startIndex, endIndex + 1)
+        }
+
+        return null
     }
 
     // -------------------------------------------------------------------------

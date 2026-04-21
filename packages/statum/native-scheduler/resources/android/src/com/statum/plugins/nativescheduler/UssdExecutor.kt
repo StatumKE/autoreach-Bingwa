@@ -176,7 +176,7 @@ class UssdExecutor(private val context: Context) {
      *   so it is safe to call it from a coroutine running on Dispatchers.IO.
      */
     private suspend fun runAdvanced(code: String, subId: Int, isSambaza: Boolean): UssdResult {
-        val service = UssdAccessibilityService.instance
+        val service = awaitAccessibilityService()
         if (service == null) {
             Log.w(TAG, "Accessibility service not active — redirecting user to Settings")
             try {
@@ -242,6 +242,23 @@ class UssdExecutor(private val context: Context) {
         service.dismiss()
 
         return UssdResult(success = true, message = dialogText)
+    }
+
+    /**
+     * Wait briefly for the accessibility service singleton to become available.
+     *
+     * The service may already be enabled in Settings but still be reconnecting after
+     * a process restart. Failing immediately turns a recoverable timing race into a false error.
+     */
+    private suspend fun awaitAccessibilityService(timeoutMs: Long = 5_000L): UssdAccessibilityService? {
+        val deadline = System.currentTimeMillis() + timeoutMs
+
+        while (System.currentTimeMillis() < deadline) {
+            UssdAccessibilityService.instance?.let { return it }
+            delay(200L)
+        }
+
+        return UssdAccessibilityService.instance
     }
 
     /**

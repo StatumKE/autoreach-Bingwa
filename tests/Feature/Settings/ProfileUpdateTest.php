@@ -6,13 +6,20 @@ use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 
 test('profile page is displayed', function () {
+    config()->set('nativephp.app_version', '2.4.6');
+    config()->set('nativephp.app_version_code', 42);
+
     $this->actingAs($user = User::factory()->create());
 
     $this->get(route('profile.edit'))
         ->assertOk()
         ->assertSee('Autoreach Connect ID')
         ->assertSee('Email is linked to your device account and cannot be edited here.')
-        ->assertSee('Autoreach Connect ID is tied to the registered device and cannot be edited here.');
+        ->assertSee('Autoreach Connect ID is tied to the registered device and cannot be edited here.')
+        ->assertSee('App version')
+        ->assertSee('2.4.6')
+        ->assertSee('Build number')
+        ->assertSee('42');
 });
 
 test('profile information can be updated without changing locked fields', function () {

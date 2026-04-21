@@ -29,23 +29,6 @@ $status = NativeScheduler::getStatus();
 - `NativeScheduler::execute()`: Execute the plugin functionality
 - `NativeScheduler::getStatus()`: Get the current status
 
-### Events
-
-- `NativeSchedulerCompleted`: Listen with `#[OnNative(NativeSchedulerCompleted::class)]`
-
-@verbatim
-<code-snippet name="Listening for NativeScheduler Events" lang="php">
-use Native\Mobile\Attributes\OnNative;
-use Statum\NativeScheduler\Events\NativeSchedulerCompleted;
-
-#[OnNative(NativeSchedulerCompleted::class)]
-public function handleNativeSchedulerCompleted($result, $id = null)
-{
-    // Handle the event
-}
-</code-snippet>
-@endverbatim
-
 ### JavaScript Usage (Vue/React/Inertia)
 
 @verbatim

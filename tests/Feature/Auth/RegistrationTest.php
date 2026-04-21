@@ -1,8 +1,10 @@
 <?php
 
+use App\Actions\Autoreach\RegisterBingwaDevice;
 use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Features;
 use Native\Mobile\Facades\Device;
@@ -59,6 +61,7 @@ test('new users can register', function () {
         'platform' => 'android',
         'isVirtual' => false,
     ]));
+    Log::spy();
 
     Http::fake([
         'backend.statum.co.ke/api/v1/auth/device/register/hybrid' => Http::response([
@@ -106,7 +109,81 @@ test('new users can register', function () {
             && $request['hardware_id'] === 'HW-12345'
             && $request['device_type'] === 'hybridApp'
             && $request['email'] === 'test@example.com'
-            && $request['connect_device_id'] === 'AC-12345';
+            && $request['connect_device_id'] === 'AC-12345'
+            && isset($request['device_info'])
+            && ($request['device_info']['name'] ?? null) === 'Samsung A14';
+    });
+
+    Log::shouldHaveReceived('debug')
+        ->with(
+            'Submitting Bingwa device registration request.',
+            Mockery::on(function (array $context): bool {
+                return ($context['url'] ?? null) === 'https://backend.statum.co.ke/api/v1/auth/device/register/hybrid'
+                    && ($context['payload']['hardware_id'] ?? null) === 'HW-12345'
+                    && ($context['payload']['device_type'] ?? null) === 'hybridApp'
+                    && ($context['payload']['email'] ?? null) === 'test@example.com'
+                    && ($context['payload']['connect_device_id'] ?? null) === 'AC-12345'
+                    && ($context['payload']['device_info']['name'] ?? null) === 'Samsung A14';
+            })
+        )
+        ->once();
+});
+
+test('new users register with the native bridge hardware id when available', function () {
+    $registrationAction = new class(['Device.GetId' => json_encode(['status' => 'success', 'data' => ['id' => 'android-id-123']]), 'Device.GetInfo' => json_encode(['status' => 'success', 'data' => ['info' => json_encode(['name' => 'Samsung A14', 'model' => 'A145F', 'manufacturer' => 'Samsung', 'operatingSystem' => 'Android', 'osVersion' => '14', 'platform' => 'android', 'isVirtual' => false])]])]) extends RegisterBingwaDevice
+    {
+        /**
+         * @param  array<string, string>  $responses
+         */
+        public function __construct(private array $responses) {}
+
+        protected function nativeBridgeCall(string $functionName, string $payload): mixed
+        {
+            return $this->responses[$functionName] ?? null;
+        }
+    };
+
+    app()->instance(RegisterBingwaDevice::class, $registrationAction);
+
+    Device::shouldReceive('getId')->never();
+    Device::shouldReceive('getInfo')->never();
+
+    Http::fake([
+        'backend.statum.co.ke/api/v1/auth/device/register/hybrid' => Http::response([
+            'device_token' => 'raw-device-token',
+            'bhc_code' => 'BHC-ZXCVB',
+            'device_id' => 42,
+            'app_type' => 'hybridApp',
+            'backend_device_type' => 'ussd_executor',
+            'connect_device_id' => 'BHC-ZXCVB',
+            'linked_connect_device_id' => 'BHC-ABCDE',
+        ], 201),
+    ]);
+
+    $response = $this->post(route('register.store'), [
+        'name' => 'Jane Doe',
+        'email' => 'bridge@example.com',
+        'autoreach_connect_id' => 'AC-12345',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    $response->assertSessionHasNoErrors()
+        ->assertRedirect(route('dashboard', absolute: false));
+
+    $this->assertAuthenticated();
+
+    $this->assertDatabaseHas('bingwa_device_registrations', [
+        'hardware_id' => 'android-id-123',
+        'bhc_code' => 'BHC-ZXCVB',
+        'device_token' => 'raw-device-token',
+    ]);
+
+    Http::assertSent(function ($request): bool {
+        return $request->url() === 'https://backend.statum.co.ke/api/v1/auth/device/register/hybrid'
+            && $request['hardware_id'] === 'android-id-123'
+            && ($request['device_info']['uuid'] ?? null) === 'android-id-123'
+            && ($request['device_info']['name'] ?? null) === 'Samsung A14';
     });
 });
 

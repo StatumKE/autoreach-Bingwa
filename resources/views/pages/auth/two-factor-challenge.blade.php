@@ -37,7 +37,7 @@
                 />
             </div>
 
-            <form method="POST" action="{{ route('two-factor.login.store') }}">
+            <form method="POST" action="{{ route('two-factor.login.store') }}" x-data="{ submitting: false }" x-on:submit="submitting = true">
                 @csrf
 
                 <div class="space-y-5 text-center">
@@ -76,9 +76,14 @@
                     <flux:button
                         variant="primary"
                         type="submit"
-                        class="w-full shadow-lg shadow-emerald-500/10"
+                        class="w-full shadow-lg shadow-green-500/10"
+                        x-bind:disabled="submitting"
                     >
-                        {{ __('Continue') }}
+                        <span x-cloak x-show="!submitting">{{ __('Continue') }}</span>
+                        <span x-cloak x-show="submitting" class="inline-flex items-center justify-center gap-2">
+                            <flux:icon.loading variant="mini" class="size-4" />
+                            {{ __('Checking…') }}
+                        </span>
                     </flux:button>
                 </div>
 

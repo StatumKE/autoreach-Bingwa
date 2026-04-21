@@ -3,49 +3,52 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-slate-950 text-slate-100 overscroll-y-none touch-manipulation">
-        <flux:sidebar sticky collapsible="mobile" class="bg-slate-900 border-e border-slate-800">
-            <flux:sidebar.header>
+    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 overscroll-y-none touch-manipulation">
+        <flux:sidebar sticky collapsible="mobile" class="bg-app-drawer text-zinc-200 border-e border-white/5">
+            <flux:sidebar.header class="px-3 py-4">
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
-                <flux:sidebar.collapse class="lg:hidden" />
+                <flux:sidebar.collapse class="lg:hidden text-zinc-300 hover:text-white" />
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid text-teal-400/50">
-                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate class="text-slate-300 hover:text-white">
+                <flux:sidebar.group :heading="__('Workspace')" class="grid text-zinc-400">
+                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate class="app-nav-item">
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="tag" :href="route('offers')" :current="request()->routeIs('offers')" wire:navigate class="text-slate-300 hover:text-white">
+                    <flux:sidebar.item icon="tag" :href="route('offers')" :current="request()->routeIs('offers')" wire:navigate class="app-nav-item">
                         {{ __('Offers') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="arrows-right-left" :href="route('transactions')" :current="request()->routeIs('transactions')" wire:navigate class="text-slate-300 hover:text-white">
+                    <flux:sidebar.item icon="arrows-right-left" :href="route('transactions')" :current="request()->routeIs('transactions')" wire:navigate class="app-nav-item">
                         {{ __('Transactions') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="book-open-text" :href="route('plans')" :current="request()->routeIs('plans')" wire:navigate class="text-slate-300 hover:text-white">
+                    <flux:sidebar.item icon="book-open-text" :href="route('plans')" :current="request()->routeIs('plans')" wire:navigate class="app-nav-item">
                         {{ __('Plans') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="phone" :href="route('quick-dials')" :current="request()->routeIs('quick-dials')" wire:navigate class="text-slate-300 hover:text-white">
+                    <flux:sidebar.item icon="phone" :href="route('quick-dials')" :current="request()->routeIs('quick-dials')" wire:navigate class="app-nav-item">
                         {{ __('Quick Dial') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="cog" :href="route('device.edit')" :current="request()->routeIs('device.edit')" wire:navigate class="text-slate-300 hover:text-white">
+                    <flux:sidebar.item icon="cog" :href="route('device.edit')" :current="request()->routeIs('device.edit')" wire:navigate class="app-nav-item">
                         {{ __('Device settings') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 
-            <flux:spacer />
-
-            <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 
         <!-- Mobile User Menu -->
-        <flux:header class="lg:hidden !px-4 bg-slate-950 border-b border-slate-900" container="false">
-            <flux:sidebar.toggle class="lg:hidden text-teal-400" icon="bars-2" inset="left" />
+        <flux:header class="fixed inset-x-0 top-0 z-50 lg:hidden !px-4 h-20 bg-app-shell text-white border-b border-black/10" container="false">
+            <flux:sidebar.toggle class="app-mobile-menu-toggle lg:hidden" icon="bars-2" inset="left" />
+
+            <div class="min-w-0 flex-1 ps-2">
+                <div class="text-[14px] font-black leading-none tracking-tight text-white sm:text-[15px]">
+                    {{ config('app.name') }}
+                </div>
+            </div>
 
             <flux:spacer />
 
@@ -53,6 +56,7 @@
                 <flux:profile
                     :initials="auth()->user()->initials()"
                     icon-trailing="chevron-down"
+                    class="text-white"
                 />
 
                 <flux:menu>
@@ -98,7 +102,9 @@
             </flux:dropdown>
         </flux:header>
 
-        {{ $slot }}
+        <div class="pt-20">
+            {{ $slot }}
+        </div>
 
         @persist('toast')
             <flux:toast.group>

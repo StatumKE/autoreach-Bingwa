@@ -54,17 +54,23 @@ class ArtisanSchedulerService : Service() {
         var engineActive: Boolean = false
             private set
 
+        @Volatile
+        private var explicitStopRequested: Boolean = false
+
         fun start(context: Context) {
+            explicitStopRequested = false
             val intent = Intent(context, ArtisanSchedulerService::class.java)
             context.startForegroundService(intent)
         }
 
         fun stop(context: Context) {
+            explicitStopRequested = true
+            cancelRestartAlarms(context)
             val intent = Intent(context, ArtisanSchedulerService::class.java)
             context.stopService(intent)
         }
 
-        fun cancelWatchdog(context: Context) {
+        fun cancelRestartAlarms(context: Context) {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             val restartIntent = Intent(context, ArtisanSchedulerService::class.java)
 
@@ -134,6 +140,8 @@ class ArtisanSchedulerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        explicitStopRequested = false
+
         if (MainActivity.instance != null && !SchedulerStartupState.appBootstrapComplete) {
             Log.i(TAG, "MainActivity bootstrap in progress; deferring scheduler startup")
             stopSelf()
@@ -165,7 +173,12 @@ class ArtisanSchedulerService : Service() {
         masterJob?.cancel()
         shutdownEphemeralRuntimeOnDestroy()
         engineActive = false
-        cancelWatchdog(applicationContext)
+        if (explicitStopRequested) {
+            cancelRestartAlarms(applicationContext)
+            Log.i(TAG, "Scheduler service destroyed after explicit stop request")
+        } else {
+            Log.i(TAG, "Scheduler service destroyed unexpectedly; leaving restart alarms armed")
+        }
         phpDispatcher.close()
         Log.i(TAG, "Scheduler service destroyed — ephemeral runtime shut down")
         super.onDestroy()

@@ -69,7 +69,13 @@ class FetchNextBingwaJobs
                 ->acceptJson()
                 ->withToken($token)
                 ->get("{$baseUrl}{$endpoint}", ['limit' => $limit])
-                ->then(function (Response $response) use ($type, $user, &$allJobs, &$failed): void {
+                ->then(function (mixed $response) use ($type, $user, &$allJobs, &$failed): void {
+                    if ($response instanceof \Throwable) {
+                        $failed++;
+                        report(new \RuntimeException("Failed to fetch {$type} jobs due to network error: ".$response->getMessage(), 0, $response));
+                        return;
+                    }
+
                     if ($response->noContent()) {
                         return;
                     }

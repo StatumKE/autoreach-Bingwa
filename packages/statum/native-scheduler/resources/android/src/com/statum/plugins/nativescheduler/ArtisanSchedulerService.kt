@@ -1,20 +1,26 @@
 package com.statum.plugins.nativescheduler
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
+import com.nativephp.mobile.bridge.LaravelEnvironment
 import com.nativephp.mobile.bridge.PHPBridge
+import com.nativephp.mobile.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -44,6 +50,10 @@ class ArtisanSchedulerService : Service() {
         private const val FAST_POLL_INTERVAL_MS = 2_000L
         private const val ARTISAN_COMMAND = "bingwa:sync-transactions"
 
+        @Volatile
+        var engineActive: Boolean = false
+            private set
+
         fun start(context: Context) {
             val intent = Intent(context, ArtisanSchedulerService::class.java)
             context.startForegroundService(intent)
@@ -52,6 +62,44 @@ class ArtisanSchedulerService : Service() {
         fun stop(context: Context) {
             val intent = Intent(context, ArtisanSchedulerService::class.java)
             context.stopService(intent)
+        }
+
+        fun cancelWatchdog(context: Context) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val restartIntent = Intent(context, ArtisanSchedulerService::class.java)
+
+            val watchdogIntent = PendingIntent.getForegroundService(
+                context, 9001, restartIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(watchdogIntent)
+
+            val taskRemovedIntent = PendingIntent.getForegroundService(
+                context, 9002, restartIntent,
+                PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(taskRemovedIntent)
+        }
+
+        /**
+         * Schedule an AlarmManager wakeup to restart the service if Android kills it.
+         * Uses ELAPSED_REALTIME_WAKEUP to fire even in Doze mode.
+         */
+        fun scheduleWatchdog(context: Context) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent = Intent(context, ArtisanSchedulerService::class.java)
+            val pendingIntent = PendingIntent.getForegroundService(
+                context, 9001, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            // Fire every 10 minutes as a watchdog
+            alarmManager.setRepeating(
+                AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                SystemClock.elapsedRealtime() + 10 * 60 * 1000L,
+                10 * 60 * 1000L,
+                pendingIntent
+            )
+            Log.i(TAG, "Watchdog alarm scheduled (10 min interval)")
         }
     }
 
@@ -86,18 +134,60 @@ class ArtisanSchedulerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (MainActivity.instance != null && !SchedulerStartupState.appBootstrapComplete) {
+            Log.i(TAG, "MainActivity bootstrap in progress; deferring scheduler startup")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         startDecoupledEngine()
+        scheduleWatchdog(applicationContext)
         return START_STICKY
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.w(TAG, "Task removed — scheduling immediate restart via AlarmManager")
+        val restartIntent = Intent(applicationContext, ArtisanSchedulerService::class.java)
+        val pendingIntent = PendingIntent.getForegroundService(
+            applicationContext, 9002, restartIntent,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.set(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            SystemClock.elapsedRealtime() + 2_000L,
+            pendingIntent
+        )
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
         masterJob?.cancel()
-        phpBridge?.nativeEphemeralShutdown()
+        shutdownEphemeralRuntimeOnDestroy()
+        engineActive = false
+        cancelWatchdog(applicationContext)
+        phpDispatcher.close()
         Log.i(TAG, "Scheduler service destroyed — ephemeral runtime shut down")
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun shutdownEphemeralRuntimeOnDestroy() {
+        val bridge = phpBridge ?: return
+
+        try {
+            runBlocking(phpDispatcher) {
+                phpMutex.withLock {
+                    bridge.nativeEphemeralShutdown()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to shut down ephemeral runtime during service destroy", e)
+        } finally {
+            phpBridge = null
+        }
+    }
 
     // -------------------------------------------------------------------------
     // Engine Orchestration
@@ -107,7 +197,27 @@ class ArtisanSchedulerService : Service() {
         if (masterJob?.isActive == true) return
 
         masterJob = serviceScope.launch(phpDispatcher) {
+            engineActive = true
+
+            if (MainActivity.instance != null && !SchedulerStartupState.appBootstrapComplete) {
+                Log.i(TAG, "MainActivity bootstrap in progress; skipping scheduler engine boot")
+                engineActive = false
+                stopSelf()
+                return@launch
+            }
+
             Log.i(TAG, "Booting ephemeral PHP runtime for dual-loop engine")
+
+            try {
+                Log.i(TAG, "Initializing background Laravel environment for scheduler")
+                LaravelEnvironment(applicationContext).initializeForBackground()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to initialize background Laravel environment", e)
+                engineActive = false
+                stopSelf()
+                return@launch
+            }
+
             val bridge = PHPBridge(applicationContext)
             phpBridge = bridge
 
@@ -117,6 +227,7 @@ class ArtisanSchedulerService : Service() {
             val booted = bridge.nativeEphemeralBoot(bootstrapScript)
             if (booted != 0) {
                 Log.e(TAG, "Failed to boot ephemeral runtime — engine aborting (code=$booted)")
+                engineActive = false
                 stopSelf()
                 return@launch
             }
@@ -176,15 +287,25 @@ class ArtisanSchedulerService : Service() {
     private suspend fun runUssdWorker(bridge: PHPBridge, ussdExecutor: UssdExecutor) {
         while (kotlinx.coroutines.currentCoroutineContext().isActive) {
             try {
+                // Temporary file to safely receive JSON payload from PHP, bypassing JNI output buffer issues
+                val tmpFile = java.io.File(applicationContext.cacheDir, "ussd_payload.json")
+                if (tmpFile.exists()) tmpFile.delete()
+
                 // 1. Ask PHP for the next local job (Thread-safe lock)
                 val rawJobOutput = phpMutex.withLock {
-                    bridge.nativeEphemeralArtisan("bingwa:next-ussd-job").trim()
+                    bridge.nativeEphemeralArtisan("bingwa:next-ussd-job --output=${tmpFile.absolutePath}").trim()
                 }
 
-                val jobJson = extractJsonPayload(rawJobOutput)
+                val jobJson = if (tmpFile.exists()) {
+                    val content = tmpFile.readText()
+                    tmpFile.delete()
+                    extractJsonPayload(content)
+                } else {
+                    extractJsonPayload(rawJobOutput)
+                }
 
                 if (jobJson != null) {
-                    if (rawJobOutput != jobJson) {
+                    if (rawJobOutput.isNotBlank() && rawJobOutput != jobJson) {
                         Log.d(TAG, "Recovered JSON payload from bridge output: ${rawJobOutput.take(200)}")
                     }
 
@@ -195,10 +316,18 @@ class ArtisanSchedulerService : Service() {
                     val simSlot = job.optInt("sim_slot", 0)
                     val timeout = job.optInt("timeout", 30)
 
+                    if (tmpFile.exists()) tmpFile.delete()
                     val claimOutput = phpMutex.withLock {
-                        bridge.nativeEphemeralArtisan("bingwa:claim-ussd-job --id=$id").trim()
+                        bridge.nativeEphemeralArtisan("bingwa:claim-ussd-job --id=$id --output=${tmpFile.absolutePath}").trim()
                     }
-                    val claimJson = extractJsonPayload(claimOutput)
+                    val claimJson = if (tmpFile.exists()) {
+                        val content = tmpFile.readText()
+                        tmpFile.delete()
+                        extractJsonPayload(content)
+                    } else {
+                        extractJsonPayload(claimOutput)
+                    }
+                    
                     if (claimJson == null) {
                         Log.w(TAG, "Failed to claim USSD job #$id: ${claimOutput.take(200)}")
                         delay(FAST_POLL_INTERVAL_MS)

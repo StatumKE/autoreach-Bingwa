@@ -12,6 +12,8 @@ new #[Title('Dashboard')] class extends Component
 {
     public bool $showBalance = true;
 
+    public int $refreshKey = 0;
+
     /**
      * Get the dynamic greeting based on time of day.
      */
@@ -134,7 +136,7 @@ new #[Title('Dashboard')] class extends Component
 
     public function refreshData(): void
     {
-        // Livewire refresh
+        $this->refreshKey++;
     }
 }; ?>
 
@@ -161,41 +163,40 @@ new #[Title('Dashboard')] class extends Component
     <!-- Stat Cards -->
     <div class="grid grid-cols-3 gap-2">
         <!-- Successful -->
-        <a href="{{ route('transactions', ['filter' => 'success']) }}" wire:navigate class="group relative flex flex-col items-start justify-center overflow-hidden rounded-[1.15rem] bg-green-50 px-2.5 py-3 text-left shadow-sm ring-1 ring-green-100 transition hover:-translate-y-0.5 active:scale-95">
-            <div class="text-[7px] font-black uppercase tracking-[0.22em] text-zinc-600">{{ __('Successful') }}</div>
-            <div class="mt-1 text-[1.55rem] font-black text-zinc-950 leading-none tracking-tighter">{{ number_format($this->stats['successful']) }}</div>
+        <a href="{{ route('transactions', ['filter' => 'success']) }}" wire:navigate class="group relative flex flex-col items-start justify-center overflow-hidden rounded-2xl bg-green-50 px-2 py-2 text-left shadow-sm ring-1 ring-green-100 transition hover:-translate-y-0.5 active:scale-95">
+            <div class="text-[6px] font-black uppercase tracking-[0.22em] text-zinc-600">{{ __('Successful') }}</div>
+            <div class="mt-0.5 text-lg font-black text-zinc-950 leading-none tracking-tighter">{{ number_format($this->stats['successful']) }}</div>
         </a>
 
         <!-- Failed -->
-        <a href="{{ route('transactions', ['filter' => 'failed']) }}" wire:navigate class="group relative flex flex-col items-start justify-center overflow-hidden rounded-[1.15rem] bg-rose-50 px-2.5 py-3 text-left shadow-sm ring-1 ring-rose-100 transition hover:-translate-y-0.5 active:scale-95">
-            <div class="text-[7px] font-black uppercase tracking-[0.22em] text-zinc-600">{{ __('Failed') }}</div>
-            <div class="mt-1 text-[1.55rem] font-black text-zinc-950 leading-none tracking-tighter">{{ number_format($this->stats['failed']) }}</div>
+        <a href="{{ route('transactions', ['filter' => 'failed']) }}" wire:navigate class="group relative flex flex-col items-start justify-center overflow-hidden rounded-2xl bg-rose-50 px-2 py-2 text-left shadow-sm ring-1 ring-rose-100 transition hover:-translate-y-0.5 active:scale-95">
+            <div class="text-[6px] font-black uppercase tracking-[0.22em] text-zinc-600">{{ __('Failed') }}</div>
+            <div class="mt-0.5 text-lg font-black text-zinc-950 leading-none tracking-tighter">{{ number_format($this->stats['failed']) }}</div>
         </a>
 
         <!-- Tokens -->
-        <a href="{{ route('plans') }}" wire:navigate class="group relative flex flex-col items-start justify-center overflow-hidden rounded-[1.15rem] bg-sky-50 px-2.5 py-3 text-left shadow-sm ring-1 ring-sky-100 transition hover:-translate-y-0.5 active:scale-95">
-            <div class="text-[7px] font-black uppercase tracking-[0.22em] text-zinc-600">{{ __('Tokens') }}</div>
-            <div class="mt-1 text-[0.95rem] font-black text-zinc-950 leading-tight tracking-tighter">{{ $this->tokenText }}</div>
+        <a href="{{ route('plans') }}" wire:navigate class="group relative flex flex-col items-start justify-center overflow-hidden rounded-2xl bg-sky-50 px-2 py-2 text-left shadow-sm ring-1 ring-sky-100 transition hover:-translate-y-0.5 active:scale-95">
+            <div class="text-[6px] font-black uppercase tracking-[0.22em] text-zinc-600">{{ __('Tokens') }}</div>
+            <div class="mt-0.5 text-[0.85rem] font-black text-zinc-950 leading-tight tracking-tighter">{{ $this->tokenText }}</div>
         </a>
     </div>
 
     <!-- Airtime Bar -->
-    <div class="relative overflow-hidden rounded-[1.5rem] bg-white p-4 shadow-sm ring-1 ring-zinc-200">
-        <div class="absolute top-0 right-0 p-4 opacity-10">
-            <flux:icon.banknotes class="size-10 text-green-600" />
-        </div>
-        
-        <div class="flex items-center gap-6">
-            <div class="flex flex-col gap-1">
-                <div class="text-[8px] font-black uppercase tracking-[0.25em] text-zinc-500">{{ __('Used Today') }}</div>
+    <div class="relative overflow-hidden rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 ring-zinc-200">
+        <div class="flex items-center justify-between">
+            <div class="flex flex-col">
+                <div class="text-[6px] font-black uppercase tracking-[0.25em] text-zinc-500">{{ __('Used Today') }}</div>
                 <div class="flex items-center gap-2">
-                    <span class="text-lg font-black text-zinc-950 tracking-tight">
+                    <span class="text-sm font-black text-zinc-950 tracking-tight">
                         Ksh {{ $this->showBalance ? number_format($this->airtime['used_today'], 2) : '••••' }}
                     </span>
-                    <button wire:click="toggleBalance" class="text-zinc-600 hover:text-green-600 transition-colors">
-                        @if($this->showBalance) <flux:icon.eye class="size-4" /> @else <flux:icon.eye-slash class="size-4" /> @endif
+                    <button wire:click="toggleBalance" class="text-zinc-400 hover:text-green-600 transition-colors">
+                        @if($this->showBalance) <flux:icon.eye class="size-3" /> @else <flux:icon.eye-slash class="size-3" /> @endif
                     </button>
                 </div>
+            </div>
+            <div class="opacity-10">
+                <flux:icon.banknotes class="size-5 text-green-600" />
             </div>
         </div>
     </div>
@@ -275,21 +276,21 @@ new #[Title('Dashboard')] class extends Component
 
         <div class="flex flex-col gap-3">
             @forelse($this->recentTransactions as $tx)
-                <div class="flex items-center gap-4 rounded-[1.5rem] bg-white p-4 shadow-sm ring-1 ring-zinc-200 transition-transform active:scale-[0.98]">
-                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-50 text-green-600 shadow-inner">
+                <div class="flex items-center gap-3 rounded-xl bg-white px-3 py-1.5 shadow-sm ring-1 ring-zinc-200 transition-transform active:scale-[0.98]">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600 shadow-inner">
                         @if($tx->status === 'completed')
-                            <flux:icon.check-circle class="size-6 text-green-600" />
+                            <flux:icon.check-circle class="size-4 text-green-600" />
                         @else
-                            <flux:icon.clock class="size-6 text-zinc-400" />
+                            <flux:icon.clock class="size-4 text-zinc-400" />
                         @endif
                     </div>
-                    <div class="flex flex-1 flex-col">
-                        <div class="text-sm font-black text-zinc-950">{{ $tx->sender_name ?: $tx->sender_phone }}</div>
-                        <div class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">{{ $tx->occurred_at->diffForHumans() }}</div>
+                    <div class="flex flex-1 flex-col min-w-0">
+                        <div class="truncate text-[12px] font-black text-zinc-950">{{ $tx->sender_name ?: $tx->sender_phone }}</div>
+                        <div class="text-[8px] font-bold text-zinc-400 uppercase tracking-tight">{{ $tx->occurred_at->diffForHumans() }}</div>
                     </div>
-                    <div class="flex flex-col items-end">
-                        <div class="text-base font-black text-zinc-950">Ksh {{ number_format($tx->amount) }}</div>
-                        <div class="text-[9px] font-bold text-green-600/70 uppercase tracking-widest">{{ $tx->offer_name }}</div>
+                    <div class="flex flex-col items-end shrink-0">
+                        <div class="text-[13px] font-black text-zinc-950">Ksh {{ number_format($tx->amount) }}</div>
+                        <div class="text-[7px] font-black text-green-600/70 uppercase tracking-widest">{{ $tx->offer_name }}</div>
                     </div>
                 </div>
             @empty

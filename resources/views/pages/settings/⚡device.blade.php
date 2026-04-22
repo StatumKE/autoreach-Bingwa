@@ -29,6 +29,8 @@ new #[Title('Device settings')] class extends Component {
     public bool $retry_network_issues = true;
 
     public string $deviceId = 'Unknown';
+    
+    public string $deviceCode = 'Unknown';
 
     public string $osName = 'Android';
 
@@ -200,6 +202,8 @@ new #[Title('Device settings')] class extends Component {
             ?? $user->autoreach_connect_id 
             ?? 'Unknown';
 
+        $this->deviceCode = $registration?->bhc_code ?? 'None';
+
         if (! function_exists('nativephp_call')) {
             return;
         }
@@ -250,11 +254,8 @@ new #[Title('Device settings')] class extends Component {
                     <span class="mt-1 text-[11px] font-black text-zinc-700">{{ $this->platformLabel }}</span>
                 </div>
                 <div class="flex flex-col">
-                    <span class="text-[8px] font-black uppercase tracking-[0.22em] text-zinc-500">{{ __('Status') }}</span>
-                    <span class="mt-1 flex items-center gap-1.5 text-[11px] font-black text-green-700">
-                        <span class="h-1.5 w-1.5 rounded-full bg-green-400 shadow-[0_0_8px_rgba(52,211,153,0.5)] animate-pulse"></span>
-                        {{ __('Online') }}
-                    </span>
+                    <span class="text-[8px] font-black uppercase tracking-[0.22em] text-zinc-500">{{ __('Device Code') }}</span>
+                    <span class="mt-1 font-mono text-[11px] font-black text-zinc-700 truncate">{{ $this->deviceCode }}</span>
                 </div>
                 <div class="flex flex-col">
                     <span class="text-[8px] font-black uppercase tracking-[0.22em] text-zinc-500">{{ __('Power') }}</span>

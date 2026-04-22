@@ -58,6 +58,33 @@ it('outputs valid JSON payload for a queued transaction with an offer', function
     ]);
 });
 
+it('outputs valid JSON with default timeout when user has no device settings', function () {
+    $user = User::factory()->create();
+    $offer = Offer::factory()->create([
+        'user_id' => $user->id,
+        'ussd_code' => '*180*5*7*PN#',
+        'ussd_mode' => 'express',
+        'is_active' => true,
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'offer_id' => $offer->id,
+        'sender_phone' => '0712345678',
+        'status' => 'queued',
+    ]);
+
+    // No device_settings row exists — this used to crash with a fatal PHP error
+    // ("Attempt to read property ussd_timeout_seconds on null") because the code
+    // used $settings->ussd_timeout_seconds instead of $settings?->ussd_timeout_seconds.
+    // The crash meant no JSON was ever output, so the USSD worker looped forever in queued.
+    $this->assertDatabaseCount('device_settings', 0);
+
+    $this->artisan('bingwa:next-ussd-job')
+        ->expectsOutputToContain('"id":'.$transaction->id)
+        ->assertExitCode(0);
+});
+
 it('replaces PN placeholder in the ussd_code with sender_phone', function () {
     $user = User::factory()->create();
     $offer = Offer::factory()->create([

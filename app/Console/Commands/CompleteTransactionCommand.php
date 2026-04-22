@@ -44,15 +44,15 @@ class CompleteTransactionCommand extends Command
         if ($status === 'failed' && $settings?->intelligent_auto_retry) {
             if ($transaction->retry_count < ($settings->max_attempts - 1)) {
                 $transaction->increment('retry_count');
-                
+
                 $retryAt = now()->addMinutes($settings->retry_interval_minutes ?? 1);
-                
+
                 $transaction->update([
                     'status' => 'queued',
                     'occurred_at' => $retryAt,
                     'status_desc' => __('Auto-retry attempt :count scheduled for :time.', [
                         'count' => $transaction->retry_count,
-                        'time' => $retryAt->format('g:i A')
+                        'time' => $retryAt->format('g:i A'),
                     ]),
                 ]);
 

@@ -227,49 +227,10 @@ class UssdAccessibilityService : AccessibilityService() {
     // -------------------------------------------------------------------------
 
     private fun showOverlay() {
-        if (overlayView != null) return
-        handler.post {
-            if (overlayView != null) return@post // double-check after switch to main thread
-            try {
-                val params = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                    PixelFormat.TRANSLUCENT
-                ).apply {
-                    gravity = Gravity.CENTER
-                }
-
-                overlayView = TextView(applicationContext).apply {
-                    text = "⚡ Processing…"
-                    textSize = 20f
-                    gravity = Gravity.CENTER
-                    setPadding(64, 64, 64, 64)
-                    setBackgroundColor(0xEE111827.toInt()) // dark navy, 93% opacity
-                    setTextColor(0xFFFFFFFF.toInt())
-                }
-
-                windowManager.addView(overlayView, params)
-                Log.d(TAG, "Processing overlay shown")
-            } catch (e: Exception) {
-                Log.e(TAG, "showOverlay failed", e)
-            }
-        }
+        // Overlay disabled per user request
     }
 
     private fun hideOverlay() {
-        overlayView?.let {
-            try {
-                windowManager.removeView(it)
-                Log.d(TAG, "Processing overlay hidden")
-            } catch (e: Exception) {
-                Log.e(TAG, "hideOverlay failed", e)
-            } finally {
-                overlayView = null
-            }
-        }
+        // Overlay disabled per user request
     }
 }

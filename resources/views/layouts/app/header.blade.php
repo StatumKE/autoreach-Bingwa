@@ -5,7 +5,7 @@
     </head>
     <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg antialiased dark:bg-zinc-950">
         <flux:header container="false" class="border-b border-black/10 bg-app-shell text-white dark:border-zinc-800 dark:bg-app-shell">
-            <flux:sidebar.toggle class="lg:hidden mr-2 text-white" icon="bars-2" inset="left" />
+            <flux:sidebar.toggle class="lg:hidden mr-2 !text-white translate-y-1 [&_svg]:stroke-[2.5px]" icon="bars-2" inset="left" />
 
             <x-app-logo href="{{ route('dashboard') }}" wire:navigate class="text-white" />
 

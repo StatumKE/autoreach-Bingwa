@@ -281,8 +281,21 @@ new #[Title('My Offers')] class extends Component {
                     <flux:heading size="xl" class="mt-1 text-zinc-950 font-black tracking-tight text-3xl">{{ __('My Offers') }}</flux:heading>
                 </div>
 
-                <div class="rounded-full bg-white px-4 py-2 text-sm font-black text-zinc-950 shadow-sm ring-1 ring-zinc-200">
-                    {{ $this->offersCount }} {{ __('active') }}
+                <div class="flex items-center gap-3">
+                    <div class="hidden rounded-full bg-white px-4 py-2 text-sm font-black text-zinc-950 shadow-sm ring-1 ring-zinc-200 sm:block">
+                        {{ $this->offersCount }} {{ __('active') }}
+                    </div>
+
+                    <flux:modal.trigger name="offer-form">
+                        <flux:button
+                            type="button"
+                            wire:click="createOffer"
+                            class="app-primary-button !h-11 px-6 font-black uppercase tracking-widest text-[10px]"
+                        >
+                            <flux:icon.plus variant="mini" class="mr-2 size-4" />
+                            {{ __('Add Offer') }}
+                        </flux:button>
+                    </flux:modal.trigger>
                 </div>
             </div>
         </div>
@@ -304,16 +317,6 @@ new #[Title('My Offers')] class extends Component {
             @endforeach
         </div>
 
-        <flux:modal.trigger name="offer-form">
-            <flux:button
-                type="button"
-                variant="ghost"
-                wire:click="createOffer"
-                class="app-primary-button h-16 w-full justify-center text-base font-black"
-            >
-                {{ __('Add Offer') }}
-            </flux:button>
-        </flux:modal.trigger>
 
         @if ($this->offers->isEmpty())
             <div class="rounded-[1.75rem] bg-white px-6 py-16 text-center shadow-sm ring-1 ring-zinc-200">

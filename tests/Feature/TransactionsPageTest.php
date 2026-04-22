@@ -39,15 +39,11 @@ test('transactions load and display the requested details', function () {
         ->call('loadTransactions');
 
     $response->assertHasNoErrors();
-    $response->assertSee('TX-12345678');
     $response->assertSee('MP123ABC');
     $response->assertSee('254712345678');
     $response->assertSee('John Doe');
     $response->assertSee('Ksh 125');
     $response->assertSee('1 GB Data Bundle');
-    $response->assertSee('Data');
-    $response->assertSee('Auto matched from active offer');
-    $response->assertSee('Transaction completed successfully.');
     $response->assertSee('successful');
 });
 

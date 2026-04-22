@@ -367,7 +367,7 @@ class ArtisanSchedulerService : Service() {
                     // 3. Mark the job completed in PHP (Thread-safe lock)
                     phpMutex.withLock {
                         bridge.nativeEphemeralArtisan(
-                            "bingwa:complete-transaction $id $status --message='$message'"
+                            "bingwa:complete-transaction $id $status --finalize-once --message='$message'"
                         )
                     }
 

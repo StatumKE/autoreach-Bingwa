@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\DeviceSetting;
 use App\Models\Transaction;
 use App\Models\User;
 
@@ -110,4 +111,32 @@ it('sets the processed_at timestamp on completion', function () {
     $fresh = $transaction->fresh();
     expect($fresh->processed_at)->not->toBeNull();
     expect($fresh->processed_at->isSameDay(now()))->toBeTrue();
+});
+
+it('finalizes a failed transaction once when finalize-once is requested', function () {
+    $user = User::factory()->create();
+    DeviceSetting::factory()->create([
+        'user_id' => $user->id,
+        'intelligent_auto_retry' => true,
+        'auto_reschedule_rejected' => true,
+        'max_attempts' => 4,
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'processing',
+        'retry_count' => 0,
+        'processed_at' => null,
+    ]);
+
+    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --finalize-once --message='Request rejected by carrier'")
+        ->assertExitCode(0);
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh)->not->toBeNull();
+    expect($fresh->status)->toBe('failed');
+    expect($fresh->retry_count)->toBe(0);
+    expect($fresh->processed_at)->not->toBeNull();
+    expect($fresh->status_desc)->toBe('Request rejected by carrier');
 });

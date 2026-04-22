@@ -17,6 +17,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 import android.telephony.SubscriptionManager
 
+private const val PURCHASE_SUCCESS_TEXT = "You have successfully purchased"
+
+internal fun isPurchaseSuccessMessage(message: String): Boolean {
+    return message.contains(PURCHASE_SUCCESS_TEXT, ignoreCase = true)
+}
+
 /**
  * Handles USSD execution for both modes:
  *
@@ -33,6 +39,7 @@ class UssdExecutor(private val context: Context) {
         private const val TAG = "UssdExecutor"
         private const val USSD_TIMEOUT_MS = 30_000L      // 30s max per call (matches Laravel timeout)
         private const val DIALOG_RENDER_DELAY_MS = 1_500L // wait for dialer to render the dialog
+        private const val FOLLOW_UP_DIALOG_TIMEOUT_MS = 10_000L
     }
 
     /**
@@ -119,7 +126,13 @@ class UssdExecutor(private val context: Context) {
                 ) {
                     Log.d(TAG, "Express USSD success: $response")
                     if (continuation.isActive) {
-                        continuation.resume(UssdResult(success = true, message = response.toString()))
+                        val message = response.toString()
+                        continuation.resume(
+                            UssdResult(
+                                success = isPurchaseSuccessMessage(message),
+                                message = message,
+                            )
+                        )
                     }
                 }
 
@@ -234,14 +247,25 @@ class UssdExecutor(private val context: Context) {
         // the findSendButton() logic in UssdAccessibilityService.
         service.injectInput("")
 
-        // Allow the click to process and any follow-up dialog to appear/dismiss
+        // Allow the click to process and the final carrier response to appear.
         delay(DIALOG_RENDER_DELAY_MS)
 
-        // Drain any follow-up response and hide the overlay
+        val finalDialogText = awaitFollowUpDialog(dialogText)
+        val resolvedDialogText = finalDialogText ?: dialogText
+
+        if (finalDialogText != null) {
+            Log.d(TAG, "Advanced USSD final dialog text: $finalDialogText")
+            service.injectInput("")
+            delay(DIALOG_RENDER_DELAY_MS)
+        }
+
         UssdAccessibilityService.responseChannel.tryReceive()
         service.dismiss()
 
-        return UssdResult(success = true, message = dialogText)
+        return UssdResult(
+            success = isPurchaseSuccessMessage(resolvedDialogText),
+            message = resolvedDialogText,
+        )
     }
 
     /**
@@ -259,6 +283,26 @@ class UssdExecutor(private val context: Context) {
         }
 
         return UssdAccessibilityService.instance
+    }
+
+    private suspend fun awaitFollowUpDialog(
+        initialDialogText: String,
+        timeoutMs: Long = FOLLOW_UP_DIALOG_TIMEOUT_MS,
+    ): String? {
+        return withTimeoutOrNull(timeoutMs) {
+            while (true) {
+                val nextDialogText = UssdAccessibilityService.responseChannel
+                    .receiveCatching()
+                    .getOrNull()
+                    ?: break
+
+                if (nextDialogText.isNotBlank() && nextDialogText != initialDialogText) {
+                    return@withTimeoutOrNull nextDialogText
+                }
+            }
+
+            null
+        }
     }
 
     /**
@@ -293,4 +337,5 @@ class UssdExecutor(private val context: Context) {
         TelephonyManager.USSD_ERROR_SERVICE_UNAVAIL -> "USSD service unavailable on this network"
         else -> "Unknown USSD failure code: $code"
     }
+
 }

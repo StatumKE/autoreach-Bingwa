@@ -7,7 +7,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('bingwa:complete-transaction {id : The local transaction ID} {status : completed or failed} {--message= : Optional status description}')]
+#[Signature('bingwa:complete-transaction {id : The local transaction ID} {status : completed or failed} {--message= : Optional status description} {--finalize-once : Finalize immediately without auto-retry or reschedule}')]
 #[Description('Mark a transaction as completed or failed after a USSD execution attempt.')]
 class CompleteTransactionCommand extends Command
 {
@@ -39,9 +39,10 @@ class CompleteTransactionCommand extends Command
         };
 
         $settings = $transaction->user?->deviceSetting;
+        $finalizeOnce = (bool) $this->option('finalize-once');
 
         // Intelligent Auto-Retry Logic
-        if ($status === 'failed' && $settings?->intelligent_auto_retry) {
+        if (! $finalizeOnce && $status === 'failed' && $settings?->intelligent_auto_retry) {
             if ($transaction->retry_count < ($settings->max_attempts - 1)) {
                 $transaction->increment('retry_count');
 
@@ -63,7 +64,7 @@ class CompleteTransactionCommand extends Command
         }
 
         // Auto Reschedule Rejected Logic
-        if ($status === 'failed' && $settings?->auto_reschedule_rejected) {
+        if (! $finalizeOnce && $status === 'failed' && $settings?->auto_reschedule_rejected) {
             $isRejected = str_contains(strtolower($this->option('message') ?? ''), 'rejected')
                        || str_contains(strtolower($this->option('message') ?? ''), 'not allowed');
 

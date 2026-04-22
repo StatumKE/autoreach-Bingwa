@@ -1,8 +1,10 @@
 <?php
 
+use App\Models\BingwaDeviceRegistration;
 use App\Models\Offer;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Facades\File;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // bingwa:next-ussd-job
@@ -56,6 +58,48 @@ it('outputs valid JSON payload for a queued transaction with an offer', function
         'id' => $transaction->id,
         'status' => 'queued',
     ]);
+});
+
+it('includes backend callback metadata in the ussd job payload', function () {
+    config(['services.autoreach.backend_url' => 'https://backend.statum.co.ke/']);
+
+    $user = User::factory()->create();
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'device-hardware-id',
+        'device_token' => 'raw-device-token',
+        'bhc_code' => 'BHC-123',
+    ]);
+    $offer = Offer::factory()->create([
+        'user_id' => $user->id,
+        'ussd_code' => '*180*5*7*PN#',
+        'ussd_mode' => 'express',
+        'is_active' => true,
+    ]);
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'offer_id' => $offer->id,
+        'transaction_id' => '70',
+        'sender_phone' => '0712345678',
+        'status' => 'queued',
+    ]);
+    $outputPath = storage_path('framework/testing/ussd-job-'.$transaction->id.'.json');
+
+    try {
+        $this->artisan('bingwa:next-ussd-job', ['--output' => $outputPath])
+            ->assertExitCode(0);
+
+        $payload = json_decode(File::get($outputPath), true, flags: JSON_THROW_ON_ERROR);
+
+        expect($payload)->toMatchArray([
+            'id' => $transaction->id,
+            'backend_transaction_id' => '70',
+            'backend_url' => 'https://backend.statum.co.ke',
+            'device_token' => 'raw-device-token',
+        ]);
+    } finally {
+        File::delete($outputPath);
+    }
 });
 
 it('outputs valid JSON with default timeout when user has no device settings', function () {

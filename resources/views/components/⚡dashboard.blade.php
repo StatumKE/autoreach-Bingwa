@@ -276,22 +276,64 @@ new #[Title('Dashboard')] class extends Component
 
         <div class="flex flex-col gap-3">
             @forelse($this->recentTransactions as $tx)
-                <div class="flex items-center gap-3 rounded-xl bg-white px-3 py-1.5 shadow-sm ring-1 ring-zinc-200 transition-transform active:scale-[0.98]">
-                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600 shadow-inner">
-                        @if($tx->status === 'completed')
-                            <flux:icon.check-circle class="size-4 text-green-600" />
-                        @else
-                            <flux:icon.clock class="size-4 text-zinc-400" />
-                        @endif
+                @php
+                    $status = strtolower((string) ($tx->status ?? ''));
+                    $isSuccess = in_array($status, ['completed', 'successful'], true);
+                    $isFailed = $status === 'failed';
+                @endphp
+
+                <div @class([
+                    'rounded-xl bg-white px-3 py-2 shadow-sm ring-1 transition-transform active:scale-[0.98]',
+                    'ring-green-100' => $isSuccess,
+                    'ring-rose-100' => $isFailed,
+                    'ring-zinc-200' => ! $isSuccess && ! $isFailed,
+                ])>
+                    <div class="flex items-center gap-3">
+                        <div @class([
+                            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-inner',
+                            'bg-green-50 text-green-600' => $isSuccess,
+                            'bg-rose-50 text-rose-600' => $isFailed,
+                            'bg-zinc-50 text-zinc-400' => ! $isSuccess && ! $isFailed,
+                        ])>
+                            @if($isSuccess)
+                                <flux:icon.check-circle class="size-4 text-green-600" />
+                            @elseif($isFailed)
+                                <flux:icon.x-circle class="size-4 text-rose-600" />
+                            @else
+                                <flux:icon.clock class="size-4 text-zinc-400" />
+                            @endif
+                        </div>
+                        <div class="flex flex-1 flex-col min-w-0">
+                            <div class="truncate text-[12px] font-black text-zinc-950">{{ $tx->sender_name ?: $tx->sender_phone }}</div>
+                            <div class="text-[8px] font-bold text-zinc-400 uppercase tracking-tight">{{ $tx->occurred_at->diffForHumans() }}</div>
+                        </div>
+                        <div class="flex flex-col items-end shrink-0">
+                            <div @class([
+                                'text-[13px] font-black',
+                                'text-green-700' => $isSuccess,
+                                'text-rose-700' => $isFailed,
+                                'text-zinc-950' => ! $isSuccess && ! $isFailed,
+                            ])>Ksh {{ number_format($tx->amount) }}</div>
+                            <div @class([
+                                'text-[7px] font-black uppercase tracking-widest',
+                                'text-green-600/70' => $isSuccess,
+                                'text-rose-600/70' => $isFailed,
+                                'text-zinc-500' => ! $isSuccess && ! $isFailed,
+                            ])>{{ $tx->offer_name }}</div>
+                        </div>
                     </div>
-                    <div class="flex flex-1 flex-col min-w-0">
-                        <div class="truncate text-[12px] font-black text-zinc-950">{{ $tx->sender_name ?: $tx->sender_phone }}</div>
-                        <div class="text-[8px] font-bold text-zinc-400 uppercase tracking-tight">{{ $tx->occurred_at->diffForHumans() }}</div>
-                    </div>
-                    <div class="flex flex-col items-end shrink-0">
-                        <div class="text-[13px] font-black text-zinc-950">Ksh {{ number_format($tx->amount) }}</div>
-                        <div class="text-[7px] font-black text-green-600/70 uppercase tracking-widest">{{ $tx->offer_name }}</div>
-                    </div>
+
+                    @if (filled($tx->status_desc))
+                        <div @class([
+                            'mt-2 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold leading-relaxed ring-1',
+                            'bg-green-50 text-green-800 ring-green-100' => $isSuccess,
+                            'bg-rose-50 text-rose-800 ring-rose-100' => $isFailed,
+                            'bg-zinc-50 text-zinc-700 ring-zinc-200' => ! $isSuccess && ! $isFailed,
+                        ])>
+                            <span class="mr-1.5 text-[8px] font-black uppercase tracking-widest opacity-60">{{ __('USSD') }}</span>
+                            {{ $tx->status_desc }}
+                        </div>
+                    @endif
                 </div>
             @empty
                 <div class="rounded-[1.75rem] border border-dashed border-zinc-200 p-12 text-center bg-zinc-50">

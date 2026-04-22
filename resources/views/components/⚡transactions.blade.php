@@ -273,6 +273,18 @@ new #[Title('Transactions')] class extends Component
 
                     </div>
 
+                    @if (filled($transaction->status_desc))
+                        <div @class([
+                            'mt-3 rounded-xl px-3 py-2 text-xs font-semibold leading-relaxed ring-1',
+                            'bg-green-50 text-green-800 ring-green-100 dark:bg-green-500/10 dark:text-green-300 dark:ring-green-500/20' => $isSuccess,
+                            'bg-rose-50 text-rose-800 ring-rose-100 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/20' => $isFailed,
+                            'bg-zinc-50 text-zinc-700 ring-zinc-200 dark:bg-zinc-800/60 dark:text-zinc-300 dark:ring-zinc-700' => ! $isSuccess && ! $isFailed,
+                        ])>
+                            <span class="mr-2 text-[9px] font-black uppercase tracking-widest opacity-60">{{ __('USSD') }}</span>
+                            {{ $transaction->status_desc }}
+                        </div>
+                    @endif
+
 
                     @if ($this->canRetryTransaction($transaction))
                         <div class="mt-3 flex justify-end">

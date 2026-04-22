@@ -4,8 +4,31 @@ return [
     'app_version' => env('NATIVEPHP_APP_VERSION', 'DEBUG'),
     'app_version_code' => env('NATIVEPHP_APP_VERSION_CODE', 1),
 
+    'cleanup_exclude_files' => [
+        'storage/framework/sessions',
+        'storage/framework/cache',
+        'storage/framework/testing',
+        'storage/logs/laravel.log',
+        'vendor/livewire/livewire/dist/*.map',
+        'vendor/livewire/livewire/src/Features/SupportFileUploads/browser_test_image_big.jpg',
+        'vendor/_laravel_ide',
+        'composer.lock',
+        'package-lock.json',
+        'offers-after.png',
+        'offers-emulator.png',
+    ],
+
     'android' => [
         'status_bar_style' => env('NATIVEPHP_ANDROID_STATUS_BAR_STYLE', 'light'),
         'min_sdk' => env('NATIVEPHP_ANDROID_MIN_SDK', 33),
+        'build' => [
+            'minify_enabled' => env('NATIVEPHP_ANDROID_MINIFY_ENABLED', false),
+            'shrink_resources' => env('NATIVEPHP_ANDROID_SHRINK_RESOURCES', false),
+            'obfuscate' => env('NATIVEPHP_ANDROID_OBFUSCATE', false),
+            'debug_symbols' => env('NATIVEPHP_ANDROID_DEBUG_SYMBOLS', 'NONE'),
+            'keep_line_numbers' => env('NATIVEPHP_ANDROID_KEEP_LINE_NUMBERS', false),
+            'keep_source_file' => env('NATIVEPHP_ANDROID_KEEP_SOURCE_FILE', false),
+            'custom_proguard_rules' => env('NATIVEPHP_ANDROID_CUSTOM_PROGUARD_RULES', []),
+        ],
     ],
 ];

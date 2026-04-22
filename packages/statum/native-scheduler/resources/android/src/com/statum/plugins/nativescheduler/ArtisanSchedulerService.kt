@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.os.SystemClock
+import android.util.Base64
 import android.util.Log
 import com.nativephp.mobile.bridge.LaravelEnvironment
 import com.nativephp.mobile.bridge.PHPBridge
@@ -17,13 +18,14 @@ import com.nativephp.mobile.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.asCoroutineDispatcher
 import java.util.concurrent.Executors
 
@@ -110,7 +112,8 @@ class ArtisanSchedulerService : Service() {
     }
 
     private var masterJob: Job? = null
-    private val serviceScope = CoroutineScope(Dispatchers.IO)
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val statusReporter = UssdStatusReporter()
     
     // Dedicated single-thread dispatcher for the PHP runtime.
     // The PHP JNI layer is NOT thread-safe and requires all calls (boot + artisan)
@@ -171,6 +174,7 @@ class ArtisanSchedulerService : Service() {
 
     override fun onDestroy() {
         masterJob?.cancel()
+        serviceScope.cancel()
         shutdownEphemeralRuntimeOnDestroy()
         engineActive = false
         if (explicitStopRequested) {
@@ -328,6 +332,9 @@ class ArtisanSchedulerService : Service() {
                     val mode = job.getString("mode")
                     val simSlot = job.optInt("sim_slot", 0)
                     val timeout = job.optInt("timeout", 30)
+                    val backendTransactionId = job.optString("backend_transaction_id", "")
+                    val backendUrl = job.optString("backend_url", "")
+                    val deviceToken = job.optString("device_token", "")
 
                     if (tmpFile.exists()) tmpFile.delete()
                     val claimOutput = phpMutex.withLock {
@@ -359,19 +366,42 @@ class ArtisanSchedulerService : Service() {
                     // 2. Execute USSD.
                     // IMPORTANT: This suspends for up to 30s+. Because it is OUTSIDE the phpMutex,
                     // Loop A (Sync Poller) can continue running normally in the background!
+                    val startedAt = SystemClock.elapsedRealtime()
                     val result = ussdExecutor.execute(code, mode, simSlot, timeoutSeconds = timeout)
+                    val executionTimeMs = SystemClock.elapsedRealtime() - startedAt
 
                     val status = if (result.success) "completed" else "failed"
-                    val message = result.message.replace("'", "\\'").take(200)
+                    val message = result.message.take(200)
+                    val encodedMessage = Base64.encodeToString(
+                        message.toByteArray(Charsets.UTF_8),
+                        Base64.NO_WRAP
+                    )
 
                     // 3. Mark the job completed in PHP (Thread-safe lock)
-                    phpMutex.withLock {
+                    val completionOutput = phpMutex.withLock {
                         bridge.nativeEphemeralArtisan(
-                            "bingwa:complete-transaction $id $status --finalize-once --message='$message'"
-                        )
+                            "bingwa:complete-transaction --transaction-id=$id --result=$status --finalize-once --message-base64=$encodedMessage"
+                        ).trim()
+                    }
+
+                    if (completionOutput.contains("error", ignoreCase = true)) {
+                        Log.w(TAG, "USSD completion command returned: ${completionOutput.take(200)}")
                     }
 
                     Log.i(TAG, "USSD job #$id → $status: ${result.message}")
+
+                    serviceScope.launch(Dispatchers.IO) {
+                        statusReporter.report(
+                            UssdStatusCallback(
+                                backendUrl = backendUrl,
+                                backendTransactionId = backendTransactionId,
+                                deviceToken = deviceToken,
+                                successful = result.success,
+                                ussdResponse = result.message,
+                                executionTimeMs = executionTimeMs,
+                            )
+                        )
+                    }
 
                     // Proceed immediately to the next job if we just finished one
                     continue

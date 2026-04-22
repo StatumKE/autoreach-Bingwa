@@ -41,7 +41,7 @@ class NextUssdJobCommand extends Command
             }
 
             $transaction = Transaction::query()
-                ->with(['offer:id,ussd_code,ussd_mode', 'user.deviceSetting'])
+                ->with(['offer:id,ussd_code,ussd_mode', 'user.deviceSetting', 'user.bingwaDeviceRegistration'])
                 ->where('status', 'queued')
                 ->whereNotNull('offer_id')
                 ->oldest('occurred_at')
@@ -62,14 +62,17 @@ class NextUssdJobCommand extends Command
 
             $payload = [
                 'id' => $transaction->id,
+                'backend_transaction_id' => $transaction->transaction_id,
                 'code' => $resolvedCode,
                 'mode' => $transaction->offer->ussd_mode,
                 'sim_slot' => $simSlot,
                 'timeout' => (int) $timeout,
+                'backend_url' => rtrim((string) config('services.autoreach.backend_url'), '/'),
+                'device_token' => $transaction->user?->bingwaDeviceRegistration?->device_token,
             ];
 
             $json = json_encode($payload);
-            Log::info('📡 DEBUG_PAYLOAD: '.$json);
+            Log::info("📡 USSD payload prepared for local job #{$transaction->id}.");
 
             $outputPath = $this->option('output');
             Log::info('📝 DEBUG_OUTPUT_PATH: '.($outputPath ?: 'NONE'));

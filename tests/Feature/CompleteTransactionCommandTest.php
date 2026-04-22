@@ -61,6 +61,60 @@ it('sets a custom status_desc when --message is provided', function () {
     ]);
 });
 
+it('sets a base64 encoded status_desc containing spaces and newlines', function () {
+    $user = User::factory()->create();
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'processing',
+    ]);
+    $message = "Invalid choice. Try again.\nPlease enter your Till Number:";
+    $encodedMessage = base64_encode($message);
+
+    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --finalize-once --message-base64={$encodedMessage}")
+        ->assertExitCode(0);
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh->status)->toBe('failed');
+    expect($fresh->status_desc)->toBe($message);
+    expect($fresh->processed_at)->not->toBeNull();
+});
+
+it('supports option-only invocation for native runtime calls', function () {
+    $user = User::factory()->create();
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'processing',
+    ]);
+    $message = 'Network returned a general failure';
+    $encodedMessage = base64_encode($message);
+
+    $this->artisan("bingwa:complete-transaction --transaction-id={$transaction->id} --result=failed --finalize-once --message-base64={$encodedMessage}")
+        ->assertExitCode(0);
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh->status)->toBe('failed');
+    expect($fresh->status_desc)->toBe($message);
+    expect($fresh->processed_at)->not->toBeNull();
+});
+
+it('returns failure for an invalid base64 status_desc', function () {
+    $user = User::factory()->create();
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'processing',
+    ]);
+
+    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --message-base64=not-base64!")
+        ->assertExitCode(1);
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh->status)->toBe('processing');
+    expect($fresh->processed_at)->toBeNull();
+});
+
 it('sets a default status_desc when --message is not provided', function () {
     $user = User::factory()->create();
     $transaction = Transaction::factory()->create([

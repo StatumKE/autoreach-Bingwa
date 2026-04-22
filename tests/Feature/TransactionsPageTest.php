@@ -45,6 +45,8 @@ test('transactions load and display the requested details', function () {
     $response->assertSee('Ksh 125');
     $response->assertSee('1 GB Data Bundle');
     $response->assertSee('successful');
+    $response->assertSee('USSD');
+    $response->assertSee('Transaction completed successfully.');
 });
 
 test('failed transactions can be retried from the transactions page', function () {

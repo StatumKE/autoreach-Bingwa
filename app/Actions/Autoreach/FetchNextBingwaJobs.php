@@ -5,7 +5,6 @@ namespace App\Actions\Autoreach;
 use App\Models\Transaction;
 use App\Models\User;
 use GuzzleHttp\Promise\Utils;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -35,6 +34,7 @@ class FetchNextBingwaJobs
         $token = $registration->device_token;
 
         $synced = 0;
+        $skipped = 0;
         $failed = 0;
 
         $endpoints = [
@@ -73,6 +73,7 @@ class FetchNextBingwaJobs
                     if ($response instanceof \Throwable) {
                         $failed++;
                         report(new \RuntimeException("Failed to fetch {$type} jobs due to network error: ".$response->getMessage(), 0, $response));
+
                         return;
                     }
 
@@ -142,7 +143,7 @@ class FetchNextBingwaJobs
         Utils::settle($promises)->wait();
 
         // Process all gathered jobs in a single database transaction for performance
-        DB::transaction(function () use ($allJobs, $user, $activeOffers, $activePlan, &$synced): void {
+        DB::transaction(function () use ($allJobs, $user, $activeOffers, $activePlan, &$synced, &$skipped): void {
             foreach ($allJobs as $jobGroup) {
                 $type = $jobGroup['type'];
                 $jobs = $jobGroup['jobs'];
@@ -169,8 +170,19 @@ class FetchNextBingwaJobs
                         $statusDesc = __("Price mismatch: No active offer found for amount {$amount}.");
                     }
 
+                    $transactionId = (string) $job['transaction_id'];
+                    $existingTransaction = Transaction::query()
+                        ->where('transaction_id', $transactionId)
+                        ->first(['id', 'status']);
+
+                    if ($existingTransaction !== null && in_array($existingTransaction->status, ['processing', 'completed', 'failed'], true)) {
+                        $skipped++;
+
+                        continue;
+                    }
+
                     Transaction::query()->updateOrCreate(
-                        ['transaction_id' => (string) $job['transaction_id']],
+                        ['transaction_id' => $transactionId],
                         [
                             'user_id' => $user->id,
                             'offer_id' => $offerId,
@@ -196,7 +208,7 @@ class FetchNextBingwaJobs
 
         return [
             'synced' => $synced,
-            'skipped' => 0,
+            'skipped' => $skipped,
             'failed' => $failed,
         ];
     }

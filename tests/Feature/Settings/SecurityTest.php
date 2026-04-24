@@ -69,7 +69,7 @@ test('two factor authentication disabled when confirmation abandoned between req
     ]);
 });
 
-test('password can be updated', function () {
+test('password can be updated with five characters', function () {
     $user = User::factory()->create([
         'password' => Hash::make('password'),
     ]);
@@ -78,13 +78,31 @@ test('password can be updated', function () {
 
     $response = Livewire::test('pages::settings.security')
         ->set('current_password', 'password')
-        ->set('password', 'new-password')
-        ->set('password_confirmation', 'new-password')
+        ->set('password', 'abcde')
+        ->set('password_confirmation', 'abcde')
         ->call('updatePassword');
 
     $response->assertHasNoErrors();
 
-    expect(Hash::check('new-password', $user->refresh()->password))->toBeTrue();
+    expect(Hash::check('abcde', $user->refresh()->password))->toBeTrue();
+});
+
+test('passwords shorter than five characters are rejected', function () {
+    $user = User::factory()->create([
+        'password' => Hash::make('password'),
+    ]);
+
+    $this->actingAs($user);
+
+    $response = Livewire::test('pages::settings.security')
+        ->set('current_password', 'password')
+        ->set('password', 'abcd')
+        ->set('password_confirmation', 'abcd')
+        ->call('updatePassword');
+
+    $response->assertHasErrors(['password']);
+
+    expect(Hash::check('password', $user->refresh()->password))->toBeTrue();
 });
 
 test('correct password must be provided to update password', function () {

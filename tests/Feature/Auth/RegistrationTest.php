@@ -79,8 +79,8 @@ test('new users can register', function () {
         'name' => 'John Doe',
         'email' => 'test@example.com',
         'autoreach_connect_id' => 'AC-12345',
-        'password' => 'password',
-        'password_confirmation' => 'password',
+        'password' => 'abcde',
+        'password_confirmation' => 'abcde',
     ]);
 
     $response->assertSessionHasNoErrors()

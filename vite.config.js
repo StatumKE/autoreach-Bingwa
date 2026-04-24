@@ -9,6 +9,7 @@ export default defineConfig({
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.js'],
+            assets: ['resources/images/**', 'resources/fonts/**'],
             refresh: true,
             hotFile: nativephpHotFile(),
         }),

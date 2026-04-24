@@ -2,11 +2,13 @@
 
 namespace App\Providers;
 
+use App\Console\Commands\NativeTailCommand;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Native\Mobile\Commands\TailCommand as VendorTailCommand;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -16,6 +18,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+    }
+
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        $this->app->bind(VendorTailCommand::class, NativeTailCommand::class);
     }
 
     /**
@@ -29,14 +39,6 @@ class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
-        Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
-                ->mixedCase()
-                ->letters()
-                ->numbers()
-                ->symbols()
-                ->uncompromised()
-            : null,
-        );
+        Password::defaults(fn (): Password => Password::min(5));
     }
 }

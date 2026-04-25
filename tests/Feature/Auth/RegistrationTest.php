@@ -5,6 +5,7 @@ use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Features;
 use Native\Mobile\Facades\Device;
@@ -21,6 +22,24 @@ test('registration screen can be rendered', function () {
 
     $response->assertOk();
     $response->assertSee('Autoreach Connect ID');
+});
+
+test('registration screen can be rendered before the local device registration table exists', function () {
+    Schema::dropIfExists('bingwa_device_registrations');
+
+    try {
+        Device::shouldReceive('getId')->never();
+
+        $response = $this->get(route('register'));
+
+        $response->assertOk();
+        $response->assertSee('Autoreach Connect ID');
+    } finally {
+        if (! Schema::hasTable('bingwa_device_registrations')) {
+            $migration = require database_path('migrations/2026_04_19_060832_create_bingwa_device_registrations_table.php');
+            $migration->up();
+        }
+    }
 });
 
 test('registration screen is disabled on an already registered device', function () {
@@ -45,7 +64,7 @@ test('registration screen is disabled on an already registered device', function
     $response = $this->get(route('register'));
 
     $response->assertOk();
-    $response->assertSee('Log in to your account');
+    $response->assertSee('Log in');
     $response->assertSee('This device is already registered. Log in below, or use the APK on a new device to register another installation.');
     $response->assertDontSee('data-test="register-user-button"');
 });

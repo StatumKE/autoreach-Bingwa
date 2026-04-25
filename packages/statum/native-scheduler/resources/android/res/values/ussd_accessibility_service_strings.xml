@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="ussd_accessibility_service_description">Automates USSD menu interactions and captures response text for Bingwa payment processing.</string>
 </resources>

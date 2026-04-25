@@ -1,4 +1,5 @@
 {
+    "name": "statum/native-scheduler",
     "namespace": "BingwaEngine",
     "bridge_functions": [
         {
@@ -10,12 +11,25 @@
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.ExecuteUssd"
         }
     ],
+    "assets": {
+        "android": {
+            "android/res/xml/ussd_accessibility_service_config.xml": "res/xml/ussd_accessibility_service_config.xml",
+            "android/res/values/ussd_accessibility_service_strings.xml": "res/values/ussd_accessibility_service_strings.xml"
+        }
+    },
     "android": {
         "min_version": 26,
+        "init_function": "com.statum.plugins.nativescheduler.initNativeScheduler",
+        "dependencies": {
+            "implementation": [
+                "androidx.work:work-runtime-ktx:2.11.2",
+                "com.squareup.okhttp3:okhttp:4.12.0"
+            ]
+        },
         "permissions": [
+            "android.permission.POST_NOTIFICATIONS",
             "android.permission.FOREGROUND_SERVICE",
             "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
-            "android.permission.POST_NOTIFICATIONS",
             "android.permission.RECEIVE_BOOT_COMPLETED",
             "android.permission.CALL_PHONE",
             "android.permission.SYSTEM_ALERT_WINDOW",
@@ -23,7 +37,7 @@
         ],
         "services": [
             {
-                "name": "com.statum.plugins.nativescheduler.ArtisanSchedulerService",
+                "name": "androidx.work.impl.foreground.SystemForegroundService",
                 "exported": false,
                 "foregroundServiceType": "dataSync"
             }
@@ -35,6 +49,9 @@
                 "actions": ["android.intent.action.BOOT_COMPLETED"]
             }
         ]
+    },
+    "hooks": {
+        "copy_assets": "nativephp:native-scheduler:copy-assets"
     },
     "ios": {
         "min_version": "15.0"

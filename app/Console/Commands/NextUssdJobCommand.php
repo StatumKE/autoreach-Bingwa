@@ -20,7 +20,7 @@ class NextUssdJobCommand extends Command
     /**
      * Execute the console command.
      *
-     * Outputs a single-line JSON payload consumed by ArtisanSchedulerService.kt.
+     * Outputs a single-line JSON payload consumed by the Android scheduler worker.
      * Outputs nothing (exit 0) if there are no pending jobs.
      */
     public function handle(): int

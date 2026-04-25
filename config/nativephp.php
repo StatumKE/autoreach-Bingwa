@@ -18,7 +18,12 @@ return [
         'offers-emulator.png',
     ],
 
+    'runtime' => [
+        'mode' => env('NATIVEPHP_RUNTIME_MODE', 'classic'),
+    ],
+
     'android' => [
+        'android_sdk_path' => env('NATIVEPHP_ANDROID_SDK_LOCATION'),
         'status_bar_style' => env('NATIVEPHP_ANDROID_STATUS_BAR_STYLE', 'light'),
         'min_sdk' => env('NATIVEPHP_ANDROID_MIN_SDK', 33),
         'build' => [

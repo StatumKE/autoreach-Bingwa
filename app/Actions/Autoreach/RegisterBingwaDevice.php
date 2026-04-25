@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Native\Mobile\Facades\Device;
@@ -18,6 +19,10 @@ class RegisterBingwaDevice
      */
     public function isCurrentDeviceRegistered(): bool
     {
+        if (! Schema::hasTable((new BingwaDeviceRegistration)->getTable())) {
+            return false;
+        }
+
         $hardwareId = $this->resolveHardwareId();
 
         return BingwaDeviceRegistration::query()

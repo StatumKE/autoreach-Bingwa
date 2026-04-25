@@ -10,7 +10,12 @@ import android.util.Log
  * Do not start PHP work from this callback. NativePHP invokes plugin init while
  * the Android shell is still registering bridges, before Laravel extraction,
  * APP_KEY setup, migrations, and the persistent PHP runtime are ready.
+ *
+ * Scheduling WorkManager work is safe here because it does not touch the PHP
+ * runtime directly.
  */
 fun initNativeScheduler(context: Context) {
-    Log.i("NativeSchedulerInit", "Scheduler startup deferred until Laravel is ready")
+    BingwaScheduler.schedule(context)
+    BingwaScheduler.enqueueStartupRun(context)
+    Log.i("NativeSchedulerInit", "Bingwa scheduler work queued")
 }

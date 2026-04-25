@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "laravel-boost": {
+      "command": "/Users/statum/Library/Application Support/Herd/bin/php85",
+      "args": [
+        "/Users/statum/Herd/autoreachBingwaApp/artisan",
+        "boost:mcp"
+      ]
+    }
+  }
+}

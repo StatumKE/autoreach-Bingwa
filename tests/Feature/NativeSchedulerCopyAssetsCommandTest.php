@@ -273,10 +273,12 @@ test('native scheduler android artisan bootstrap uses the bundle autoloader path
         ->not->toContain("__DIR__.'/vendor/autoload.php'");
 });
 
-test('native scheduler runs transaction polling from a long-running Android scheduler worker', function () {
+test('native scheduler runs transaction polling from a foreground service with stale owner recovery', function () {
     $schedulerSource = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/BingwaScheduler.kt'));
+    $serviceSource = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/BingwaSchedulerService.kt'));
     $workerSource = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/BingwaSchedulerWorker.kt'));
     $runtimeSource = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/BingwaPhpRuntime.kt'));
+    $runtimeStateSource = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/SchedulerRuntimeState.kt'));
     $initSource = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/NativeSchedulerInit.kt'));
     $bootReceiverSource = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/SchedulerBootReceiver.kt'));
     $phpBridgeSource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/bridge/PHPBridge.kt'));
@@ -292,16 +294,32 @@ test('native scheduler runs transaction polling from a long-running Android sche
         ->not->toContain('setExpedited(')
         ->toContain('NetworkType.CONNECTED');
 
-    expect($workerSource)
-        ->toContain('SchedulerRuntimeState.claimEngine()')
-        ->toContain('setForeground(createForegroundInfo())')
-        ->toContain('runtime.runSchedulerLoop { !isStopped }')
-        ->toContain('getForegroundInfo()')
-        ->toContain('ForegroundInfo(')
+    expect($serviceSource)
+        ->toContain('class BingwaSchedulerService : Service()')
+        ->toContain('startForeground(')
         ->toContain('ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC')
-        ->toContain('NotificationChannel')
-        ->toContain('NotificationCompat.Builder')
+        ->toContain('private val engineOwner = "foreground-service-${SystemClock.elapsedRealtime()}"')
+        ->toContain('if (runtime != null)')
+        ->toContain('SchedulerRuntimeState.markEngineActive(engineOwner)')
+        ->toContain('Bingwa foreground scheduler already running')
+        ->toContain('SchedulerRuntimeState.claimEngine(engineOwner)')
+        ->toContain('BingwaPhpRuntime(applicationContext, engineOwner)')
+        ->toContain('activeRuntime.runSchedulerLoop { isActive }')
+        ->toContain('override fun onTaskRemoved(rootIntent: Intent?)')
+        ->toContain('BingwaScheduler.enqueueStartupRun(applicationContext)')
+        ->not->toContain('setForeground(createForegroundInfo())')
+        ->not->toContain('getForegroundInfo()');
+
+    expect($workerSource)
+        ->toContain('val engineOwner = "worker-$id"')
+        ->toContain('SchedulerRuntimeState.claimEngine(engineOwner)')
+        ->toContain('BingwaPhpRuntime(applicationContext, engineOwner)')
+        ->toContain('runtime.runSingleCycle()')
         ->toContain('Bingwa runtime is already active; skipping duplicate work')
+        ->not->toContain('setForeground(')
+        ->not->toContain('getForegroundInfo()')
+        ->not->toContain('ForegroundInfo(')
+        ->not->toContain('runtime.runSchedulerLoop')
         ->not->toContain('Bingwa runtime is already active; retrying later')
         ->not->toContain('runtime.runSyncOnly()')
         ->not->toContain('startForegroundService');
@@ -309,7 +327,9 @@ test('native scheduler runs transaction polling from a long-running Android sche
     expect($runtimeSource)
         ->toContain('LaravelEnvironment(applicationContext).initialize()')
         ->toContain('phpBridge!!.bootEphemeralRuntime()')
-        ->toContain('SchedulerRuntimeState.releaseEngine()')
+        ->toContain('private val engineOwner: String')
+        ->toContain('SchedulerRuntimeState.markEngineActive(engineOwner)')
+        ->toContain('SchedulerRuntimeState.releaseEngine(engineOwner)')
         ->toContain('bridge.runEphemeralArtisan(SYNC_COMMAND)')
         ->toContain('bridge.runEphemeralArtisan(HEARTBEAT_COMMAND)')
         ->toContain('bridge.runEphemeralArtisan("$NEXT_JOB_COMMAND --output=')
@@ -354,6 +374,17 @@ test('native scheduler runs transaction polling from a long-running Android sche
         ->not->toContain('vendor/nativephp/mobile/bootstrap/android/artisan.php')
         ->not->toContain('startForegroundService');
 
+    expect($runtimeStateSource)
+        ->toContain('DEFAULT_STALE_TIMEOUT_MS = 30_000L')
+        ->toContain('private var activeOwner: String? = null')
+        ->toContain('private var lastActiveAtMs: Long = 0L')
+        ->toContain('fun claimEngine(owner: String')
+        ->toContain('if (engineActive && activeOwner == owner)')
+        ->toContain('Reclaiming stale Bingwa scheduler engine')
+        ->toContain('fun markEngineActive(owner: String)')
+        ->toContain('fun releaseEngine(owner: String)')
+        ->toContain('Ignoring Bingwa scheduler release from non-owner');
+
     expect($phpBridgeSource)
         ->toContain('nativeEphemeralBoot(')
         ->toContain('nativeEphemeralArtisan(')
@@ -364,6 +395,8 @@ test('native scheduler runs transaction polling from a long-running Android sche
 
     expect($initSource)
         ->toContain('fun initNativeScheduler(context: Context)')
+        ->toContain('BingwaScheduler.cancelScheduledWork(context)')
+        ->toContain('BingwaSchedulerService.start(context)')
         ->toContain('BingwaScheduler.schedule(context)')
         ->toContain('BingwaScheduler.enqueueStartupRun(context)')
         ->not->toContain('startForegroundService');
@@ -376,6 +409,7 @@ test('native scheduler runs transaction polling from a long-running Android sche
     $appManifest = File::get(base_path('nativephp/android/app/src/main/AndroidManifest.xml'));
 
     expect($appManifest)
+        ->toContain('com.statum.plugins.nativescheduler.BingwaSchedulerService')
         ->toContain('androidx.work.impl.foreground.SystemForegroundService')
         ->toContain('android:foregroundServiceType="dataSync"');
 
@@ -397,7 +431,11 @@ test('native scheduler runs transaction polling from a long-running Android sche
         ->toContain('android.permission.FOREGROUND_SERVICE_DATA_SYNC');
 
     expect($manifest['android']['services'] ?? [])
-        ->toHaveCount(1)
+        ->toContain([
+            'name' => 'com.statum.plugins.nativescheduler.BingwaSchedulerService',
+            'exported' => false,
+            'foregroundServiceType' => 'dataSync',
+        ])
         ->toContain([
             'name' => 'androidx.work.impl.foreground.SystemForegroundService',
             'exported' => false,

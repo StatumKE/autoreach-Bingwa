@@ -26,6 +26,7 @@ internal data class QueuedUssdJob(
 
 internal class BingwaPhpRuntime(
     private val context: Context,
+    private val engineOwner: String,
 ) {
     companion object {
         private const val TAG = "BingwaPhpRuntime"
@@ -62,6 +63,7 @@ internal class BingwaPhpRuntime(
                 return@withContext false
             }
             initialized = true
+            SchedulerRuntimeState.markEngineActive(engineOwner)
             Log.i(TAG, "Bingwa scheduler runtime initialized")
             true
         } catch (exception: Exception) {
@@ -77,6 +79,7 @@ internal class BingwaPhpRuntime(
 
         while (shouldContinue()) {
             val cycleStartedAt = SystemClock.elapsedRealtime()
+            SchedulerRuntimeState.markEngineActive(engineOwner)
 
             runSyncCommand(bridge)
 
@@ -86,6 +89,7 @@ internal class BingwaPhpRuntime(
             }
 
             processedJobs += drainQueuedJobs(bridge)
+            SchedulerRuntimeState.markEngineActive(engineOwner)
 
             val elapsedSincePollStart = SystemClock.elapsedRealtime() - cycleStartedAt
             val remainingDelayMs = POLL_INTERVAL_MS - elapsedSincePollStart
@@ -103,7 +107,9 @@ internal class BingwaPhpRuntime(
 
         runSyncCommand(bridge)
         sendHeartbeat(bridge)
-        drainQueuedJobs(bridge)
+        val processedJobs = drainQueuedJobs(bridge)
+        SchedulerRuntimeState.markEngineActive(engineOwner)
+        processedJobs
     }
 
     suspend fun shutdown() {
@@ -114,7 +120,7 @@ internal class BingwaPhpRuntime(
         } finally {
             phpBridge = null
             initialized = false
-            SchedulerRuntimeState.releaseEngine()
+            SchedulerRuntimeState.releaseEngine(engineOwner)
             phpDispatcher.close()
             Log.i(TAG, "Bingwa scheduler runtime shut down")
         }

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CancellationException
@@ -29,6 +30,7 @@ class BingwaSchedulerService : Service() {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val engineOwner = "foreground-service-${SystemClock.elapsedRealtime()}"
     private var runtime: BingwaPhpRuntime? = null
 
     override fun onCreate() {
@@ -37,18 +39,21 @@ class BingwaSchedulerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (!SchedulerRuntimeState.claimEngine()) {
+        if (runtime != null) {
+            SchedulerRuntimeState.markEngineActive(engineOwner)
+            Log.d(TAG, "Bingwa foreground scheduler already running")
+
+            return START_STICKY
+        }
+
+        if (!SchedulerRuntimeState.claimEngine(engineOwner)) {
             Log.i(TAG, "Bingwa runtime is already active; foreground service start skipped")
             stopSelf(startId)
 
             return START_NOT_STICKY
         }
 
-        if (runtime != null) {
-            return START_STICKY
-        }
-
-        runtime = BingwaPhpRuntime(applicationContext)
+        runtime = BingwaPhpRuntime(applicationContext, engineOwner)
 
         scope.launch {
             try {
@@ -79,6 +84,11 @@ class BingwaSchedulerService : Service() {
     override fun onDestroy() {
         scope.cancel()
         super.onDestroy()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        BingwaScheduler.enqueueStartupRun(applicationContext)
     }
 
     override fun onBind(intent: Intent?): IBinder? {

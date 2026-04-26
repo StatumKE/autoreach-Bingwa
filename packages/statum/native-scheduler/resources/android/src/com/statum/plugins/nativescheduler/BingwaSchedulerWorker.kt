@@ -15,12 +15,14 @@ class BingwaSchedulerWorker(
     }
 
     override suspend fun doWork(): Result {
-        if (!SchedulerRuntimeState.claimEngine()) {
+        val engineOwner = "worker-$id"
+
+        if (!SchedulerRuntimeState.claimEngine(engineOwner)) {
             Log.i(TAG, "Bingwa runtime is already active; skipping duplicate work")
             return Result.success()
         }
 
-        val runtime = BingwaPhpRuntime(applicationContext)
+        val runtime = BingwaPhpRuntime(applicationContext, engineOwner)
 
         return try {
             if (!runtime.initialize()) {

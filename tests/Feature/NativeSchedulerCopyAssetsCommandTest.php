@@ -239,6 +239,31 @@ test('native scheduler android bridge source omits legacy worker JNI registratio
     }
 });
 
+test('native scheduler declares setup permission bridge and runtime permission request source', function () {
+    $manifest = json_decode(File::get(base_path('packages/statum/native-scheduler/nativephp.json')), true);
+    $bridgeFunctionNames = collect($manifest['bridge_functions'])
+        ->pluck('name')
+        ->all();
+    $source = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/BingwaFunctions.kt'));
+    $generatedRegistration = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/bridge/plugins/PluginBridgeFunctionRegistration.kt'));
+
+    expect($bridgeFunctionNames)
+        ->toContain('RequestSetupPermissions');
+
+    expect($source)
+        ->toContain('class RequestSetupPermissions')
+        ->toContain('ActivityCompat.requestPermissions')
+        ->toContain('Manifest.permission.CALL_PHONE')
+        ->toContain('Manifest.permission.READ_CONTACTS')
+        ->toContain('Manifest.permission.READ_PHONE_STATE')
+        ->toContain('Manifest.permission.POST_NOTIFICATIONS')
+        ->toContain('Settings.ACTION_MANAGE_OVERLAY_PERMISSION')
+        ->toContain('Settings.ACTION_ACCESSIBILITY_SETTINGS');
+
+    expect($generatedRegistration)
+        ->toContain('registry.register("RequestSetupPermissions", BingwaFunctions.RequestSetupPermissions(activity))');
+});
+
 test('native scheduler android artisan bootstrap uses the bundle autoloader path', function () {
     $artisanBootstrap = File::get(base_path('vendor/nativephp/mobile/bootstrap/android/artisan.php'));
 
@@ -248,7 +273,7 @@ test('native scheduler android artisan bootstrap uses the bundle autoloader path
         ->not->toContain("__DIR__.'/vendor/autoload.php'");
 });
 
-test('native scheduler uses a long-running WorkManager foreground worker', function () {
+test('native scheduler runs transaction polling from a long-running Android scheduler worker', function () {
     $schedulerSource = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/BingwaScheduler.kt'));
     $workerSource = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/BingwaSchedulerWorker.kt'));
     $runtimeSource = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/BingwaPhpRuntime.kt'));
@@ -261,7 +286,7 @@ test('native scheduler uses a long-running WorkManager foreground worker', funct
         ->toContain('PeriodicWorkRequestBuilder<BingwaSchedulerWorker>')
         ->toContain('ExistingPeriodicWorkPolicy.UPDATE')
         ->toContain('OneTimeWorkRequestBuilder<BingwaSchedulerWorker>')
-        ->toContain('ExistingWorkPolicy.REPLACE')
+        ->toContain('ExistingWorkPolicy.KEEP')
         ->toContain('STARTUP_DELAY_SECONDS = 15L')
         ->toContain('setInitialDelay(STARTUP_DELAY_SECONDS, TimeUnit.SECONDS)')
         ->not->toContain('setExpedited(')
@@ -269,9 +294,9 @@ test('native scheduler uses a long-running WorkManager foreground worker', funct
 
     expect($workerSource)
         ->toContain('SchedulerRuntimeState.claimEngine()')
-        ->toContain('runtime.drainQueuedJobs()')
-        ->toContain('getForegroundInfo()')
         ->toContain('setForeground(createForegroundInfo())')
+        ->toContain('runtime.runSchedulerLoop { !isStopped }')
+        ->toContain('getForegroundInfo()')
         ->toContain('ForegroundInfo(')
         ->toContain('ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC')
         ->toContain('NotificationChannel')
@@ -291,11 +316,18 @@ test('native scheduler uses a long-running WorkManager foreground worker', funct
         ->toContain('bridge.runEphemeralArtisan("$CLAIM_JOB_COMMAND --id=')
         ->toContain('bridge.runEphemeralArtisan(')
         ->toContain('phpBridge?.shutdownEphemeralRuntime()')
-        ->toContain('HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000L')
+        ->toContain('runSchedulerLoop')
         ->toContain('POLL_INTERVAL_MS = 5_000L')
+        ->toContain('HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000L')
+        ->toContain('runSyncCommand(bridge)')
+        ->toContain('sendHeartbeat(bridge)')
+        ->toContain('while (true)')
+        ->toContain('val job = fetchNextJob(bridge) ?: break')
         ->toContain('val cycleStartedAt = SystemClock.elapsedRealtime()')
         ->toContain('val remainingDelayMs = POLL_INTERVAL_MS - elapsedSincePollStart')
         ->toContain('delay(remainingDelayMs)')
+        ->toContain('CLAIM_RETRY_BACKOFF_MS = 2_000L')
+        ->not->toContain('sleepUntilNextPoll')
         ->not->toContain('initializeForBackground()')
         ->not->toContain('runSyncOnly()')
         ->not->toContain('runArtisanCommand(')
@@ -350,6 +382,11 @@ test('native scheduler uses a long-running WorkManager foreground worker', funct
     expect($manifest['name'] ?? null)->toBe('statum/native-scheduler');
     expect($manifest['hooks']['copy_assets'] ?? null)->toBe('nativephp:native-scheduler:copy-assets');
     expect($manifest['android']['init_function'] ?? null)->toBe('com.statum.plugins.nativescheduler.initNativeScheduler');
+    expect($manifest['bridge_functions'] ?? [])
+        ->toContain([
+            'name' => 'QueueSchedulerRun',
+            'android' => 'com.statum.plugins.nativescheduler.BingwaFunctions.QueueSchedulerRun',
+        ]);
     expect($manifest['android']['dependencies']['implementation'] ?? [])
         ->toContain('androidx.work:work-runtime-ktx:2.11.2')
         ->toContain('com.squareup.okhttp3:okhttp:4.12.0');

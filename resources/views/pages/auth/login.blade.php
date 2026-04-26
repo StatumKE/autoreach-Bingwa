@@ -1,5 +1,7 @@
 <x-layouts::auth :title="__('Log in')">
-    <div class="flex flex-col gap-6">
+    <section class="auth-card flex flex-col gap-6">
+        <span class="auth-badge">{{ __('Secure access') }}</span>
+
         <x-auth-header :title="__('Log in to your account')" :description="__('Enter your email and password below to log in')" />
 
         <!-- Session Status -->
@@ -46,7 +48,7 @@
                 <flux:button
                     variant="primary"
                     type="submit"
-                    class="w-full bg-green-600 hover:bg-green-500 text-white shadow-sm shadow-green-600/20 h-12 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+                    class="auth-submit-button"
                     data-test="login-button"
                     x-bind:disabled="submitting"
                 >
@@ -60,10 +62,10 @@
         </form>
 
         @if (Route::has('register'))
-            <div class="space-x-1 text-sm text-center rtl:space-x-reverse text-zinc-500 font-medium">
+            <div class="space-x-1 text-center text-sm font-medium text-zinc-500 rtl:space-x-reverse dark:text-zinc-400">
                 <span>{{ __('Don\'t have an account?') }}</span>
-                <flux:link :href="route('register')" wire:navigate class="text-green-600 hover:text-green-700 transition-colors font-black">{{ __('Sign up') }}</flux:link>
+                <flux:link :href="route('register')" wire:navigate class="auth-link">{{ __('Sign up') }}</flux:link>
             </div>
         @endif
-    </div>
+    </section>
 </x-layouts::auth>

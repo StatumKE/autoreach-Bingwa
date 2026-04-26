@@ -1,6 +1,8 @@
 <x-layouts::auth :title="__('Forgot password')">
-    <div class="flex flex-col gap-6">
-        <x-auth-header :title="__('Forgot password')" :description="__('Enter your email to receive a password reset link')" />
+    <section class="auth-card flex flex-col gap-6">
+        <span class="auth-badge">{{ __('Account recovery') }}</span>
+
+        <x-auth-header :title="__('Reset your password')" :description="__('Enter your email and we will send a secure reset link.')" />
 
         <!-- Session Status -->
         <x-auth-session-status class="text-center" :status="session('status')" />
@@ -18,7 +20,7 @@
                 placeholder="email@example.com"
             />
 
-            <flux:button variant="primary" type="submit" class="w-full shadow-lg shadow-green-500/10" data-test="email-password-reset-link-button" x-bind:disabled="submitting">
+            <flux:button variant="primary" type="submit" class="auth-submit-button" data-test="email-password-reset-link-button" x-bind:disabled="submitting">
                 <span x-cloak x-show="!submitting">{{ __('Email password reset link') }}</span>
                 <span x-cloak x-show="submitting" class="inline-flex items-center justify-center gap-2">
                     <flux:icon.loading variant="mini" class="size-4" />
@@ -27,9 +29,9 @@
             </flux:button>
         </form>
 
-        <div class="space-x-1 rtl:space-x-reverse text-center text-sm text-zinc-400">
+        <div class="space-x-1 text-center text-sm font-medium text-zinc-500 rtl:space-x-reverse dark:text-zinc-400">
             <span>{{ __('Or, return to') }}</span>
-            <flux:link :href="route('login')" wire:navigate>{{ __('log in') }}</flux:link>
+            <flux:link :href="route('login')" wire:navigate class="auth-link">{{ __('log in') }}</flux:link>
         </div>
-    </div>
+    </section>
 </x-layouts::auth>

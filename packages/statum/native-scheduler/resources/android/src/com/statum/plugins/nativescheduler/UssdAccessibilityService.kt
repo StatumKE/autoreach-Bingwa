@@ -2,16 +2,12 @@ package com.statum.plugins.nativescheduler
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.graphics.PixelFormat
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.view.Gravity
-import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.TextView
 import kotlinx.coroutines.channels.Channel
 
 /**
@@ -22,9 +18,8 @@ import kotlinx.coroutines.channels.Channel
  * - This service detects the USSD dialog via TYPE_WINDOW_STATE_CHANGED events.
  * - It sends the dialog text to [responseChannel] → UssdExecutor reads it.
  * - UssdExecutor calls [injectInput] directly on [instance] → service clicks OK/Send.
- * - A full-screen overlay hides the raw USSD dialog from the user.
  *
- * **Required XML config**: res/xml/accessibility_service_config.xml must exist (see companion).
+ * **Required XML config**: res/xml/ussd_accessibility_service_config.xml must exist.
  * **Manifest**: service entry must declare BIND_ACCESSIBILITY_SERVICE permission and
  *               reference the XML config via <meta-data android:name="android.accessibilityservice">.
  *
@@ -58,9 +53,7 @@ class UssdAccessibilityService : AccessibilityService() {
         )
     }
 
-    private var overlayView: TextView? = null
     private val handler = Handler(Looper.getMainLooper())
-    private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
 
     /**
      * Track whether we have already sent the current dialog's text to [responseChannel].
@@ -88,12 +81,10 @@ class UssdAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
-        handler.post { hideOverlay() }
         Log.i(TAG, "Accessibility service interrupted")
     }
 
     override fun onDestroy() {
-        handler.post { hideOverlay() }
         instance = null
         super.onDestroy()
     }
@@ -136,7 +127,6 @@ class UssdAccessibilityService : AccessibilityService() {
 
         Log.d(TAG, "USSD dialog detected: $dialogText")
 
-        showOverlay()
         responseChannel.trySend(dialogText)
     }
 
@@ -176,11 +166,10 @@ class UssdAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Remove the processing overlay. Call after the USSD session is complete.
+     * Reset per-session deduplication state after the USSD session is complete.
      */
     fun dismiss() {
         lastSentDialogText = null
-        handler.post { hideOverlay() }
     }
 
     // -------------------------------------------------------------------------
@@ -220,17 +209,5 @@ class UssdAccessibilityService : AccessibilityService() {
         return buttons.firstOrNull { node ->
             node.text?.toString()?.lowercase()?.trim() in confirmLabels
         } ?: buttons.lastOrNull()
-    }
-
-    // -------------------------------------------------------------------------
-    // Processing overlay
-    // -------------------------------------------------------------------------
-
-    private fun showOverlay() {
-        // Overlay disabled per user request
-    }
-
-    private fun hideOverlay() {
-        // Overlay disabled per user request
     }
 }

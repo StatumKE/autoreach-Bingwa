@@ -52,6 +52,17 @@ test('dashboard refresh action shows loading feedback', function () {
         ->assertSee('wire:loading.attr="disabled"', false);
 });
 
+test('authenticated mobile shell requests setup permissions through native bridge', function () {
+    $this->actingAs(User::factory()->create())
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('RequestSetupPermissions')
+        ->assertSee('bingwa.setupPermissions.requested.v1')
+        ->assertSee('openSpecialSettings')
+        ->assertDontSee('bingwa.transactions.poll')
+        ->assertDontSee('__bingwaTransactionPollerStarted');
+});
+
 test('two factor settings actions show loading feedback', function () {
     Features::twoFactorAuthentication([
         'confirm' => true,

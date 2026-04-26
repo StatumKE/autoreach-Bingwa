@@ -3,6 +3,7 @@
 namespace Statum\NativeScheduler\Commands;
 
 use Native\Mobile\Plugins\Commands\NativePluginHookCommand;
+use ZipArchive;
 
 /**
  * Copy assets hook command for NativeScheduler plugin.
@@ -40,8 +41,87 @@ class CopyAssetsCommand extends NativePluginHookCommand
         $this->removeLegacySchedulerServiceIntegration();
         $this->deleteLegacySchedulerFiles();
         $this->patchAndroidReleaseSymbols();
+        $this->patchLaravelBundleNativeBootstrap();
 
         $this->info('Android assets copied for NativeScheduler');
+    }
+
+    /**
+     * Patch the bundled NativePHP Android classic bootstrap so form-urlencoded
+     * POSTs populate Laravel's request input before Request::capture().
+     */
+    protected function patchLaravelBundleNativeBootstrap(): void
+    {
+        $bundlePath = $this->buildPath().'/app/src/main/assets/laravel_bundle.zip';
+        $bootstrapPath = 'vendor/nativephp/mobile/bootstrap/android/native.php';
+
+        if (! is_file($bundlePath)) {
+            $this->warn("Laravel bundle not found at {$bundlePath}; skipping NativePHP bootstrap patch.");
+
+            return;
+        }
+
+        $zip = new ZipArchive;
+
+        if ($zip->open($bundlePath) !== true) {
+            $this->warn("Unable to open {$bundlePath}; skipping NativePHP bootstrap patch.");
+
+            return;
+        }
+
+        $contents = $zip->getFromName($bootstrapPath);
+
+        if ($contents === false) {
+            $zip->close();
+            $this->warn("{$bootstrapPath} not found in Laravel bundle; skipping NativePHP bootstrap patch.");
+
+            return;
+        }
+
+        if (str_contains($contents, 'The Android embedded SAPI does not reliably populate $_POST')) {
+            $zip->close();
+
+            return;
+        }
+
+        $needle = <<<'PHP'
+// ✅ Let Laravel handle POST parsing itself (important for multipart/form-data)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Don't manually parse php://input — Laravel will handle JSON/form-data properly
+}
+PHP;
+
+        $replacement = <<<'PHP'
+// ✅ The Android embedded SAPI does not reliably populate $_POST for classic
+// request dispatches. Parse only simple form posts so Laravel validation sees
+// standard browser form fields; leave JSON and multipart bodies untouched.
+if (
+    in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['POST', 'PUT', 'PATCH'], true)
+    && str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? ''), 'application/x-www-form-urlencoded')
+    && $_POST === []
+) {
+    $rawInput = file_get_contents('php://input');
+
+    if (is_string($rawInput) && $rawInput !== '') {
+        parse_str($rawInput, $_POST);
+        $_REQUEST = array_merge($_GET, $_POST, $_COOKIE);
+    }
+}
+PHP;
+
+        if (! str_contains($contents, $needle)) {
+            $zip->close();
+            $this->warn('NativePHP bootstrap POST parsing marker not found; skipping bootstrap patch.');
+
+            return;
+        }
+
+        $patchedContents = str_replace($needle, $replacement, $contents);
+        $zip->deleteName($bootstrapPath);
+        $zip->addFromString($bootstrapPath, $patchedContents);
+        $zip->close();
+
+        $this->info('Patched NativePHP Android bootstrap POST parsing in Laravel bundle.');
     }
 
     /**

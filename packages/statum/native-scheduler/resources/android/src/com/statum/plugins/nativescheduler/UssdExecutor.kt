@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -15,7 +16,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
-import android.telephony.SubscriptionManager
 
 private const val PURCHASE_SUCCESS_TEXT = "You have successfully purchased"
 
@@ -31,13 +31,12 @@ internal fun isPurchaseSuccessMessage(message: String): Boolean {
  *
  * - **advanced**: Interactive USSD session driven by [UssdAccessibilityService].
  *   The accessibility service detects the system USSD dialog and dismisses the
- *   confirmation prompt programmatically, hiding it under a processing overlay.
+ *   confirmation prompt programmatically.
  */
 class UssdExecutor(private val context: Context) {
 
     companion object {
         private const val TAG = "UssdExecutor"
-        private const val USSD_TIMEOUT_MS = 30_000L      // 30s max per call (matches Laravel timeout)
         private const val DIALOG_RENDER_DELAY_MS = 1_500L // wait for dialer to render the dialog
         private const val FOLLOW_UP_DIALOG_TIMEOUT_MS = 10_000L
     }
@@ -52,11 +51,11 @@ class UssdExecutor(private val context: Context) {
      * Enforces a hard 30-second timeout on both paths.
      */
     suspend fun execute(
-        code: String, 
-        mode: String, 
-        simSlot: Int = 0, 
+        code: String,
+        mode: String,
+        simSlot: Int = 0,
         isSambaza: Boolean = false,
-        timeoutSeconds: Int = 30
+        timeoutSeconds: Int = 30,
     ): UssdResult {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
             != PackageManager.PERMISSION_GRANTED
@@ -65,24 +64,7 @@ class UssdExecutor(private val context: Context) {
             return UssdResult(success = false, message = "CALL_PHONE permission not granted")
         }
 
-        // Try to fetch the specific Subscription ID for the given simSlot
-        var subId = SubscriptionManager.getDefaultSubscriptionId()
-        try {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
-                val sm = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
-                if (sm != null) {
-                    val info = sm.getActiveSubscriptionInfoForSimSlotIndex(simSlot)
-                    if (info != null) {
-                        subId = info.subscriptionId
-                        Log.i(TAG, "Resolved SIM slot $simSlot to subId $subId")
-                    } else {
-                        Log.w(TAG, "No active subscription found in SIM slot $simSlot, falling back to default")
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to resolve subscription ID", e)
-        }
+        val subId = resolveSubscriptionId(simSlot)
 
         Log.i(TAG, "Executing USSD [$mode] on subId=$subId (timeout ${timeoutSeconds}s): $code")
 
@@ -93,6 +75,33 @@ class UssdExecutor(private val context: Context) {
                 else -> runExpress(code, subId)
             }
         } ?: UssdResult(success = false, message = "USSD timed out after ${timeoutSeconds}s")
+    }
+
+    private fun resolveSubscriptionId(simSlot: Int): Int {
+        val defaultSubId = SubscriptionManager.getDefaultSubscriptionId()
+
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            return defaultSubId
+        }
+
+        return try {
+            val subscriptionManager =
+                context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
+            val subscriptionInfo = subscriptionManager?.getActiveSubscriptionInfoForSimSlotIndex(simSlot)
+
+            if (subscriptionInfo == null) {
+                Log.w(TAG, "No active subscription found in SIM slot $simSlot, falling back to default")
+                defaultSubId
+            } else {
+                Log.i(TAG, "Resolved SIM slot $simSlot to subId ${subscriptionInfo.subscriptionId}")
+                subscriptionInfo.subscriptionId
+            }
+        } catch (exception: Exception) {
+            Log.e(TAG, "Failed to resolve subscription ID", exception)
+            defaultSubId
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -110,12 +119,12 @@ class UssdExecutor(private val context: Context) {
     private suspend fun runExpress(code: String, subId: Int): UssdResult =
         suspendCancellableCoroutine { continuation ->
             var telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-            
+
             // Route to the specific SIM
             if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
                 telephonyManager = telephonyManager.createForSubscriptionId(subId)
             }
-            
+
             val handler = Handler(Looper.getMainLooper())
 
             val callback = object : TelephonyManager.UssdResponseCallback() {
@@ -151,10 +160,10 @@ class UssdExecutor(private val context: Context) {
 
             try {
                 telephonyManager.sendUssdRequest(code, callback, handler)
-            } catch (e: Exception) {
-                Log.e(TAG, "sendUssdRequest threw exception", e)
+            } catch (exception: Exception) {
+                Log.e(TAG, "sendUssdRequest threw exception", exception)
                 if (continuation.isActive) {
-                    continuation.resume(UssdResult(success = false, message = e.message ?: "Unknown error"))
+                    continuation.resume(UssdResult(success = false, message = exception.message ?: "Unknown error"))
                 }
             }
 
@@ -178,7 +187,7 @@ class UssdExecutor(private val context: Context) {
      * 3. Dial the full USSD code via ACTION_CALL Intent (keeps the session interactive).
      * 4. Wait for [UssdAccessibilityService] to detect the dialog and forward the response text.
      * 5. Inject an empty confirmation (clicks OK/Send) via the accessibility service directly.
-     * 6. Dismiss the processing overlay.
+     * 6. Reset accessibility session state.
      *
      * Research:
      * - Only '#' must be encoded as '%23' in a tel: URI. Uri.encode() would also encode '*'
@@ -197,8 +206,8 @@ class UssdExecutor(private val context: Context) {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(intent)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to open accessibility settings", e)
+            } catch (exception: Exception) {
+                Log.e(TAG, "Failed to open accessibility settings", exception)
             }
             return UssdResult(
                 success = false,
@@ -223,16 +232,16 @@ class UssdExecutor(private val context: Context) {
 
         if (isSambaza) {
             // Sambaza Validation specific check
-            val isSambazaSuccess = dialogText.contains("You have transferred", ignoreCase = true) 
-                    && dialogText.contains("KSH", ignoreCase = true)
-            
+            val isSambazaSuccess = dialogText.contains("You have transferred", ignoreCase = true) &&
+                dialogText.contains("KSH", ignoreCase = true)
+
             // Clean up: inject empty input to click 'OK' and clear the pop-up
             service.injectInput("")
             delay(DIALOG_RENDER_DELAY_MS)
-            
+
             UssdAccessibilityService.responseChannel.tryReceive()
             service.dismiss()
-            
+
             return if (isSambazaSuccess) {
                 UssdResult(success = true, message = dialogText)
             } else {
@@ -323,8 +332,8 @@ class UssdExecutor(private val context: Context) {
         }
         try {
             context.startActivity(intent)
-        } catch (e: Exception) {
-            Log.e(TAG, "dialUssd: failed to start dialer activity", e)
+        } catch (exception: Exception) {
+            Log.e(TAG, "dialUssd: failed to start dialer activity", exception)
         }
     }
 
@@ -337,5 +346,4 @@ class UssdExecutor(private val context: Context) {
         TelephonyManager.USSD_ERROR_SERVICE_UNAVAIL -> "USSD service unavailable on this network"
         else -> "Unknown USSD failure code: $code"
     }
-
 }

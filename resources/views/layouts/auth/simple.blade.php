@@ -3,20 +3,22 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg antialiased selection:bg-green-500/30">
-        <div class="relative flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-            <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-green-500/20"></div>
+    <body class="auth-layout nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg antialiased selection:bg-green-500/30 dark:bg-zinc-950">
+        <div class="relative flex min-h-svh flex-col items-center justify-start gap-4 overflow-y-auto px-5 py-5 sm:justify-center sm:gap-6 md:p-10">
+            <div class="pointer-events-none absolute inset-x-0 top-0 h-52 bg-app-shell dark:bg-green-950/30"></div>
+            <div class="pointer-events-none absolute inset-x-0 top-52 h-px bg-white/30"></div>
 
-            <div class="relative flex w-full max-w-sm flex-col gap-4">
-                <a href="{{ route('home') }}" class="flex flex-col items-center gap-2 font-medium" wire:navigate>
-                    <div class="flex h-16 w-16 mb-2 items-center justify-center rounded-[1.5rem] bg-white shadow-sm ring-1 ring-zinc-200">
-                        <x-app-logo-icon class="size-10 fill-current text-green-600" />
+            <div class="relative flex w-full max-w-md flex-col gap-4">
+                <a href="{{ route('home') }}" class="flex items-center gap-3 rounded-[1.75rem] bg-white/10 px-4 py-3 text-white ring-1 ring-white/10 backdrop-blur" wire:navigate>
+                    <div class="min-w-0">
+                        <p class="text-[10px] font-black uppercase tracking-[0.22em] text-green-200">{{ __('Autoreach') }}</p>
+                        <p class="truncate text-base font-black leading-tight">{{ __('Bingwa') }}</p>
                     </div>
                     <span class="sr-only">{{ config('app.name', 'Laravel') }}</span>
                 </a>
-                <div class="flex flex-col gap-6">
+                <main class="flex flex-col gap-5 sm:gap-6">
                     {{ $slot }}
-                </div>
+                </main>
             </div>
         </div>
 
@@ -25,6 +27,51 @@
                 <flux:toast />
             </flux:toast.group>
         @endpersist
+
+        <script>
+            (() => {
+                if (window.__bingwaSetupPermissionsRequested) {
+                    return;
+                }
+
+                window.__bingwaSetupPermissionsRequested = true;
+
+                const storageKey = 'bingwa.setupPermissions.requested.v1';
+
+                if (window.localStorage.getItem(storageKey) === '1') {
+                    return;
+                }
+
+                const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+                window.setTimeout(async () => {
+                    try {
+                        const response = await fetch('/_native/api/call', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken(),
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            body: JSON.stringify({
+                                method: 'RequestSetupPermissions',
+                                params: {
+                                    openSpecialSettings: false,
+                                },
+                            }),
+                        });
+
+                        if (response.ok) {
+                            window.localStorage.setItem(storageKey, '1');
+                        }
+                    } catch (error) {
+                        // Native bridge is only available inside the packaged mobile app.
+                    }
+                }, 1200);
+            })();
+        </script>
 
         @fluxScripts
     </body>

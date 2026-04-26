@@ -6,10 +6,8 @@ import android.util.Base64
 import android.util.Log
 import com.nativephp.mobile.bridge.LaravelEnvironment
 import com.nativephp.mobile.bridge.PHPBridge
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -36,8 +34,8 @@ internal class BingwaPhpRuntime(
         private const val NEXT_JOB_COMMAND = "bingwa:next-ussd-job"
         private const val CLAIM_JOB_COMMAND = "bingwa:claim-ussd-job"
         private const val COMPLETE_TRANSACTION_COMMAND = "bingwa:complete-transaction"
-        private const val HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000L
         private const val POLL_INTERVAL_MS = 5_000L
+        private const val HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000L
         private const val CLAIM_RETRY_BACKOFF_MS = 2_000L
         private const val PAYLOAD_FILENAME = "bingwa_ussd_payload.json"
     }
@@ -72,12 +70,43 @@ internal class BingwaPhpRuntime(
         }
     }
 
-    suspend fun drainQueuedJobs(): Int = withContext(phpDispatcher) {
+    suspend fun runSchedulerLoop(shouldContinue: () -> Boolean): Int = withContext(phpDispatcher) {
         val bridge = requireBridge()
+        var processedJobs = 0
+        var nextHeartbeatAt = 0L
+
+        while (shouldContinue()) {
+            val cycleStartedAt = SystemClock.elapsedRealtime()
+
+            runSyncCommand(bridge)
+
+            if (cycleStartedAt >= nextHeartbeatAt) {
+                sendHeartbeat(bridge)
+                nextHeartbeatAt = cycleStartedAt + HEARTBEAT_INTERVAL_MS
+            }
+
+            processedJobs += drainQueuedJobs(bridge)
+
+            val elapsedSincePollStart = SystemClock.elapsedRealtime() - cycleStartedAt
+            val remainingDelayMs = POLL_INTERVAL_MS - elapsedSincePollStart
+
+            if (remainingDelayMs > 0 && shouldContinue()) {
+                delay(remainingDelayMs)
+            }
+        }
+
+        processedJobs
+    }
+
+    suspend fun runSingleCycle(): Int = withContext(phpDispatcher) {
+        val bridge = requireBridge()
+
+        runSyncCommand(bridge)
+        sendHeartbeat(bridge)
         drainQueuedJobs(bridge)
     }
 
-    suspend fun shutdown(): Unit {
+    suspend fun shutdown() {
         try {
             phpBridge?.shutdownEphemeralRuntime()
         } catch (exception: Exception) {
@@ -104,88 +133,63 @@ internal class BingwaPhpRuntime(
 
     private suspend fun drainQueuedJobs(bridge: PHPBridge): Int {
         var processedJobs = 0
-        var lastHeartbeatTime = 0L
 
-        while (currentCoroutineContext().isActive) {
-            val cycleStartedAt = SystemClock.elapsedRealtime()
-            runSyncCommand(bridge)
-
-            while (currentCoroutineContext().isActive) {
-                val now = SystemClock.elapsedRealtime()
-                if (now - lastHeartbeatTime >= HEARTBEAT_INTERVAL_MS) {
-                    sendHeartbeat(bridge)
-                    lastHeartbeatTime = now
-                }
-
-                val job = fetchNextJob(bridge) ?: break
-                if (!claimJob(bridge, job.id)) {
-                    Log.w(TAG, "USSD job #${job.id} was not claimable")
-                    delay(CLAIM_RETRY_BACKOFF_MS)
-                    continue
-                }
-
-                Log.i(
-                    TAG,
-                    "Executing USSD job #${job.id} [${job.mode}] on SIM ${job.simSlot} (timeout ${job.timeoutSeconds}s): ${job.code}",
-                )
-
-                val startedAt = SystemClock.elapsedRealtime()
-                val result = ussdExecutor.execute(
-                    code = job.code,
-                    mode = job.mode,
-                    simSlot = job.simSlot,
-                    timeoutSeconds = job.timeoutSeconds,
-                )
-                val executionTimeMs = SystemClock.elapsedRealtime() - startedAt
-                val status = if (result.success) "completed" else "failed"
-                val message = result.message.take(200)
-                val encodedMessage = Base64.encodeToString(
-                    message.toByteArray(Charsets.UTF_8),
-                    Base64.NO_WRAP,
-                )
-
-                completeTransaction(
-                    bridge = bridge,
-                    transactionId = job.id,
-                    result = status,
-                    encodedMessage = encodedMessage,
-                )
-
-                if (job.backendUrl.isNotBlank() && job.backendTransactionId.isNotBlank() && job.deviceToken.isNotBlank()) {
-                    statusReporter.report(
-                        UssdStatusCallback(
-                            backendUrl = job.backendUrl,
-                            backendTransactionId = job.backendTransactionId,
-                            deviceToken = job.deviceToken,
-                            successful = result.success,
-                            ussdResponse = result.message,
-                            executionTimeMs = executionTimeMs,
-                        )
-                    )
-                }
-
-                Log.i(TAG, "USSD job #${job.id} -> $status: ${result.message}")
-                processedJobs += 1
+        while (true) {
+            val job = fetchNextJob(bridge) ?: break
+            if (!claimJob(bridge, job.id)) {
+                Log.w(TAG, "USSD job #${job.id} was not claimable")
+                delay(CLAIM_RETRY_BACKOFF_MS)
+                continue
             }
 
-            sleepUntilNextPoll(cycleStartedAt)
+            Log.i(
+                TAG,
+                "Executing USSD job #${job.id} [${job.mode}] on SIM ${job.simSlot} (timeout ${job.timeoutSeconds}s): ${job.code}",
+            )
+
+            val startedAt = SystemClock.elapsedRealtime()
+            val result = ussdExecutor.execute(
+                code = job.code,
+                mode = job.mode,
+                simSlot = job.simSlot,
+                timeoutSeconds = job.timeoutSeconds,
+            )
+            val executionTimeMs = SystemClock.elapsedRealtime() - startedAt
+            val status = if (result.success) "completed" else "failed"
+            val message = result.message.take(200)
+            val encodedMessage = Base64.encodeToString(
+                message.toByteArray(Charsets.UTF_8),
+                Base64.NO_WRAP,
+            )
+
+            completeTransaction(
+                bridge = bridge,
+                transactionId = job.id,
+                result = status,
+                encodedMessage = encodedMessage,
+            )
+
+            if (job.backendUrl.isNotBlank() && job.backendTransactionId.isNotBlank() && job.deviceToken.isNotBlank()) {
+                statusReporter.report(
+                    UssdStatusCallback(
+                        backendUrl = job.backendUrl,
+                        backendTransactionId = job.backendTransactionId,
+                        deviceToken = job.deviceToken,
+                        successful = result.success,
+                        ussdResponse = result.message,
+                        executionTimeMs = executionTimeMs,
+                    )
+                )
+            }
+
+            Log.i(TAG, "USSD job #${job.id} -> $status: ${result.message}")
+            processedJobs += 1
         }
 
         return processedJobs
     }
 
-    private suspend fun sleepUntilNextPoll(
-        cycleStartedAt: Long,
-    ): Unit {
-        val elapsedSincePollStart = SystemClock.elapsedRealtime() - cycleStartedAt
-        val remainingDelayMs = POLL_INTERVAL_MS - elapsedSincePollStart
-
-        if (remainingDelayMs > 0 && currentCoroutineContext().isActive) {
-            delay(remainingDelayMs)
-        }
-    }
-
-    private suspend fun sendHeartbeat(bridge: PHPBridge): Unit {
+    private suspend fun sendHeartbeat(bridge: PHPBridge) {
         bridge.runEphemeralArtisan(HEARTBEAT_COMMAND)
         Log.d(TAG, "Heartbeat sent.")
     }
@@ -268,7 +272,7 @@ internal class BingwaPhpRuntime(
         transactionId: Int,
         result: String,
         encodedMessage: String,
-    ): Unit {
+    ) {
         bridge.runEphemeralArtisan(
             "$COMPLETE_TRANSACTION_COMMAND --transaction-id=$transactionId --result=$result --finalize-once --message-base64=$encodedMessage",
         )

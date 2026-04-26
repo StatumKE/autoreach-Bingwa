@@ -1,6 +1,8 @@
 <x-layouts::auth :title="__('Reset password')">
-    <div class="flex flex-col gap-6">
-        <x-auth-header :title="__('Reset password')" :description="__('Please enter your new password below')" />
+    <section class="auth-card flex flex-col gap-6">
+        <span class="auth-badge">{{ __('New credentials') }}</span>
+
+        <x-auth-header :title="__('Create a new password')" :description="__('Choose a strong password to restore access to your account.')" />
 
         <!-- Session Status -->
         <x-auth-session-status class="text-center" :status="session('status')" />
@@ -43,7 +45,7 @@
             />
 
             <div class="flex items-center justify-end">
-                <flux:button type="submit" variant="primary" class="w-full shadow-lg shadow-green-500/10" data-test="reset-password-button" x-bind:disabled="submitting">
+                <flux:button type="submit" variant="primary" class="auth-submit-button" data-test="reset-password-button" x-bind:disabled="submitting">
                     <span x-cloak x-show="!submitting">{{ __('Reset password') }}</span>
                     <span x-cloak x-show="submitting" class="inline-flex items-center justify-center gap-2">
                         <flux:icon.loading variant="mini" class="size-4" />
@@ -52,5 +54,5 @@
                 </flux:button>
             </div>
         </form>
-    </div>
+    </section>
 </x-layouts::auth>

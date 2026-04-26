@@ -41,11 +41,7 @@ class NativeTailCommand extends BaseNativeTailCommand
             $process->start();
 
             foreach ($process as $type => $data) {
-                if ($process::OUT === $type) {
-                    $this->line($data, null, null, false);
-                } else {
-                    $this->error($data, null, null, false);
-                }
+                $this->output->write($data, false);
             }
         } catch (\Exception $e) {
             $this->error("❌ Error running tail command: {$e->getMessage()}");
@@ -63,12 +59,7 @@ class NativeTailCommand extends BaseNativeTailCommand
 
     protected function prepareAndroidLogFile(string $appId, string $logPath): bool
     {
-        $absoluteLogPath = '/data/data/'.$appId.'/'.$logPath;
-        $logDirectory = dirname($absoluteLogPath);
-
-        $prepareDirectoryProcess = new Process([
-            'adb', 'shell', 'run-as', $appId, 'mkdir', '-p', $logDirectory,
-        ]);
+        $prepareDirectoryProcess = new Process($this->buildPrepareLogCommand($appId, $logPath));
         $prepareDirectoryProcess->setTimeout(null);
         $prepareDirectoryProcess->run();
 

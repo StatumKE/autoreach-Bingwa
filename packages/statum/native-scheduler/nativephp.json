@@ -3,12 +3,20 @@
     "namespace": "BingwaEngine",
     "bridge_functions": [
         {
+            "name": "QueueSchedulerRun",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.QueueSchedulerRun"
+        },
+        {
             "name": "TriggerSambaza",
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.TriggerSambaza"
         },
         {
             "name": "ExecuteUssd",
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.ExecuteUssd"
+        },
+        {
+            "name": "RequestSetupPermissions",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.RequestSetupPermissions"
         }
     ],
     "assets": {
@@ -36,6 +44,11 @@
             "android.permission.READ_PHONE_STATE"
         ],
         "services": [
+            {
+                "name": "com.statum.plugins.nativescheduler.BingwaSchedulerService",
+                "exported": false,
+                "foregroundServiceType": "dataSync"
+            },
             {
                 "name": "androidx.work.impl.foreground.SystemForegroundService",
                 "exported": false,

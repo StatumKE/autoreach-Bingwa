@@ -20,7 +20,7 @@ object SchedulerRuntimeState {
         }
     }
 
-    fun releaseEngine(): Unit = synchronized(stateLock) {
+    fun releaseEngine() = synchronized(stateLock) {
         engineActive = false
     }
 }

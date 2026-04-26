@@ -3,15 +3,14 @@ package com.statum.nativecontacts
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.provider.ContactsContract
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.nativephp.mobile.bridge.BridgeError
 import com.nativephp.mobile.bridge.BridgeFunction
-import com.nativephp.mobile.bridge.BridgeResponse
-import android.util.Log
-import android.net.Uri
 
 object ContactsFunctions {
     private const val DEFAULT_LIMIT = 20

@@ -5,9 +5,9 @@ import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.NetworkType
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
@@ -22,7 +22,7 @@ object BingwaScheduler {
         .setRequiredNetworkType(NetworkType.CONNECTED)
         .build()
 
-    fun schedule(context: Context): Unit {
+    fun schedule(context: Context) {
         val workManager = WorkManager.getInstance(context.applicationContext)
         val periodicWork = PeriodicWorkRequestBuilder<BingwaSchedulerWorker>(
             PERIODIC_INTERVAL_MINUTES,
@@ -42,7 +42,20 @@ object BingwaScheduler {
         Log.i(TAG, "Scheduled periodic Bingwa scheduler work")
     }
 
-    fun enqueueStartupRun(context: Context): Unit {
+    fun cancelStartupRun(context: Context) {
+        WorkManager.getInstance(context.applicationContext).cancelUniqueWork(KICKOFF_WORK_NAME)
+        Log.i(TAG, "Cancelled startup Bingwa scheduler work")
+    }
+
+    fun cancelScheduledWork(context: Context) {
+        val workManager = WorkManager.getInstance(context.applicationContext)
+
+        workManager.cancelUniqueWork(KICKOFF_WORK_NAME)
+        workManager.cancelUniqueWork(PERIODIC_WORK_NAME)
+        Log.i(TAG, "Cancelled scheduled Bingwa scheduler work")
+    }
+
+    fun enqueueStartupRun(context: Context) {
         val workManager = WorkManager.getInstance(context.applicationContext)
         val request = OneTimeWorkRequestBuilder<BingwaSchedulerWorker>()
             .setConstraints(workConstraints)
@@ -54,7 +67,7 @@ object BingwaScheduler {
         // to settle before the worker touches Artisan.
         workManager.enqueueUniqueWork(
             KICKOFF_WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.KEEP,
             request,
         )
 

@@ -323,10 +323,13 @@ new class extends Component {
                                 @endif
                             </div>
 
-                            <flux:button
-                                class="h-12 w-full font-black uppercase tracking-[0.25em] text-[10px]"
+                            <button
+                                @class([
+                                    'flex h-12 w-full items-center justify-center rounded-2xl border text-[10px] font-black uppercase tracking-[0.25em] shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60',
+                                    'border-green-700 bg-green-700 text-white shadow-green-700/20' => $this->selectedPlanId === ($plan['id'] ?? null),
+                                    'border-green-200 bg-green-50 text-green-800' => $this->selectedPlanId !== ($plan['id'] ?? null),
+                                ])
                                 type="button"
-                                variant="{{ $this->selectedPlanId === ($plan['id'] ?? null) ? 'primary' : 'ghost' }}"
                                 wire:click="selectPlan({{ (int) ($plan['id'] ?? 0) }})"
                                 :disabled="$this->activePlan !== null"
                             >
@@ -337,7 +340,7 @@ new class extends Component {
                                 @else
                                     {{ $this->selectedPlanId === ($plan['id'] ?? null) ? __('SELECTED') : __('SELECT PLAN') }}
                                 @endif
-                            </flux:button>
+                            </button>
                         </div>
                     </article>
                 @endforeach

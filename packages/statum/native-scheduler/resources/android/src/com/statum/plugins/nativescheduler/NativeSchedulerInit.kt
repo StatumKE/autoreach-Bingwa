@@ -15,7 +15,13 @@ import android.util.Log
  * runtime directly.
  */
 fun initNativeScheduler(context: Context) {
-    BingwaScheduler.schedule(context)
-    BingwaScheduler.enqueueStartupRun(context)
-    Log.i("NativeSchedulerInit", "Bingwa scheduler work queued")
+    BingwaScheduler.cancelScheduledWork(context)
+    try {
+        BingwaSchedulerService.start(context)
+        Log.i("NativeSchedulerInit", "Bingwa foreground scheduler service requested")
+    } catch (exception: Exception) {
+        Log.e("NativeSchedulerInit", "Failed to start Bingwa foreground scheduler service", exception)
+        BingwaScheduler.schedule(context)
+        BingwaScheduler.enqueueStartupRun(context)
+    }
 }

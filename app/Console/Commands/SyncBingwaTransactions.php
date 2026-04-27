@@ -40,9 +40,15 @@ class SyncBingwaTransactions extends Command
         $failed = $result['failed'];
         $skipped = $result['skipped'];
 
-        $message = "✅ Sync complete: {$synced} synced, {$skipped} skipped, {$failed} failed.";
-        Log::info($message);
-        $this->info($message);
+        $data = [
+            'synced' => $synced,
+            'skipped' => $skipped,
+            'failed' => $failed,
+            'message' => "✅ Sync complete: {$synced} synced, {$skipped} skipped, {$failed} failed.",
+        ];
+
+        Log::info($data['message']);
+        $this->output->write(json_encode($data));
 
         return self::SUCCESS;
     }

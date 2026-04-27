@@ -2,6 +2,7 @@
 
 use App\Models\BingwaDeviceRegistration;
 use App\Models\Offer;
+use App\Models\Plan;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Support\Facades\File;
@@ -42,6 +43,12 @@ it('outputs valid JSON payload for a queued transaction with an offer', function
         'is_active' => true,
     ]);
 
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
+    ]);
+
     $transaction = Transaction::factory()->create([
         'user_id' => $user->id,
         'offer_id' => $offer->id,
@@ -75,6 +82,11 @@ it('includes backend callback metadata in the ussd job payload', function () {
         'ussd_code' => '*180*5*7*PN#',
         'ussd_mode' => 'express',
         'is_active' => true,
+    ]);
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
     ]);
     $transaction = Transaction::factory()->create([
         'user_id' => $user->id,
@@ -111,6 +123,12 @@ it('outputs valid JSON with default timeout when user has no device settings', f
         'is_active' => true,
     ]);
 
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
+    ]);
+
     $transaction = Transaction::factory()->create([
         'user_id' => $user->id,
         'offer_id' => $offer->id,
@@ -138,6 +156,12 @@ it('replaces PN placeholder in the ussd_code with sender_phone', function () {
         'is_active' => true,
     ]);
 
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
+    ]);
+
     Transaction::factory()->create([
         'user_id' => $user->id,
         'offer_id' => $offer->id,
@@ -162,6 +186,12 @@ it('picks the oldest queued transaction first', function () {
         'ussd_code' => '*180*5*PN#',
         'ussd_mode' => 'express',
         'is_active' => true,
+    ]);
+
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
     ]);
 
     $older = Transaction::factory()->create([
@@ -192,6 +222,12 @@ it('recovers stuck processing transactions older than 2 minutes', function () {
         'ussd_code' => '*180*5*PN#',
         'ussd_mode' => 'express',
         'is_active' => true,
+    ]);
+
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
     ]);
 
     $stuckTransaction = Transaction::factory()->create([

@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 #[Signature('bingwa:complete-transaction {id? : The local transaction ID} {status? : completed or failed} {--transaction-id= : The local transaction ID} {--result= : completed or failed} {--message= : Optional status description} {--message-base64= : Optional base64-encoded status description} {--finalize-once : Finalize immediately without auto-retry or reschedule}')]
@@ -56,74 +57,78 @@ class CompleteTransactionCommand extends Command
         $settings = $transaction->user?->deviceSetting;
         $finalizeOnce = (bool) $this->option('finalize-once');
 
-        // Intelligent Auto-Retry Logic
-        if (! $finalizeOnce && $status === 'failed' && $settings?->intelligent_auto_retry) {
-            if ($transaction->retry_count < ($settings->max_attempts - 1)) {
-                $transaction->increment('retry_count');
+        return DB::transaction(function () use ($transaction, $id, $status, $statusDesc, $message, $settings, $finalizeOnce) {
+            // Intelligent Auto-Retry Logic
+            if (! $finalizeOnce && $status === 'failed' && $settings?->intelligent_auto_retry) {
+                if ($transaction->retry_count < ($settings->max_attempts - 1)) {
+                    $transaction->increment('retry_count');
 
-                $retryAt = now()->addMinutes($settings->retry_interval_minutes ?? 1);
+                    $retryAt = now()->addMinutes($settings->retry_interval_minutes ?? 1);
 
-                $transaction->update([
-                    'status' => 'queued',
-                    'occurred_at' => $retryAt,
-                    'status_desc' => __('Auto-retry attempt :count scheduled for :time.', [
-                        'count' => $transaction->retry_count,
-                        'time' => $retryAt->format('g:i A'),
-                    ]),
-                ]);
+                    $transaction->update([
+                        'status' => 'queued',
+                        'occurred_at' => $retryAt,
+                        'status_desc' => __('Auto-retry attempt :count scheduled for :time.', [
+                            'count' => $transaction->retry_count,
+                            'time' => $retryAt->format('g:i A'),
+                        ]),
+                    ]);
 
-                $this->info("Transaction #{$id} re-queued for retry.");
+                    $this->info("Transaction #{$id} re-queued for retry.");
 
-                return self::SUCCESS;
-            }
-        }
-
-        // Auto Reschedule Rejected Logic
-        if (! $finalizeOnce && $status === 'failed' && $settings?->auto_reschedule_rejected) {
-            $isRejected = str_contains(strtolower($message ?? ''), 'rejected')
-                       || str_contains(strtolower($message ?? ''), 'not allowed');
-
-            if ($isRejected) {
-                $nextRun = now();
-                if ($settings->retry_tomorrow_at) {
-                    $nextRun = now()->addDay()->setTimeFromTimeString($settings->retry_tomorrow_at);
+                    return self::SUCCESS;
                 }
-
-                $transaction->update([
-                    'status' => 'queued',
-                    'occurred_at' => $nextRun,
-                    'status_desc' => __('Rescheduled for :time.', ['time' => $nextRun->format('g:i A')]),
-                ]);
-
-                $this->info("Transaction #{$id} rescheduled for tomorrow.");
-
-                return self::SUCCESS;
             }
-        }
 
-        $transaction->update([
-            'status' => $status,
-            'status_desc' => $statusDesc,
-            'processed_at' => now(),
-        ]);
+            // Auto Reschedule Rejected Logic
+            if (! $finalizeOnce && $status === 'failed' && $settings?->auto_reschedule_rejected) {
+                $isRejected = str_contains(strtolower($message ?? ''), 'rejected')
+                           || str_contains(strtolower($message ?? ''), 'not allowed');
 
-        $user = $transaction->user;
-        if ($user) {
-            $activePlan = $user->plans()->where('is_active', true)->first();
-            if ($activePlan) {
-                $activePlan->increment('ussd_counter');
+                if ($isRejected) {
+                    $nextRun = now();
+                    if ($settings->retry_tomorrow_at) {
+                        $nextRun = now()->addDay()->setTimeFromTimeString($settings->retry_tomorrow_at);
+                    }
 
-                // Refresh to get the new counter value
-                $activePlan->refresh();
+                    $transaction->update([
+                        'status' => 'queued',
+                        'occurred_at' => $nextRun,
+                        'status_desc' => __('Rescheduled for :time.', ['time' => $nextRun->format('g:i A')]),
+                    ]);
 
-                if ($activePlan->type === 'usage_pack' && $activePlan->ussd_requests_included !== null) {
-                    if ($activePlan->ussd_counter >= $activePlan->ussd_requests_included) {
-                        $activePlan->update(['is_active' => false]);
-                        $this->info("Plan '{$activePlan->name}' has been exhausted and deactivated.");
+                    $this->info("Transaction #{$id} rescheduled for tomorrow.");
+
+                    return self::SUCCESS;
+                }
+            }
+
+            $transaction->update([
+                'status' => $status,
+                'status_desc' => $statusDesc,
+                'processed_at' => now(),
+            ]);
+
+            $user = $transaction->user;
+            if ($user && $status === 'completed') {
+                $activePlan = $user->plans()->where('is_active', true)->first();
+                if ($activePlan) {
+                    $activePlan->increment('ussd_counter');
+
+                    // Refresh to get the new counter value
+                    $activePlan->refresh();
+
+                    if ($activePlan->type === 'usage_pack' && $activePlan->ussd_requests_included !== null) {
+                        if ($activePlan->ussd_counter >= $activePlan->ussd_requests_included) {
+                            $activePlan->update(['is_active' => false]);
+                            $this->info("Plan '{$activePlan->name}' has been exhausted and deactivated.");
+                        }
                     }
                 }
             }
-        }
+
+            return self::SUCCESS;
+        });
 
         return self::SUCCESS;
     }

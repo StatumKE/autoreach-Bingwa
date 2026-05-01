@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Laravel\Fortify\Features;
 
 test('login screen can be rendered', function () {
@@ -19,6 +20,7 @@ test('users can authenticate using the login screen', function () {
 
     $response
         ->assertSessionHasNoErrors()
+        ->assertCookie(Auth::getRecallerName())
         ->assertRedirect(route('dashboard', absolute: false));
 
     $this->assertAuthenticated();

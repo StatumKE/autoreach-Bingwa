@@ -3,6 +3,7 @@
 use App\Actions\Autoreach\RegisterBingwaDevice;
 use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -103,6 +104,7 @@ test('new users can register', function () {
     ]);
 
     $response->assertSessionHasNoErrors()
+        ->assertCookie(Auth::getRecallerName())
         ->assertRedirect(route('dashboard', absolute: false));
 
     $this->assertAuthenticated();

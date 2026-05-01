@@ -27,15 +27,7 @@ This application is a Laravel application and its main Laravel ecosystems packag
 
 ## Skills Activation
 
-This project has domain-specific skills available. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
-
-- `fortify-development` — ACTIVATE when the user works on authentication in Laravel. This includes login, registration, password reset, email verification, two-factor authentication (2FA/TOTP/QR codes/recovery codes), profile updates, password confirmation, or any auth-related routes and controllers. Activate when the user mentions Fortify, auth, authentication, login, register, signup, forgot password, verify email, 2FA, or references app/Actions/Fortify/, CreateNewUser, UpdateUserProfileInformation, FortifyServiceProvider, config/fortify.php, or auth guards. Fortify is the frontend-agnostic authentication backend for Laravel that registers all auth routes and controllers. Also activate when building SPA or headless authentication, customizing login redirects, overriding response contracts like LoginResponse, or configuring login throttling. Do NOT activate for Laravel Passport (OAuth2 API tokens), Socialite (OAuth social login), or non-auth Laravel features.
-- `laravel-best-practices` — Apply this skill whenever writing, reviewing, or refactoring Laravel PHP code. This includes creating or modifying controllers, models, migrations, form requests, policies, jobs, scheduled commands, service classes, and Eloquent queries. Triggers for N+1 and query performance issues, caching strategies, authorization and security patterns, validation, error handling, queue and job configuration, route definitions, and architectural decisions. Also use for Laravel code reviews and refactoring existing Laravel code to follow best practices. Covers any task involving Laravel backend PHP code patterns.
-- `fluxui-development` — Use this skill for Flux UI development in Livewire applications only. Trigger when working with <flux:*> components, building or customizing Livewire component UIs, creating forms, modals, tables, or other interactive elements. Covers: flux: components (buttons, inputs, modals, forms, tables, date-pickers, kanban, badges, tooltips, etc.), component composition, Tailwind CSS styling, Heroicons/Lucide icon integration, validation patterns, responsive design, and theming. Do not use for non-Livewire frameworks or non-component styling.
-- `livewire-development` — Use for any task or question involving Livewire. Activate if user mentions Livewire, wire: directives, or Livewire-specific concepts like wire:model, wire:click, wire:sort, or islands, invoke this skill. Covers building new components, debugging reactivity issues, real-time form validation, drag-and-drop, loading states, migrating from Livewire 3 to 4, converting component formats (SFC/MFC/class-based), and performance optimization. Do not use for non-Livewire reactive UI (React, Vue, Alpine-only, Inertia.js) or standard Laravel forms without Livewire.
-- `pest-testing` — Use this skill for Pest PHP testing in Laravel projects only. Trigger whenever any test is being written, edited, fixed, or refactored — including fixing tests that broke after a code change, adding assertions, converting PHPUnit to Pest, adding datasets, and TDD workflows. Always activate when the user asks how to write something in Pest, mentions test files or directories (tests/Feature, tests/Unit, tests/Browser), or needs browser testing, smoke testing multiple pages for JS errors, or architecture tests. Covers: test()/it()/expect() syntax, datasets, mocking, browser testing (visit/click/fill), smoke testing, arch(), Livewire component tests, RefreshDatabase, and all Pest 4 features. Do not use for factories, seeders, migrations, controllers, models, or non-test PHP code.
-- `tailwindcss-development` — Always invoke when the user's message includes 'tailwind' in any form. Also invoke for: building responsive grid layouts (multi-column card grids, product grids), flex/grid page structures (dashboards with sidebars, fixed topbars, mobile-toggle navs), styling UI components (cards, tables, navbars, pricing sections, forms, inputs, badges), adding dark mode variants, fixing spacing or typography, and Tailwind v3/v4 work. The core use case: writing or fixing Tailwind utility classes in HTML templates (Blade, JSX, Vue). Skip for backend PHP logic, database queries, API routes, JavaScript with no HTML/CSS component, CSS file audits, build tool configuration, and vanilla CSS.
-- `nativephp-mobile` — Builds native iOS and Android apps with PHP & Larvel. Activate when using native device APIs (camera, dialog, biometrics, scanner, geolocation, push notifications), EDGE components (bottom-nav, top-bar, side-nav), `#nativephp` JavaScript imports, native mobile events, NativePHP Artisan commands (native:run, native:install, native:watch), deep links, secure storage, or mobile app deployment.
+This project has domain-specific skills available in `**/skills/**`. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
 
 ## Conventions
 
@@ -184,6 +176,7 @@ This project has domain-specific skills available. You MUST activate the relevan
 ## Pest
 
 - This project uses Pest for testing. Create tests: `php artisan make:test --pest {name}`.
+- The `{name}` argument should not include the test suite directory. Use `php artisan make:test --pest SomeFeatureTest` instead of `php artisan make:test --pest Feature/SomeFeatureTest`.
 - Run tests: `php artisan test --compact` or filter: `php artisan test --compact --filter=testName`.
 - Do NOT delete tests without approval.
 
@@ -212,6 +205,131 @@ This project has domain-specific skills available. You MUST activate the relevan
 **Always ask which platform before giving any build or run command.** If the user hasn't specified iOS or Android, ask: "Which platform do you want to build/test on — iOS or Android?" Never assume a platform.
 
 When the platform is confirmed, give the relevant command(s) above and tell the user to run it in their terminal. Do not run it yourself.
+</laravel-boost-guidelines>
+
+=== nativephp/mobile-device rules ===
+
+## nativephp/device
+
+Device hardware operations including vibration, flashlight, device info, and battery status.
+
+### PHP Usage (Livewire/Blade)
+
+<code-snippet name="Device Operations" lang="php">
+use Native\Mobile\Facades\Device;
+
+// Get unique device ID
+$id = Device::getId();
+
+// Get device info (JSON)
+$info = Device::getInfo();
+$deviceInfo = json_decode($info);
+// $deviceInfo->platform, $deviceInfo->model, $deviceInfo->osVersion
+
+// Vibrate the device
+Device::vibrate();
+
+// Toggle flashlight
+$result = Device::flashlight();
+// result.state = true (on) or false (off)
+
+// Get battery info
+$batteryInfo = Device::getBatteryInfo();
+// batteryLevel: 0-1 (e.g., 0.85 = 85%), isCharging: true/false
+</code-snippet>
+
+### JavaScript Usage (Vue/React/Inertia)
+
+<code-snippet name="Device Operations in JavaScript" lang="javascript">
+import { device } from '#nativephp';
+
+// Get unique device ID
+const result = await device.getId();
+const deviceId = result.id;
+
+// Get device info
+const infoResult = await device.getInfo();
+const deviceInfo = JSON.parse(infoResult.info);
+console.log(deviceInfo.platform);  // 'ios' or 'android'
+console.log(deviceInfo.model);     // e.g., 'iPhone13,4'
+console.log(deviceInfo.osVersion); // e.g., '17.0'
+
+// Vibrate the device
+await device.vibrate();
+
+// Toggle flashlight
+const flashResult = await device.flashlight();
+console.log(flashResult.state); // true = on, false = off
+
+// Get battery info
+const batteryResult = await device.getBatteryInfo();
+const battery = JSON.parse(batteryResult.info);
+console.log(batteryResult.batteryLevel); // 0-1
+console.log(batteryResult.isCharging);   // true/false
+</code-snippet>
+
+### Device Info Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| name | string | Device name |
+| model | string | Device model identifier |
+| platform | 'ios' \| 'android' | Operating platform |
+| osVersion | string | OS version string |
+| isVirtual | boolean | Running in simulator/emulator |
+| memUsed | number | App memory usage in bytes |
+| webViewVersion | string | Browser version |
+
+### Battery Info Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| batteryLevel | number | Charge percentage (0-1) |
+| isCharging | boolean | Current charging status |
+
+=== statum/native-scheduler rules ===
+
+## statum/native-scheduler
+
+A NativePHP Mobile plugin
+
+### Installation
+
+```bash
+composer require statum/native-scheduler
+```
+
+### PHP Usage (Livewire/Blade)
+
+Use the `NativeScheduler` facade:
+
+<code-snippet name="Using NativeScheduler Facade" lang="php">
+use Statum\NativeScheduler\Facades\NativeScheduler;
+
+// Execute the plugin functionality
+$result = NativeScheduler::execute(['option1' => 'value']);
+
+// Get the current status
+$status = NativeScheduler::getStatus();
+</code-snippet>
+
+### Available Methods
+
+- `NativeScheduler::execute()`: Execute the plugin functionality
+- `NativeScheduler::getStatus()`: Get the current status
+
+### JavaScript Usage (Vue/React/Inertia)
+
+<code-snippet name="Using NativeScheduler in JavaScript" lang="javascript">
+import { nativeScheduler } from '@statum/native-scheduler';
+
+// Execute the plugin functionality
+const result = await nativeScheduler.execute({ option1: 'value' });
+
+// Get the current status
+const status = await nativeScheduler.getStatus();
+</code-snippet>
+
 </laravel-boost-guidelines>
 
 === nativephp/mobile-device rules ===

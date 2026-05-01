@@ -41,8 +41,9 @@
                 @endif
             </div>
 
-            <!-- Remember Me -->
-            <flux:checkbox name="remember" :label="__('Remember me')" :checked="old('remember')" />
+            <p class="text-sm font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
+                {{ __('You will stay signed in on this device until you log out.') }}
+            </p>
 
             <div class="flex items-center justify-end">
                 <flux:button

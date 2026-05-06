@@ -2,10 +2,8 @@
 
 namespace App\Actions\Autoreach;
 
-use App\Models\Transaction;
 use App\Models\User;
 use GuzzleHttp\Promise\Utils;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -44,23 +42,7 @@ class FetchNextBingwaJobs
         ];
 
         $promises = [];
-        $activeOffers = $user->offers()->where('is_active', true)->get();
         $allJobs = [];
-
-        // Fetch and validate the active subscription plan
-        $activePlan = $user->plans()->where('is_active', true)->first();
-        if ($activePlan) {
-            $shouldDeactivate = false;
-            if ($activePlan->type === 'time_unlimited' && $activePlan->expires_at && now()->isAfter($activePlan->expires_at)) {
-                $shouldDeactivate = true;
-            } elseif ($activePlan->type === 'usage_pack' && $activePlan->ussd_requests_included !== null && $activePlan->ussd_counter >= $activePlan->ussd_requests_included) {
-                $shouldDeactivate = true;
-            }
-            if ($shouldDeactivate) {
-                $activePlan->update(['is_active' => false]);
-                $activePlan = null;
-            }
-        }
 
         foreach ($endpoints as $type => $endpoint) {
             $promises[$type] = Http::async()
@@ -143,65 +125,23 @@ class FetchNextBingwaJobs
         Utils::settle($promises)->wait();
 
         // Process all gathered jobs in a single database transaction for performance
-        DB::transaction(function () use ($allJobs, $user, $activeOffers, $activePlan, &$synced, &$skipped): void {
+        DB::transaction(function () use ($allJobs, $user, &$synced, &$skipped): void {
             foreach ($allJobs as $jobGroup) {
                 $type = $jobGroup['type'];
                 $jobs = $jobGroup['jobs'];
 
                 foreach ($jobs as $job) {
-                    if (blank($job['transaction_id'] ?? null)) {
-                        continue;
-                    }
+                    $result = app(PersistBingwaTransaction::class)->persist($user, $job, null, null, $type);
 
-                    $amount = (float) ($job['amount'] ?? 0);
-
-                    // Find a matching offer by price only
-                    $matchedOffer = $activeOffers->firstWhere('price', (int) $amount);
-
-                    $status = 'queued';
-                    $statusDesc = __('Pulled from backend job queue.');
-                    $offerId = $matchedOffer?->getKey();
-
-                    if (! $activePlan) {
-                        $status = 'failed';
-                        $statusDesc = __('No active subscription plan found.');
-                    } elseif (! $matchedOffer) {
-                        $status = 'failed';
-                        $statusDesc = __("Price mismatch: No active offer found for amount {$amount}.");
-                    }
-
-                    $transactionId = (string) $job['transaction_id'];
-                    $existingTransaction = Transaction::query()
-                        ->where('transaction_id', $transactionId)
-                        ->first(['id', 'status']);
-
-                    if ($existingTransaction !== null && in_array($existingTransaction->status, ['processing', 'completed', 'failed'], true)) {
+                    if ($result['skipped']) {
                         $skipped++;
 
                         continue;
                     }
 
-                    Transaction::query()->updateOrCreate(
-                        ['transaction_id' => $transactionId],
-                        [
-                            'user_id' => $user->id,
-                            'offer_id' => $offerId,
-                            'mpesa_code' => $job['mpesa_code'] ?? null,
-                            'sender_phone' => $job['sender_phone'] ?? '',
-                            'sender_name' => $job['sender_name'] ?? null,
-                            'amount' => $amount,
-                            'offer_name' => $job['offer_name'] ?? __('Unknown offer'),
-                            'offer_type' => $job['offer_type'] ?? $type,
-                            'matched_offer' => $job['matched_offer'] ?? null,
-                            'balance' => null,
-                            'occurred_at' => Carbon::parse($job['occurred_at'] ?? now())
-                                ->setTimezone((string) config('app.timezone')),
-                            'status' => $status,
-                            'status_desc' => $statusDesc,
-                        ]
-                    );
-
-                    $synced++;
+                    if ($result['transaction'] !== null) {
+                        $synced++;
+                    }
                 }
             }
         });

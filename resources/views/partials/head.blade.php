@@ -18,4 +18,21 @@
         window.localStorage.setItem('flux.appearance', 'light');
     }
 </script>
+@auth
+    @php
+        $broadcastRegistration = auth()->user()?->bingwaDeviceRegistration;
+        $broadcastingConfig = $broadcastRegistration !== null && filled($broadcastRegistration->device_token)
+            ? [
+                'authEndpoint' => rtrim(config('services.autoreach.backend_url'), '/').'/api/v1/broadcasting/auth',
+                'deviceToken' => $broadcastRegistration->device_token,
+            ]
+            : null;
+    @endphp
+
+    @if ($broadcastingConfig !== null)
+        <script>
+            window.__autoreachBroadcasting = {!! json_encode($broadcastingConfig, JSON_THROW_ON_ERROR) !!};
+        </script>
+    @endif
+@endauth
 @fluxAppearance

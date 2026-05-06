@@ -21,14 +21,6 @@ object BingwaFunctions {
     private const val PERMISSION_SETUP_REQUESTED = "requested"
     private const val TAG = "BingwaPermissions"
 
-    class QueueSchedulerRun(private val context: Context) : BridgeFunction {
-        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
-            BingwaScheduler.enqueueStartupRun(context)
-
-            return mapOf("queued" to true)
-        }
-    }
-
     class TriggerSambaza(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
             return executeUssd(context, parameters, defaultMode = "advanced", defaultIsSambaza = true)

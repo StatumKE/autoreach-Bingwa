@@ -20,6 +20,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $email
  * @property string|null $autoreach_connect_id
  * @property-read BingwaDeviceRegistration|null $bingwaDeviceRegistration
+ * @property-read Collection<int, AutoRenewal> $autoRenewals
+ * @property-read Collection<int, AutoReply> $autoReplies
  * @property-read Collection<int, Offer> $offers
  * @property-read Collection<int, Plan> $plans
  * @property-read DeviceSetting|null $deviceSetting
@@ -71,6 +73,26 @@ class User extends Authenticatable
     public function offers(): HasMany
     {
         return $this->hasMany(Offer::class);
+    }
+
+    /**
+     * Get the auto-renewal schedules owned by the user.
+     *
+     * @return HasMany<AutoRenewal, $this>
+     */
+    public function autoRenewals(): HasMany
+    {
+        return $this->hasMany(AutoRenewal::class);
+    }
+
+    /**
+     * Get the auto reply rules owned by the user.
+     *
+     * @return HasMany<AutoReply, $this>
+     */
+    public function autoReplies(): HasMany
+    {
+        return $this->hasMany(AutoReply::class);
     }
 
     /**

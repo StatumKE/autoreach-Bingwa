@@ -3,10 +3,6 @@
     "namespace": "BingwaEngine",
     "bridge_functions": [
         {
-            "name": "QueueSchedulerRun",
-            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.QueueSchedulerRun"
-        },
-        {
             "name": "TriggerSambaza",
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.TriggerSambaza"
         },
@@ -27,41 +23,19 @@
     },
     "android": {
         "min_version": 26,
-        "init_function": "com.statum.plugins.nativescheduler.initNativeScheduler",
         "dependencies": {
             "implementation": [
-                "androidx.work:work-runtime-ktx:2.11.2",
                 "com.squareup.okhttp3:okhttp:4.12.0"
             ]
         },
         "permissions": [
             "android.permission.POST_NOTIFICATIONS",
-            "android.permission.FOREGROUND_SERVICE",
-            "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
-            "android.permission.RECEIVE_BOOT_COMPLETED",
             "android.permission.CALL_PHONE",
             "android.permission.SYSTEM_ALERT_WINDOW",
             "android.permission.READ_PHONE_STATE"
         ],
-        "services": [
-            {
-                "name": "com.statum.plugins.nativescheduler.BingwaSchedulerService",
-                "exported": false,
-                "foregroundServiceType": "dataSync"
-            },
-            {
-                "name": "androidx.work.impl.foreground.SystemForegroundService",
-                "exported": false,
-                "foregroundServiceType": "dataSync"
-            }
-        ],
-        "receivers": [
-            {
-                "name": "com.statum.plugins.nativescheduler.SchedulerBootReceiver",
-                "exported": true,
-                "actions": ["android.intent.action.BOOT_COMPLETED"]
-            }
-        ]
+        "services": [],
+        "receivers": []
     },
     "hooks": {
         "copy_assets": "nativephp:native-scheduler:copy-assets"

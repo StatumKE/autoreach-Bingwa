@@ -16,6 +16,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('transactions', 'transactions')->name('transactions');
     Route::livewire('plans', 'plans')->name('plans');
     Route::livewire('quick-dials', 'quick-dials')->name('quick-dials');
+    Route::livewire('auto-renewals', 'auto-renewals')->name('auto-renewals');
+    Route::livewire('auto-replies', 'auto-replies')->name('auto-replies');
 });
 
 require __DIR__.'/settings.php';

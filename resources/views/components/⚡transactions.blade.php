@@ -3,6 +3,7 @@
 use App\Models\Transaction;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -65,6 +66,14 @@ new #[Title('Transactions')] class extends Component
     {
         $this->loaded = true;
         $this->refreshKey++;
+    }
+
+    #[On('autoreach-transaction-saved')]
+    public function refreshAfterTransactionBroadcast(): void
+    {
+        $this->loadTransactions();
+
+        Flux::toast(variant: 'success', text: __('A queued transaction was received from the backend.'));
     }
 
     /**

@@ -21,7 +21,7 @@ test('plans page can be rendered on mobile', function () {
 
     $this->get(route('plans'))
         ->assertOk()
-        ->assertSee('Subscription plans');
+        ->assertSee('Subscriptions');
 });
 
 test('plans load from the backend using the saved device token', function () {

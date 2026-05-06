@@ -23,11 +23,19 @@
                 </flux:navbar.item>
 
                 <flux:navbar.item icon="book-open-text" :href="route('plans')" :current="request()->routeIs('plans')" wire:navigate>
-                    {{ __('Plans') }}
+                    {{ __('Subscriptions') }}
                 </flux:navbar.item>
 
                 <flux:navbar.item icon="phone" :href="route('quick-dials')" :current="request()->routeIs('quick-dials')" wire:navigate>
                     {{ __('Quick Dial') }}
+                </flux:navbar.item>
+
+                <flux:navbar.item icon="calendar-days" :href="route('auto-renewals')" :current="request()->routeIs('auto-renewals')" wire:navigate>
+                    {{ __('Auto Renewals') }}
+                </flux:navbar.item>
+
+                <flux:navbar.item icon="sparkles" :href="route('auto-replies')" :current="request()->routeIs('auto-replies')" wire:navigate>
+                    {{ __('Auto Replies') }}
                 </flux:navbar.item>
             </flux:navbar>
 
@@ -82,11 +90,19 @@
                     </flux:sidebar.item>
 
                     <flux:sidebar.item icon="book-open-text" :href="route('plans')" :current="request()->routeIs('plans')" wire:navigate class="app-nav-item">
-                        {{ __('Plans') }}
+                        {{ __('Subscriptions') }}
                     </flux:sidebar.item>
 
                     <flux:sidebar.item icon="phone" :href="route('quick-dials')" :current="request()->routeIs('quick-dials')" wire:navigate class="app-nav-item">
                         {{ __('Quick Dial') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="calendar-days" :href="route('auto-renewals')" :current="request()->routeIs('auto-renewals')" wire:navigate class="app-nav-item">
+                        {{ __('Auto Renewals') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="sparkles" :href="route('auto-replies')" :current="request()->routeIs('auto-replies')" wire:navigate class="app-nav-item">
+                        {{ __('Auto Replies') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>

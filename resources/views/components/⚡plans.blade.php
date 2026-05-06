@@ -7,7 +7,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
-new class extends Component {
+new #[Title('Subscriptions')] class extends Component {
     public bool $loaded = false;
 
     /** @var array<int, array<string, mixed>> */
@@ -175,10 +175,10 @@ new class extends Component {
         <div class="px-1 pt-1">
             <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                 <div class="space-y-1">
-                    <span class="app-kicker">{{ __('Subscription plans') }}</span>
-                    <flux:heading size="xl" class="text-3xl font-black tracking-tight text-zinc-950">{{ __('Bingwa Plans') }}</flux:heading>
+                    <span class="app-kicker">{{ __('Subscriptions') }}</span>
+                    <flux:heading size="xl" class="text-3xl font-black tracking-tight text-zinc-950">{{ __('Subscriptions') }}</flux:heading>
                     <flux:text class="max-w-lg text-sm font-medium text-zinc-600">
-                        {{ __('Automate your USSD operations with a premium plan.') }}
+                        {{ __('Manage your active subscriptions and purchase new ones.') }}
                     </flux:text>
                 </div>
 

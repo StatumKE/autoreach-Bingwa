@@ -319,25 +319,13 @@ new #[Title('Quick Dial')] class extends Component {
     }
 }; ?>
 
-<section class="w-full p-4 md:p-6 bg-app-bg min-h-screen">
-    <div class="flex flex-col gap-5">
-        <div class="px-1 pt-1">
-            <div class="flex items-end justify-between gap-4">
-                <div>
-                    <span class="app-kicker">{{ __('Ad-Hoc Awards') }}</span>
-                    <flux:heading size="xl" class="mt-1 text-zinc-950 font-black tracking-tight text-3xl">{{ __('Quick Dial') }}</flux:heading>
-                    <flux:text class="mt-1 text-sm font-medium text-zinc-600">
-                        {{ __('Directly award offers to customers') }}
-                    </flux:text>
-                </div>
-
-                <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-green-600 shadow-sm ring-1 ring-zinc-200">
-                    <flux:icon.phone class="size-6" />
-                </div>
-            </div>
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
+    <div class="flex flex-col gap-3">
+        <div class="px-1">
+            <div class="text-xl font-bold text-zinc-900">{{ __('Quick Dial') }}</div>
         </div>
 
-        <div class="rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-zinc-200">
+        <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
             <div class="text-[10px] font-black uppercase tracking-widest text-green-600/70">
                 {{ __('Customer information') }}
             </div>
@@ -384,7 +372,7 @@ new #[Title('Quick Dial')] class extends Component {
             @endif
         </div>
 
-        <div class="overflow-hidden rounded-[1.75rem] bg-white shadow-sm ring-1 ring-zinc-200">
+        <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
             <div class="border-b border-zinc-200 px-8 py-6">
                 <div class="text-[10px] font-black uppercase tracking-widest text-green-600/70">
                     {{ __('Available offers') }}

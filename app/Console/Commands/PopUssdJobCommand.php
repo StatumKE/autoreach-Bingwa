@@ -60,6 +60,7 @@ class PopUssdJobCommand extends Command
                         'status' => 'failed',
                         'status_desc' => __('Subscription expired or deactivated while waiting in queue.'),
                     ]);
+
                     return ['skip' => true, 'id' => $transaction->id];
                 }
 
@@ -70,6 +71,7 @@ class PopUssdJobCommand extends Command
                             'status' => 'failed',
                             'status_desc' => __('Subscription usage limit reached.'),
                         ]);
+
                         return ['skip' => true, 'id' => $transaction->id];
                     }
                 }
@@ -102,6 +104,7 @@ class PopUssdJobCommand extends Command
             // If we skipped a failed/expired transaction, try again immediately for the next one
             if (isset($payload['skip'])) {
                 Log::debug("⏩ Skipped invalid transaction #{$payload['id']}, looking for next...");
+
                 return $this->handle();
             }
 
@@ -117,6 +120,7 @@ class PopUssdJobCommand extends Command
             return self::SUCCESS;
         } catch (\Throwable $e) {
             Log::error('❌ PopUssdJobCommand failed: '.$e->getMessage());
+
             return self::FAILURE;
         }
     }

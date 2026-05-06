@@ -254,74 +254,57 @@ new #[Title('Auto Renewals')] class extends Component {
     }
 }; ?>
 
-<section class="w-full p-4 md:p-6 bg-app-bg min-h-screen">
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
     @php
         $activeOffers = $this->activeOffers;
         $renewals = $this->autoRenewals;
     @endphp
 
-    <div class="flex flex-col gap-5">
-        <div class="px-1 pt-1">
-            <div class="flex items-end justify-between gap-4">
-                <div class="min-w-0">
-                    <span class="app-kicker">{{ __('Auto Renewals') }}</span>
-                    <flux:heading size="xl" class="mt-1 truncate text-3xl font-black tracking-tight text-zinc-950">
-                        {{ __('Scheduled Awards') }}
-                    </flux:heading>
-                    <flux:text class="mt-1 text-sm font-medium text-zinc-600">
-                        {{ __('Review scheduled awards and create new renewals from one place.') }}
-                    </flux:text>
-                </div>
-
-                <flux:modal.trigger name="renewal-form">
-                    <button
-                        type="button"
-                        class="app-primary-button inline-flex h-12 shrink-0 items-center gap-2 px-5 text-[10px] font-black uppercase tracking-widest"
-                        @disabled($activeOffers->isEmpty())
-                    >
-                        <flux:icon.plus class="size-4" />
-                        {{ __('Create') }}
-                    </button>
-                </flux:modal.trigger>
-            </div>
+    <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between px-1">
+            <div class="text-xl font-bold text-zinc-900">{{ __('Auto Renewals') }}</div>
+            <flux:modal.trigger name="renewal-form">
+                <button
+                    type="button"
+                    class="app-primary-button inline-flex h-9 shrink-0 items-center gap-2 px-4 text-[10px] font-bold uppercase tracking-widest"
+                    @disabled($activeOffers->isEmpty())
+                >
+                    <flux:icon.plus class="size-3.5" />
+                    {{ __('Create') }}
+                </button>
+            </flux:modal.trigger>
         </div>
 
         @if ($this->successMessage)
-            <div class="rounded-[1.5rem] bg-green-50 px-5 py-4 text-sm font-bold text-green-700 ring-1 ring-green-100 shadow-sm">
+            <div class="rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700 ring-1 ring-green-100 shadow-sm">
                 {{ $this->successMessage }}
             </div>
         @endif
 
         @if ($this->errorMessage)
-            <div class="rounded-[1.5rem] bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700 ring-1 ring-rose-100 shadow-sm">
+            <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 ring-1 ring-rose-100 shadow-sm">
                 {{ $this->errorMessage }}
             </div>
         @endif
 
-        <div class="app-card overflow-hidden">
-            <div class="flex items-center justify-between gap-4 border-b border-zinc-200 px-5 py-4">
-                <div>
-                    <div class="app-kicker">{{ __('Scheduled Awards') }}</div>
-                    <div class="mt-1 text-xl font-black tracking-tight text-zinc-950">
-                        {{ __('Queued for processing') }}
-                    </div>
-                </div>
-
-                <div class="rounded-full bg-green-50 px-4 py-2 text-sm font-black text-green-700 ring-1 ring-green-100">
-                    {{ $renewals->total() }} {{ __('items') }}
+        <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
+            <div class="flex items-center justify-between gap-4 border-b border-zinc-200 px-4 py-3">
+                <div class="text-sm font-bold text-zinc-900">{{ __('Scheduled Awards') }}</div>
+                <div class="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-green-100">
+                    {{ $renewals->total() }}
                 </div>
             </div>
 
             @if ($renewals->isEmpty())
-                <div class="px-6 py-16 text-center">
-                    <div class="mx-auto flex size-16 items-center justify-center rounded-3xl bg-green-50 text-green-600 ring-1 ring-green-100 shadow-inner">
-                        <flux:icon.calendar-days class="size-8" />
+                <div class="px-4 py-10 text-center">
+                    <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-green-50 text-green-600 ring-1 ring-green-100 shadow-inner">
+                        <flux:icon.calendar-days class="size-6" />
                     </div>
-                    <div class="mt-5 text-xl font-black tracking-tight text-zinc-950">
+                    <div class="mt-3 text-base font-bold text-zinc-900">
                         {{ __('No scheduled renewals yet') }}
                     </div>
-                    <div class="mx-auto mt-2 max-w-sm text-sm font-medium text-zinc-500">
-                        {{ __('Scheduled awards will appear here with their processing status, renewal window, and action history.') }}
+                    <div class="mx-auto mt-1 max-w-sm text-sm text-zinc-500">
+                        {{ __('Scheduled awards will appear here.') }}
                     </div>
                 </div>
             @else

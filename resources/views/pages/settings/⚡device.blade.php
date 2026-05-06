@@ -227,55 +227,44 @@ new #[Title('Device settings')] class extends Component {
     }
 }; ?>
 
-<section class="w-full p-4 md:p-6 bg-app-bg min-h-screen">
-    <div class="flex flex-col gap-4">
-        <div class="px-1 pt-1">
-            <div class="flex items-end justify-between gap-4">
-                <div>
-                    <span class="app-kicker">{{ __('Hardware Interface') }}</span>
-                    <flux:heading size="xl" class="mt-1 text-zinc-950 font-black tracking-tight text-3xl">{{ __('Device Settings') }}</flux:heading>
-                    <flux:text class="mt-1 text-sm font-medium text-zinc-600">
-                        {{ __('Configure radio slots, SIM mapping, and automated retry resilience.') }}
-                    </flux:text>
-                </div>
-
-            <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-green-600 shadow-sm ring-1 ring-zinc-200">
-                <flux:icon.cpu-chip class="size-5" />
-            </div>
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
+    <div class="flex flex-col gap-3">
+        <div class="px-1">
+            <div class="text-xl font-bold text-zinc-900">{{ __('Device Settings') }}</div>
         </div>
 
-            <div class="mt-5 grid grid-cols-2 gap-4 rounded-[1.5rem] bg-white p-4 shadow-sm ring-1 ring-zinc-200 md:grid-cols-4">
+            <div class="grid grid-cols-2 gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-zinc-200 md:grid-cols-4">
                 <div class="flex flex-col">
-                    <span class="text-[8px] font-black uppercase tracking-[0.22em] text-zinc-500">{{ __('Hardware ID') }}</span>
-                    <span class="mt-1 font-mono text-[10px] font-black text-zinc-700 truncate">{{ $this->deviceId }}</span>
+                    <span class="text-[8px] font-bold uppercase tracking-widest text-zinc-500">{{ __('Hardware ID') }}</span>
+                    <span class="mt-1 font-mono text-[10px] font-bold text-zinc-700 truncate">{{ $this->deviceId }}</span>
                 </div>
                 <div class="flex flex-col">
-                    <span class="text-[8px] font-black uppercase tracking-[0.22em] text-zinc-500">{{ __('Platform') }}</span>
-                    <span class="mt-1 text-[11px] font-black text-zinc-700">{{ $this->platformLabel }}</span>
+                    <span class="text-[8px] font-bold uppercase tracking-widest text-zinc-500">{{ __('Platform') }}</span>
+                    <span class="mt-1 text-[11px] font-bold text-zinc-700">{{ $this->platformLabel }}</span>
                 </div>
                 <div class="flex flex-col">
-                    <span class="text-[8px] font-black uppercase tracking-[0.22em] text-zinc-500">{{ __('Device Code') }}</span>
-                    <span class="mt-1 font-mono text-[11px] font-black text-zinc-700 truncate">{{ $this->deviceCode }}</span>
+                    <span class="text-[8px] font-bold uppercase tracking-widest text-zinc-500">{{ __('Device Code') }}</span>
+                    <span class="mt-1 font-mono text-[11px] font-bold text-zinc-700 truncate">{{ $this->deviceCode }}</span>
                 </div>
                 <div class="flex flex-col">
-                    <span class="text-[8px] font-black uppercase tracking-[0.22em] text-zinc-500">{{ __('Power') }}</span>
-                    <span class="mt-1 text-[11px] font-black text-zinc-700">{{ __('AC Supply') }}</span>
+                    <span class="text-[8px] font-bold uppercase tracking-widest text-zinc-500">{{ __('Power') }}</span>
+                    <span class="mt-1 text-[11px] font-bold text-zinc-700">{{ __('AC Supply') }}</span>
                 </div>
             </div>
         </div>
 
         <div class="grid gap-4 xl:grid-cols-3">
-            <article class="rounded-[1.5rem] bg-white p-6 shadow-sm ring-1 ring-zinc-200 xl:col-span-1">
+            <article class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 xl:col-span-1">
                 <div class="flex items-center gap-4">
                     <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-50 text-green-700 shadow-inner ring-1 ring-green-100">
                         <span class="text-lg font-black">{{ strtoupper(substr($this->operator_identity ?: Auth::user()->name, 0, 1)) }}</span>
                     </div>
 
                     <div>
-                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        <div class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                             {{ __('Operator identity') }}
                         </div>
-                        <flux:heading size="lg" class="mt-1 font-black tracking-tight text-zinc-950">{{ $this->operator_identity ?: Auth::user()->name }}</flux:heading>
+                        <div class="mt-1 text-base font-bold text-zinc-900">{{ $this->operator_identity ?: Auth::user()->name }}</div>
                     </div>
                 </div>
 
@@ -298,12 +287,12 @@ new #[Title('Device settings')] class extends Component {
                 </form>
             </article>
 
-            <article class="rounded-[1.5rem] bg-white p-6 shadow-sm ring-1 ring-zinc-200 xl:col-span-2">
+            <article class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 xl:col-span-2">
                 <div>
-                    <div class="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <div class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                         {{ __('Radio & hardware') }}
                     </div>
-                    <flux:heading size="lg" class="mt-1 font-black tracking-tight text-zinc-950">{{ __('SIM Slot Mapping') }}</flux:heading>
+                    <div class="mt-1 text-base font-bold text-zinc-900">{{ __('SIM Slot Mapping') }}</div>
                 </div>
 
                 <form wire:submit="saveHardwareMapping" class="mt-8 space-y-8">
@@ -370,17 +359,17 @@ new #[Title('Device settings')] class extends Component {
             </article>
         </div>
 
-        <article class="rounded-[1.5rem] bg-white p-6 shadow-sm ring-1 ring-zinc-200">
+        <article class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
             <div class="flex items-center gap-4">
                 <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 shadow-inner ring-1 ring-amber-100">
                     <flux:icon.command-line class="size-6" />
                 </div>
 
                 <div>
-                    <div class="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <div class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                         {{ __('Advanced job logic') }}
                     </div>
-                    <flux:heading size="lg" class="mt-1 font-black tracking-tight text-zinc-950">{{ __('Retry & resilience rules') }}</flux:heading>
+                    <div class="mt-1 text-base font-bold text-zinc-900">{{ __('Retry & resilience rules') }}</div>
                 </div>
             </div>
 

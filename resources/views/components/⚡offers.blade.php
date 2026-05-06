@@ -272,32 +272,20 @@ new #[Title('My Offers')] class extends Component {
     }
 }; ?>
 
-<section class="w-full p-4 md:p-6 bg-app-bg min-h-screen">
-    <div class="flex flex-col gap-4">
-        <div class="px-1 pt-1">
-            <div class="flex items-end justify-between gap-4">
-                <div>
-                    <span class="app-kicker">{{ __('My Offers') }}</span>
-                    <flux:heading size="xl" class="mt-1 text-zinc-950 font-black tracking-tight text-3xl">{{ __('My Offers') }}</flux:heading>
-                </div>
-
-                <div class="flex items-center gap-3">
-                    <div class="hidden rounded-full bg-white px-4 py-2 text-sm font-black text-zinc-950 shadow-sm ring-1 ring-zinc-200 sm:block">
-                        {{ $this->offersCount }} {{ __('active') }}
-                    </div>
-
-                    <flux:modal.trigger name="offer-form">
-                        <flux:button
-                            type="button"
-                            wire:click="createOffer"
-                            class="app-primary-button !h-11 px-6 font-black uppercase tracking-widest text-[10px]"
-                        >
-                            <flux:icon.plus variant="mini" class="mr-2 size-4" />
-                            {{ __('Add Offer') }}
-                        </flux:button>
-                    </flux:modal.trigger>
-                </div>
-            </div>
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
+    <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between px-1">
+            <div class="text-xl font-bold text-zinc-900">{{ __('My Offers') }}</div>
+            <flux:modal.trigger name="offer-form">
+                <flux:button
+                    type="button"
+                    wire:click="createOffer"
+                    class="app-primary-button !h-9 px-4 text-[10px] font-bold uppercase tracking-widest"
+                >
+                    <flux:icon.plus variant="mini" class="mr-1 size-3.5" />
+                    {{ __('Add') }}
+                </flux:button>
+            </flux:modal.trigger>
         </div>
 
         <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -307,9 +295,9 @@ new #[Title('My Offers')] class extends Component {
                     variant="ghost"
                     wire:click="setCategoryFilter('{{ $value }}')"
                     @class([
-                        'shrink-0 rounded-2xl px-6 text-[10px] font-black uppercase tracking-widest transition active:scale-95',
-                        'bg-green-50 text-zinc-950 ring-1 ring-green-100 shadow-sm' => $this->activeCategory === $value,
-                        'bg-white text-zinc-400 ring-1 ring-zinc-200' => $this->activeCategory !== $value,
+                        'shrink-0 rounded-xl h-8 px-4 text-[10px] font-bold uppercase tracking-widest transition active:scale-95',
+                        'bg-green-600 text-white shadow-sm ring-1 ring-inset ring-green-700/20' => $this->activeCategory === $value,
+                        'bg-white text-zinc-500 ring-1 ring-inset ring-zinc-200 hover:bg-zinc-50 hover:text-zinc-900' => $this->activeCategory !== $value,
                     ])
                 >
                     {{ $label }}
@@ -319,20 +307,20 @@ new #[Title('My Offers')] class extends Component {
 
 
         @if ($this->offers->isEmpty())
-            <div class="rounded-[1.75rem] bg-white px-6 py-16 text-center shadow-sm ring-1 ring-zinc-200">
-                <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-green-50 text-green-600 shadow-inner mb-6">
-                    <flux:icon.sparkles class="size-8" />
+            <div class="rounded-xl bg-white px-6 py-12 text-center shadow-sm ring-1 ring-zinc-200">
+                <div class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-green-50 text-green-600 shadow-inner mb-4">
+                    <flux:icon.sparkles class="size-6" />
                 </div>
-                <div class="text-xl font-black text-zinc-950 tracking-tight">
+                <div class="text-base font-bold text-zinc-900">
                     {{ __('No offers found') }}
                 </div>
-                <div class="mt-2 text-sm font-medium text-zinc-500">
+                <div class="mt-1 text-sm text-zinc-500">
                     {{ __('Define your first automated USSD service to get started.') }}
                 </div>
 
-                <div class="mt-8">
+                <div class="mt-6">
                     <flux:modal.trigger name="offer-form">
-                        <flux:button variant="primary" type="button" wire:click="createOffer" class="app-primary-button h-12 px-8 font-black uppercase tracking-widest text-[10px]">
+                        <flux:button variant="primary" type="button" wire:click="createOffer" class="app-primary-button h-10 px-6 text-[10px] font-bold uppercase tracking-widest">
                             {{ __('Create first offer') }}
                         </flux:button>
                     </flux:modal.trigger>
@@ -342,7 +330,7 @@ new #[Title('My Offers')] class extends Component {
             <div class="flex flex-col gap-3">
                 @foreach ($this->offers as $offer)
                     <article @class([
-                        'group relative overflow-hidden rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 transition hover:ring-green-500/30',
+                        'group relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 transition hover:ring-green-500/30',
                         'ring-green-500/20' => $offer->is_active,
                         'ring-zinc-200 grayscale-[0.5]' => !$offer->is_active,
                     ])>
@@ -353,7 +341,7 @@ new #[Title('My Offers')] class extends Component {
                         <div class="flex items-start justify-between gap-4">
                             <div class="flex-1 space-y-2.5">
                                 <div class="flex items-center gap-3">
-                                    <flux:heading size="lg" class="text-zinc-950 font-black tracking-tight">{{ $offer->name }}</flux:heading>
+                                    <flux:heading size="lg" class="text-zinc-950 font-bold tracking-tight text-base">{{ $offer->name }}</flux:heading>
                                     @if ($offer->is_active)
                                         <span class="inline-flex items-center rounded-lg bg-green-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-green-700 ring-1 ring-green-100">
                                             {{ __('Active') }}
@@ -379,7 +367,7 @@ new #[Title('My Offers')] class extends Component {
                             </div>
                         </div>
 
-                        <div class="mt-6 flex items-center justify-between border-t border-zinc-200 pt-5">
+                        <div class="mt-4 flex items-center justify-between border-t border-zinc-200 pt-3">
                             <div class="flex items-center gap-2">
                                 <div @class([
                                     'h-1.5 w-1.5 rounded-full',
@@ -392,13 +380,13 @@ new #[Title('My Offers')] class extends Component {
                             </div>
 
                             <div class="flex items-center gap-2">
-                                <flux:button variant="ghost" size="sm" type="button" wire:click="editOffer({{ $offer->id }})" class="app-secondary-button rounded-2xl text-zinc-700">
+                                <button type="button" wire:click="editOffer({{ $offer->id }})" class="app-secondary-button flex size-8 items-center justify-center">
                                     <flux:icon.pencil-square class="size-4" />
-                                </flux:button>
+                                </button>
 
-                                <flux:button variant="ghost" size="sm" type="button" wire:click="confirmDeleteOffer({{ $offer->id }})" class="app-danger-button rounded-2xl text-xs">
+                                <button type="button" wire:click="confirmDeleteOffer({{ $offer->id }})" class="app-danger-button flex size-8 items-center justify-center">
                                     <flux:icon.trash class="size-4" />
-                                </flux:button>
+                                </button>
                             </div>
                         </div>
                     </article>

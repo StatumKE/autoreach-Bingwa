@@ -354,69 +354,58 @@ new #[Title('Auto Replies')] class extends Component {
     }
 }; ?>
 
-<section class="w-full p-4 md:p-6 bg-app-bg min-h-screen">
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
     @php
         $autoReplies = $this->autoReplies;
     @endphp
 
-    <div class="flex flex-col gap-5 pb-24">
-        <div class="px-1 pt-1">
-            <div class="flex items-end justify-between gap-4">
-                <div class="min-w-0">
-                    <span class="app-kicker">{{ __('Automation') }}</span>
-                    <flux:heading size="xl" class="mt-1 truncate text-3xl font-black tracking-tight text-zinc-950">
-                        {{ __('AutoReply Messages') }}
-                    </flux:heading>
-                    <flux:text class="mt-1 text-sm font-medium text-zinc-600">
-                        {{ __('Create replies that trigger after awards succeed or fail.') }}
-                    </flux:text>
-                </div>
-
-                <button
-                    type="button"
-                    wire:click="createAutoReply"
-                    class="app-primary-button flex size-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm transition active:scale-[0.98]"
-                    aria-label="{{ __('Create auto reply') }}"
-                >
-                    <flux:icon.plus class="size-5" />
-                </button>
-            </div>
+    <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between px-1">
+            <div class="text-xl font-bold text-zinc-900">{{ __('Auto Replies') }}</div>
+            <button
+                type="button"
+                wire:click="createAutoReply"
+                class="app-primary-button flex h-9 items-center gap-2 px-4 text-[10px] font-bold uppercase tracking-widest transition active:scale-95"
+            >
+                <flux:icon.plus class="size-3.5" />
+                {{ __('Add') }}
+            </button>
         </div>
 
         @if ($this->successMessage)
-            <div class="rounded-[1.5rem] bg-green-50 px-5 py-4 text-sm font-bold text-green-700 ring-1 ring-green-100 shadow-sm">
+            <div class="rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700 ring-1 ring-green-100 shadow-sm">
                 {{ $this->successMessage }}
             </div>
         @endif
 
         @if ($this->errorMessage)
-            <div class="rounded-[1.5rem] bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700 ring-1 ring-rose-100 shadow-sm">
+            <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 ring-1 ring-rose-100 shadow-sm">
                 {{ $this->errorMessage }}
             </div>
         @endif
 
         @if ($autoReplies->isEmpty())
-            <div class="app-card px-6 py-16 text-center">
-                <div class="mx-auto flex size-16 items-center justify-center rounded-3xl bg-green-50 text-green-600 ring-1 ring-green-100 shadow-inner">
-                    <flux:icon.sparkles class="size-8" />
+            <div class="rounded-xl bg-white px-4 py-10 text-center shadow-sm ring-1 ring-zinc-200">
+                <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-green-50 text-green-600 ring-1 ring-green-100 shadow-inner">
+                    <flux:icon.sparkles class="size-6" />
                 </div>
-                <div class="mt-5 text-xl font-black tracking-tight text-zinc-950">
+                <div class="mt-3 text-base font-bold text-zinc-900">
                     {{ __('No auto replies yet') }}
                 </div>
-                <div class="mx-auto mt-2 max-w-sm text-sm font-medium text-zinc-500">
-                    {{ __('Default reply templates will be created automatically for this account.') }}
+                <div class="mx-auto mt-1 max-w-sm text-sm text-zinc-500">
+                    {{ __('Default reply templates will be created automatically.') }}
                 </div>
             </div>
         @else
             <div class="flex flex-col gap-3">
                 @foreach ($autoReplies as $autoReply)
-                    <article class="app-card p-4">
+                    <article class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
                         <div class="flex items-start justify-between gap-4">
                             <div class="min-w-0 flex-1 space-y-2">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <flux:heading size="sm" class="truncate text-base font-black tracking-tight text-zinc-950">
+                                    <span class="truncate text-sm font-bold text-zinc-900">
                                         {{ $autoReply->name }}
-                                    </flux:heading>
+                                    </span>
 
                                     @if ($autoReply->is_default)
                                         <span class="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-zinc-600 ring-1 ring-zinc-200">
@@ -475,14 +464,7 @@ new #[Title('Auto Replies')] class extends Component {
         @endif
     </div>
 
-    <button
-        type="button"
-        wire:click="createAutoReply"
-        class="fixed bottom-6 right-6 flex size-16 items-center justify-center rounded-3xl bg-green-700 text-white shadow-lg shadow-green-700/25 ring-1 ring-green-800/30 transition active:scale-[0.98] md:hidden"
-        aria-label="{{ __('Create auto reply') }}"
-    >
-        <flux:icon.plus class="size-8" />
-    </button>
+
 
     <flux:modal name="auto-reply-form" focusable class="max-w-lg">
         <form wire:submit="saveAutoReply" class="space-y-5 p-1">

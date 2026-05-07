@@ -125,8 +125,7 @@ test('a plan can be selected in the mobile ui', function () {
         ->call('selectPlan', 5);
 
     $response->assertSet('selectedPlanId', 5);
-    $response->assertSee('Selected plan');
-    $response->assertSee('Clear');
+    $response->assertSee('SELECTED');
 });
 
 test('usage pack plans show ussd requests instead of duration', function () {

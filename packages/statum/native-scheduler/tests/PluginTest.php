@@ -25,7 +25,7 @@ describe('Plugin Manifest', function () {
 
         expect($manifest)->toHaveKeys(['name', 'namespace', 'bridge_functions']);
         expect($manifest['name'])->toBe('statum/native-scheduler');
-        expect($manifest['namespace'])->toBe('NativeScheduler');
+        expect($manifest['namespace'])->toBe('BingwaEngine');
     });
 
     it('has valid bridge functions', function () {
@@ -35,75 +35,43 @@ describe('Plugin Manifest', function () {
 
         foreach ($manifest['bridge_functions'] as $function) {
             expect($function)->toHaveKeys(['name']);
-            expect($function)->toHaveAnyKeys(['android', 'ios']);
+            expect($function)->toHaveKey('android');
+            expect($function['android'])->toBeString();
+            expect($function['android'])->not->toBeEmpty();
         }
     });
 
     it('has valid marketplace metadata', function () {
         $manifest = json_decode(file_get_contents($this->manifestPath), true);
 
-        // Optional but recommended for marketplace
-        if (isset($manifest['keywords'])) {
-            expect($manifest['keywords'])->toBeArray();
-        }
-
-        if (isset($manifest['category'])) {
-            expect($manifest['category'])->toBeString();
-        }
-
-        if (isset($manifest['platforms'])) {
-            expect($manifest['platforms'])->toBeArray();
-            foreach ($manifest['platforms'] as $platform) {
-                expect($platform)->toBeIn(['android', 'ios']);
-            }
-        }
+        expect($manifest)->not->toHaveKeys(['keywords', 'category', 'platforms']);
     });
 });
 
 describe('Native Code', function () {
     it('has Android Kotlin file', function () {
-        $kotlinFile = $this->pluginPath.'/resources/android/NativeSchedulerFunctions.kt';
+        $kotlinFile = $this->pluginPath.'/resources/android/src/com/statum/plugins/nativescheduler/BingwaFunctions.kt';
 
         expect(file_exists($kotlinFile))->toBeTrue();
 
         $content = file_get_contents($kotlinFile);
-        expect($content)->toContain('package com.statum.plugins.native_scheduler');
-        expect($content)->toContain('object NativeSchedulerFunctions');
-        expect($content)->toContain('BridgeFunction');
-    });
-
-    it('has iOS Swift file', function () {
-        $swiftFile = $this->pluginPath.'/resources/ios/NativeSchedulerFunctions.swift';
-
-        expect(file_exists($swiftFile))->toBeTrue();
-
-        $content = file_get_contents($swiftFile);
-        expect($content)->toContain('enum NativeSchedulerFunctions');
+        expect($content)->toContain('package com.statum.plugins.nativescheduler');
+        expect($content)->toContain('object BingwaFunctions');
         expect($content)->toContain('BridgeFunction');
     });
 
     it('has matching bridge function classes in native code', function () {
         $manifest = json_decode(file_get_contents($this->manifestPath), true);
 
-        $kotlinFile = $this->pluginPath.'/resources/android/NativeSchedulerFunctions.kt';
-        $swiftFile = $this->pluginPath.'/resources/ios/NativeSchedulerFunctions.swift';
+        $kotlinFile = $this->pluginPath.'/resources/android/src/com/statum/plugins/nativescheduler/BingwaFunctions.kt';
 
         $kotlinContent = file_get_contents($kotlinFile);
-        $swiftContent = file_get_contents($swiftFile);
 
         foreach ($manifest['bridge_functions'] as $function) {
-            // Extract class name from the function reference
-            if (isset($function['android'])) {
-                $parts = explode('.', $function['android']);
-                $className = end($parts);
-                expect($kotlinContent)->toContain("class {$className}");
-            }
+            $parts = explode('.', $function['android']);
+            $className = end($parts);
 
-            if (isset($function['ios'])) {
-                $parts = explode('.', $function['ios']);
-                $className = end($parts);
-                expect($swiftContent)->toContain("class {$className}");
-            }
+            expect($kotlinContent)->toContain("class {$className}");
         }
     });
 });

@@ -23,6 +23,7 @@
     },
     "android": {
         "min_version": 26,
+        "init_function": "com.statum.plugins.nativescheduler.BingwaPluginInit.initialize",
         "dependencies": {
             "implementation": [
                 "com.squareup.okhttp3:okhttp:4.12.0"

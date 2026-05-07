@@ -86,8 +86,7 @@ new #[Title('Quick Dial')] class extends Component {
         $contacts = app(QuickDialContacts::class);
 
         if (! $contacts->checkPermission()) {
-            $contacts->requestPermission();
-            $this->contactMessage = __('Contacts permission is required. Allow it, then tap Contacts again.');
+            $this->contactMessage = __('Contacts permission is required. Grant it during setup, then tap Contacts again.');
 
             return;
         }
@@ -438,8 +437,13 @@ new #[Title('Quick Dial')] class extends Component {
         </div>
     </div>
 
-    <flux:modal name="contact-picker" class="max-w-lg" @close="closeContactPicker">
-        <div class="space-y-5 p-1">
+    <flux:modal
+        name="contact-picker"
+        focusable
+        class="max-w-md sm:max-w-lg"
+        @close="closeContactPicker"
+    >
+        <div class="max-h-[72vh] space-y-5 overflow-y-auto p-1 pb-2">
             <div>
                 <flux:heading size="lg" class="font-black tracking-tight">{{ __('Find contact') }}</flux:heading>
                 <flux:subheading>{{ __('Search your device contacts by name or number.') }}</flux:subheading>

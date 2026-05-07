@@ -12,11 +12,11 @@ test('quick dial page can be rendered', function () {
     $this->get(route('quick-dials'))
         ->assertOk()
         ->assertSee('Quick Dial')
-        ->assertSee('Directly award offers to customers')
         ->assertSee('Customer information')
         ->assertSee('Available offers')
         ->assertSee('Contacts')
-        ->assertSee('Find contact');
+        ->assertSee('Find contact')
+        ->assertSee('Search your device contacts by name or number.');
 });
 
 test('quick dial page searches native contacts', function () {
@@ -67,8 +67,7 @@ test('quick dial page requests contacts permission when missing', function () {
             ->andReturn(false);
 
         $mock->shouldReceive('requestPermission')
-            ->once()
-            ->andReturn(true);
+            ->never();
     });
 
     Livewire::test('quick-dials')

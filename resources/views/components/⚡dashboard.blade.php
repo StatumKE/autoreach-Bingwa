@@ -5,7 +5,6 @@ use App\Models\Plan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -157,11 +156,6 @@ new #[Title('Dashboard')] class extends Component
         $this->refreshKey++;
     }
 
-    #[On('autoreach-transaction-saved')]
-    public function refreshAfterTransactionBroadcast(): void
-    {
-        $this->refreshData();
-    }
 }; ?>
 
 <div class="min-h-screen bg-app-bg px-4 pb-24 pt-3 text-zinc-900" wire:poll.10s="refreshData">

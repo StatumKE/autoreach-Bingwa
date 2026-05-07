@@ -36,7 +36,7 @@
 
                 window.__bingwaSetupPermissionsRequested = true;
 
-                const storageKey = 'bingwa.setupPermissions.requested.v1';
+                const storageKey = 'bingwa.setupPermissions.granted.v1';
 
                 if (window.localStorage.getItem(storageKey) === '1') {
                     return;
@@ -63,7 +63,14 @@
                             }),
                         });
 
-                        if (response.ok) {
+                        if (!response.ok) {
+                            return;
+                        }
+
+                        const result = await response.json();
+                        const nativeData = result.data?.data ?? result.data ?? {};
+
+                        if (nativeData.runtimePermissionsGranted === true) {
                             window.localStorage.setItem(storageKey, '1');
                         }
                     } catch (error) {

@@ -308,11 +308,11 @@ new #[Title('Subscriptions')] class extends Component {
                                     'flex h-10 w-full items-center justify-center rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm transition active:scale-95 disabled:pointer-events-none disabled:opacity-50 ring-1 ring-inset',
                                     'bg-green-600 text-white ring-green-700/20' => $this->selectedPlanId === ($plan['id'] ?? null),
                                     'bg-white text-zinc-700 ring-zinc-200 hover:bg-zinc-50' => $this->selectedPlanId !== ($plan['id'] ?? null),
-                                ])
-                                type="button"
-                                wire:click="selectPlan({{ (int) ($plan['id'] ?? 0) }})"
-                                :disabled="$this->activePlan !== null"
-                            >
+                            ])
+                            type="button"
+                            wire:click="selectPlan({{ (int) ($plan['id'] ?? 0) }})"
+                            @disabled($this->activePlan !== null)
+                        >
                                 @if ($this->activePlan?->backend_plan_id === ($plan['id'] ?? null))
                                     {{ __('ACTIVE') }}
                                 @elseif ($this->activePlan)

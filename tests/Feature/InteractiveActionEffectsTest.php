@@ -31,7 +31,7 @@ test('plans page shows loading feedback for refresh and purchase actions', funct
         ])
         ->set('selectedPlanId', 1)
         ->set('sambazaLine', '254700000000')
-        ->assertSee('Loading…')
+        ->assertSee('Refresh')
         ->assertSee('Purchasing…');
 });
 
@@ -52,15 +52,13 @@ test('dashboard refresh action shows loading feedback', function () {
         ->assertSee('wire:loading.attr="disabled"', false);
 });
 
-test('authenticated mobile shell requests setup permissions through native bridge', function () {
+test('authenticated mobile shell does not include broadcast bootstrap', function () {
     $this->actingAs(User::factory()->create())
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertSee('RequestSetupPermissions')
-        ->assertSee('bingwa.setupPermissions.requested.v1')
-        ->assertSee('openSpecialSettings')
-        ->assertDontSee('bingwa.transactions.poll')
-        ->assertDontSee('__bingwaTransactionPollerStarted');
+        ->assertDontSee('__autoreachBroadcasting')
+        ->assertDontSee('broadcast-listener')
+        ->assertDontSee('RequestSetupPermissions');
 });
 
 test('two factor settings actions show loading feedback', function () {

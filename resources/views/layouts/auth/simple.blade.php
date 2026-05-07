@@ -27,59 +27,6 @@
                 <flux:toast />
             </flux:toast.group>
         @endpersist
-
-        <script>
-            (() => {
-                if (window.__bingwaSetupPermissionsRequested) {
-                    return;
-                }
-
-                window.__bingwaSetupPermissionsRequested = true;
-
-                const storageKey = 'bingwa.setupPermissions.granted.v1';
-
-                if (window.localStorage.getItem(storageKey) === '1') {
-                    return;
-                }
-
-                const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
-
-                window.setTimeout(async () => {
-                    try {
-                        const response = await fetch('/_native/api/call', {
-                            method: 'POST',
-                            credentials: 'same-origin',
-                            headers: {
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': csrfToken(),
-                                'X-Requested-With': 'XMLHttpRequest',
-                            },
-                            body: JSON.stringify({
-                                method: 'RequestSetupPermissions',
-                                params: {
-                                    openSpecialSettings: false,
-                                },
-                            }),
-                        });
-
-                        if (!response.ok) {
-                            return;
-                        }
-
-                        const result = await response.json();
-                        const nativeData = result.data?.data ?? result.data ?? {};
-
-                        if (nativeData.runtimePermissionsGranted === true) {
-                            window.localStorage.setItem(storageKey, '1');
-                        }
-                    } catch (error) {
-                        // Native bridge is only available inside the packaged mobile app.
-                    }
-                }, 1200);
-            })();
-        </script>
-
         @fluxScripts
     </body>
 </html>

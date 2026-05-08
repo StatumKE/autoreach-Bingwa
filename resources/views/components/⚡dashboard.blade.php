@@ -1,9 +1,11 @@
 <?php
 
+use App\Actions\Autoreach\RefreshAirtimeBalance;
 use App\Models\Transaction;
 use App\Models\Plan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -13,6 +15,32 @@ new #[Title('Dashboard')] class extends Component
     public bool $showBalance = true;
 
     public int $refreshKey = 0;
+
+    public ?float $airtimeBalance = null;
+
+    public ?string $airtimeBalanceCheckedAt = null;
+
+    public ?string $airtimeBalanceRawResponse = null;
+
+    public bool $callPhonePermissionDenied = false;
+
+    /**
+     * Hydrate the dashboard from the latest stored balance snapshot.
+     */
+    public function mount(): void
+    {
+        Log::debug('Bingwa dashboard mount started.', [
+            'user_id' => Auth::id(),
+        ]);
+
+        $this->hydrateAirtimeBalance();
+
+        Log::debug('Bingwa dashboard airtime response ready.', [
+            'user_id' => Auth::id(),
+            'balance' => $this->airtimeBalance,
+            'checked_at' => $this->airtimeBalanceCheckedAt,
+        ]);
+    }
 
     /**
      * Get the dynamic greeting based on time of day.
@@ -81,6 +109,22 @@ new #[Title('Dashboard')] class extends Component
         return [
             'used_today' => $today,
         ];
+    }
+
+    public function hydrateAirtimeBalance(): void
+    {
+        $snapshot = app(RefreshAirtimeBalance::class)->cached(Auth::user());
+
+        Log::debug('Bingwa dashboard airtime cache hydrated.', [
+            'user_id' => Auth::id(),
+            'has_balance' => $snapshot['balance'] !== null,
+            'checked_at' => $snapshot['checked_at']?->toIso8601String(),
+        ]);
+
+        $this->airtimeBalance = $snapshot['balance'];
+        $this->airtimeBalanceCheckedAt = $snapshot['checked_at']?->format('d M, H:i');
+        $this->airtimeBalanceRawResponse = $snapshot['raw_response'];
+        $this->callPhonePermissionDenied = $snapshot['permission_denied'];
     }
 
     /**
@@ -153,12 +197,37 @@ new #[Title('Dashboard')] class extends Component
 
     public function refreshData(): void
     {
+        $this->refreshAirtimeBalance();
         $this->refreshKey++;
+    }
+
+    /**
+     * Refresh the airtime balance from the active transaction SIM.
+     */
+    public function refreshAirtimeBalance(): void
+    {
+        Log::debug('Bingwa dashboard airtime refresh requested.', [
+            'user_id' => Auth::id(),
+        ]);
+
+        $result = app(RefreshAirtimeBalance::class)->refresh(Auth::user());
+
+        $this->airtimeBalance = $result['balance'];
+        $this->airtimeBalanceCheckedAt = $result['checked_at']?->format('d M, H:i');
+        $this->airtimeBalanceRawResponse = $result['raw_response'];
+        $this->callPhonePermissionDenied = $result['permission_denied'];
+
+        Log::debug('Bingwa dashboard airtime refresh applied.', [
+            'user_id' => Auth::id(),
+            'balance' => $this->airtimeBalance,
+            'checked_at' => $this->airtimeBalanceCheckedAt,
+            'permission_denied' => $this->callPhonePermissionDenied,
+        ]);
     }
 
 }; ?>
 
-<div class="min-h-screen bg-app-bg px-4 pb-24 pt-3 text-zinc-900" wire:poll.10s="refreshData">
+<div class="min-h-screen bg-app-bg px-4 pb-24 pt-3 text-zinc-900" wire:poll.15m="refreshAirtimeBalance">
     <div class="mx-auto flex max-w-[780px] flex-col gap-3">
         {{-- Greeting --}}
         <div class="flex items-start justify-between px-1">
@@ -170,6 +239,19 @@ new #[Title('Dashboard')] class extends Component
 
         {{-- Stat Cards --}}
         <div class="grid grid-cols-3 gap-3">
+
+        {{-- CALL_PHONE permission warning --}}
+        @if ($this->callPhonePermissionDenied)
+            <div class="col-span-3 flex items-start gap-3 rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200">
+                <flux:icon.exclamation-triangle class="mt-0.5 size-4 shrink-0 text-amber-500" />
+                <div class="min-w-0">
+                    <div class="text-xs font-bold text-amber-800">{{ __('Phone Permission Required') }}</div>
+                    <div class="mt-0.5 text-[11px] leading-snug text-amber-700">
+                        {{ __('Airtime balance cannot be fetched. Go to Settings → Apps → Bingwa → Permissions and enable Phone access.') }}
+                    </div>
+                </div>
+            </div>
+        @endif
             <a href="{{ route('transactions', ['filter' => 'success']) }}" wire:navigate class="flex flex-col items-center rounded-2xl bg-[#0f652a] px-3 py-3 text-white transition active:scale-[0.97]">
                 <div class="text-2xl font-black leading-none">{{ number_format($this->stats['successful']) }}</div>
                 <div class="mt-1 text-xs font-medium text-emerald-100/90">{{ __('Successful') }}</div>
@@ -210,15 +292,22 @@ new #[Title('Dashboard')] class extends Component
 
             <div class="flex flex-col items-center text-center">
                 <div class="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{{ __('Airtime Balance') }}</div>
-                <div class="mt-1 flex items-center gap-1.5 text-sm font-medium text-zinc-800">
-                    <span>Ksh</span>
-                    <button wire:click="toggleBalance" class="text-zinc-400" type="button">
-                        @if($this->showBalance)
-                            <flux:icon.eye class="size-4" />
-                        @else
-                            <flux:icon.eye-slash class="size-4" />
-                        @endif
-                    </button>
+                <div class="mt-1 flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5 text-sm font-medium text-zinc-800">
+                        <span>Ksh {{ $this->showBalance ? number_format($this->airtimeBalance ?? 0, 2) : '••••' }}</span>
+                        <button wire:click="toggleBalance" class="text-zinc-400" type="button">
+                            @if($this->showBalance)
+                                <flux:icon.eye class="size-4" />
+                            @else
+                                <flux:icon.eye-slash class="size-4" />
+                            @endif
+                        </button>
+                    </div>
+                    @if ($this->airtimeBalance === null && filled($this->airtimeBalanceRawResponse))
+                        <div class="max-w-[120px] truncate text-[9px] font-bold text-rose-600/70" title="{{ $this->airtimeBalanceRawResponse }}">
+                            {{ $this->airtimeBalanceRawResponse }}
+                        </div>
+                    @endif
                 </div>
             </div>
 

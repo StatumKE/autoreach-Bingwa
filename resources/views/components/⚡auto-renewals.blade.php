@@ -89,6 +89,15 @@ new #[Title('Auto Renewals')] class extends Component {
     }
 
     /**
+     * Explain why scheduling cannot start yet.
+     */
+    public function explainSchedulingRequirement(): void
+    {
+        $this->successMessage = null;
+        $this->errorMessage = __('Create and activate at least one offer before scheduling renewals.');
+    }
+
+    /**
      * Cancel a scheduled auto-renewal.
      */
     public function cancelAutoRenewal(int $autoRenewalId): void
@@ -263,16 +272,26 @@ new #[Title('Auto Renewals')] class extends Component {
     <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between px-1">
             <div class="text-xl font-bold text-zinc-900">{{ __('Auto Renewals') }}</div>
-            <flux:modal.trigger name="renewal-form">
+            @if ($activeOffers->isEmpty())
                 <button
                     type="button"
-                    class="app-primary-button inline-flex h-9 shrink-0 items-center gap-2 px-4 text-[10px] font-bold uppercase tracking-widest"
-                    @disabled($activeOffers->isEmpty())
+                    wire:click="explainSchedulingRequirement"
+                    class="app-secondary-button inline-flex h-9 shrink-0 items-center gap-2 px-4 text-[10px] font-bold uppercase tracking-widest"
                 >
                     <flux:icon.plus class="size-3.5" />
                     {{ __('Create') }}
                 </button>
-            </flux:modal.trigger>
+            @else
+                <flux:modal.trigger name="renewal-form">
+                    <button
+                        type="button"
+                        class="app-primary-button inline-flex h-9 shrink-0 items-center gap-2 px-4 text-[10px] font-bold uppercase tracking-widest"
+                    >
+                        <flux:icon.plus class="size-3.5" />
+                        {{ __('Create') }}
+                    </button>
+                </flux:modal.trigger>
+            @endif
         </div>
 
         @if ($this->successMessage)

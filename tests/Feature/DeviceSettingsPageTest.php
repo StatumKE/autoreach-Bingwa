@@ -12,7 +12,6 @@ test('device settings page is displayed', function () {
         ->assertSee('Autoreach Bingwa')
         ->assertSeeInOrder(['Quick Dial', 'Device', 'Hardware'])
         ->assertDontSee('Security')
-        ->assertSee('Configure radio slots, SIM mapping, and automated retry resilience.')
         ->assertSee('SIM Slot Mapping')
         ->assertSee('Android')
         ->assertDontSee('Android Unknown')
@@ -54,6 +53,38 @@ test('device settings can be updated and stored in the database', function () {
         'retry_interval_minutes' => 3,
         'max_attempts' => 4,
         'retry_network_issues' => true,
+    ]);
+});
+
+test('sim slot mapping can be updated independently', function () {
+    $user = User::factory()->create();
+
+    DeviceSetting::query()->create([
+        'user_id' => $user->id,
+        'operator_identity' => 'Alice Admin',
+        'primary_transaction_sim' => 'slot_1',
+        'sms_auto_reply_sim' => 'slot_1',
+        'auto_reschedule_rejected' => false,
+        'retry_tomorrow_at' => null,
+        'ussd_timeout_seconds' => 30,
+        'intelligent_auto_retry' => true,
+        'retry_interval_minutes' => 1,
+        'max_attempts' => 2,
+        'retry_network_issues' => false,
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test('pages::settings.device')
+        ->set('primary_transaction_sim', 'slot_2')
+        ->set('sms_auto_reply_sim', 'slot_2')
+        ->call('saveHardwareMapping')
+        ->assertHasNoErrors();
+
+    $this->assertDatabaseHas('device_settings', [
+        'user_id' => $user->id,
+        'primary_transaction_sim' => 'slot_2',
+        'sms_auto_reply_sim' => 'slot_2',
     ]);
 });
 

@@ -35,7 +35,7 @@ test('registration screen can be rendered before the local device registration t
     }
 });
 
-test('registration screen still renders on an already registered device', function () {
+test('registration screen hides the form when a local account already exists for a registered device', function () {
     $user = User::factory()->create([
         'email' => 'registered@example.com',
     ]);
@@ -55,8 +55,20 @@ test('registration screen still renders on an already registered device', functi
     $response = $this->get(route('register'));
 
     $response->assertOk();
-    $response->assertSee('Autoreach Connect ID');
-    $response->assertDontSee('This device is already registered. Log in below, or use the APK on a new device to register another installation.');
+    $response->assertSee('This account is already registered on this device.');
+    $response->assertDontSee('Autoreach Connect ID');
+});
+
+test('registration screen hides the form after a single local account exists', function () {
+    User::factory()->create([
+        'email' => 'existing@example.com',
+    ]);
+
+    $response = $this->get(route('register'));
+
+    $response->assertOk();
+    $response->assertSee('This account is already registered on this device.');
+    $response->assertDontSee('Autoreach Connect ID');
 });
 
 test('new users can register', function () {
@@ -69,6 +81,7 @@ test('new users can register', function () {
     ]);
 
     $response->assertSessionHasNoErrors()
+        ->assertSessionHas('request_setup_permissions_after_onboarding', true)
         ->assertCookie(Auth::getRecallerName())
         ->assertRedirect(route('dashboard', absolute: false));
 
@@ -77,6 +90,12 @@ test('new users can register', function () {
     $this->assertDatabaseHas('users', [
         'email' => 'test@example.com',
         'autoreach_connect_id' => 'AC-12345',
+    ]);
+
+    $this->assertDatabaseHas('device_settings', [
+        'user_id' => auth()->id(),
+        'operator_identity' => 'John Doe',
+        'primary_transaction_sim' => 'slot_1',
     ]);
 
     $this->assertDatabaseMissing('bingwa_device_registrations', [
@@ -96,6 +115,7 @@ test('new users register without waiting for backend device sync', function () {
     ]);
 
     $response->assertSessionHasNoErrors()
+        ->assertSessionHas('request_setup_permissions_after_onboarding', true)
         ->assertRedirect(route('dashboard', absolute: false));
 
     $this->assertAuthenticated();
@@ -120,6 +140,7 @@ test('registration does not depend on backend device registration being availabl
         ]);
 
     $response->assertSessionHasNoErrors()
+        ->assertSessionHas('request_setup_permissions_after_onboarding', true)
         ->assertRedirect(route('dashboard', absolute: false));
 
     $this->assertAuthenticated();
@@ -127,6 +148,12 @@ test('registration does not depend on backend device registration being availabl
     $this->assertDatabaseHas('users', [
         'email' => 'test@example.com',
         'autoreach_connect_id' => 'AC-12345',
+    ]);
+
+    $this->assertDatabaseHas('device_settings', [
+        'user_id' => auth()->id(),
+        'operator_identity' => 'John Doe',
+        'primary_transaction_sim' => 'slot_1',
     ]);
 
     $this->assertDatabaseMissing('bingwa_device_registrations', [
@@ -134,33 +161,23 @@ test('registration does not depend on backend device registration being availabl
     ]);
 });
 
-test('registration still succeeds when a local registration already exists', function () {
-    $user = User::factory()->create();
-
-    BingwaDeviceRegistration::query()->create([
-        'user_id' => $user->id,
-        'hardware_id' => 'HW-12345',
-        'device_token' => 'stored-device-token',
-        'bhc_code' => 'BHC-ZXCVB',
+test('registration is blocked when a local user already exists', function () {
+    User::factory()->create([
+        'email' => 'existing@example.com',
     ]);
 
     $response = $this->post(route('register.store'), [
         'name' => 'John Doe',
-        'email' => 'test@example.com',
+        'email' => 'second@example.com',
         'autoreach_connect_id' => 'AC-12345',
         'password' => 'password',
         'password_confirmation' => 'password',
     ]);
 
-    $response->assertSessionHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
-
-    $this->assertAuthenticated();
-
-    $this->assertDatabaseHas('users', [
-        'email' => 'test@example.com',
-        'autoreach_connect_id' => 'AC-12345',
+    $response->assertSessionHasErrors([
+        'email' => 'This app already has a registered account. Only one account is supported per installation.',
     ]);
 
-    $this->assertDatabaseCount('bingwa_device_registrations', 1);
+    $this->assertGuest();
+    $this->assertDatabaseCount('users', 1);
 });

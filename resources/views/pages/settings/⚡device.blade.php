@@ -191,6 +191,24 @@ new #[Title('Device settings')] class extends Component {
     }
 
     /**
+     * Trigger the sequential permission request flow via the native bridge.
+     */
+    public function requestPermissions(): void
+    {
+        if (! function_exists('nativephp_call')) {
+            Flux::toast(variant: 'warning', text: __('Native features are not available in this environment.'));
+            return;
+        }
+
+        nativephp_call('RequestSetupPermissions', json_encode([
+            'force' => true,
+            'openSpecialSettings' => true,
+        ]));
+
+        Flux::toast(text: __('Requesting permissions…'));
+    }
+
+    /**
      * Fetch native device hardware information.
      */
     private function fetchNativeDeviceInfo(): void
@@ -287,6 +305,33 @@ new #[Title('Device settings')] class extends Component {
                 </form>
             </article>
 
+            <article class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 xl:col-span-1">
+                <div class="flex items-center gap-4">
+                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700 shadow-inner ring-1 ring-indigo-100">
+                        <flux:icon.shield-check class="size-6" />
+                    </div>
+
+                    <div>
+                        <div class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                            {{ __('Privacy & hardware') }}
+                        </div>
+                        <div class="mt-1 text-base font-bold text-zinc-900">{{ __('App Permissions') }}</div>
+                    </div>
+                </div>
+
+                <div class="mt-8 space-y-4">
+                    <p class="text-xs leading-relaxed text-zinc-500">
+                        {{ __('Bingwa requires Phone, Contacts, and Notification permissions to automate USSD tasks and sync balances.') }}
+                    </p>
+
+                    <flux:button variant="ghost" class="h-12 w-full justify-center font-black uppercase tracking-widest text-[10px] !bg-zinc-50 hover:!bg-zinc-100 ring-1 ring-zinc-200" wire:click="requestPermissions" wire:loading.attr="disabled">
+                        <flux:icon.hand-raised variant="mini" class="mr-2 size-4" />
+                        {{ __('Check & Request All') }}
+                    </flux:button>
+                </div>
+            </article>
+
+
             <article class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 xl:col-span-2">
                 <div>
                     <div class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
@@ -316,7 +361,7 @@ new #[Title('Device settings')] class extends Component {
                                         ])></div>
                                         <span class="text-base font-black text-zinc-950">{{ $label }}</span>
                                     </div>
-                                    <input wire:model="primary_transaction_sim" type="radio" class="sr-only" value="{{ $value }}">
+                                    <input wire:model.live="primary_transaction_sim" type="radio" class="sr-only" value="{{ $value }}">
                                 </label>
                             @endforeach
                         </div>
@@ -342,7 +387,7 @@ new #[Title('Device settings')] class extends Component {
                                         ])></div>
                                         <span class="text-base font-black text-zinc-950">{{ $label }}</span>
                                     </div>
-                                    <input wire:model="sms_auto_reply_sim" type="radio" class="sr-only" value="{{ $value }}">
+                                    <input wire:model.live="sms_auto_reply_sim" type="radio" class="sr-only" value="{{ $value }}">
                                 </label>
                             @endforeach
                         </div>

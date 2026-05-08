@@ -1,5 +1,7 @@
 <?php
 
+use App\Actions\Autoreach\RefreshAirtimeBalance;
+use App\Models\DeviceSetting;
 use App\Models\Transaction;
 use App\Models\User;
 
@@ -36,6 +38,37 @@ test('dashboard no longer renders a current balance card when historical balance
     $response->assertOk();
     $response->assertSee('Used Today');
     $response->assertDontSee('Current Balance');
+});
+
+test('dashboard shows the last cached airtime balance snapshot', function () {
+    $user = User::factory()->create();
+
+    DeviceSetting::factory()->for($user)->create([
+        'primary_transaction_sim' => 'slot_1',
+        'airtime_balance' => 13.44,
+        'airtime_balance_raw_response' => 'Airtime Bal: 13.44KSH. Expire date:26-07-2026.',
+        'airtime_balance_checked_at' => now(),
+    ]);
+
+    $this->actingAs($user);
+
+    $response = $this->get(route('dashboard'));
+
+    $response->assertOk();
+    $response->assertSee('Ksh 13.44');
+});
+
+test('airtime balance refresh creates device settings when missing', function () {
+    $user = User::factory()->create();
+
+    $result = app(RefreshAirtimeBalance::class)->cached($user);
+
+    expect($result)->toBeArray();
+
+    $this->assertDatabaseHas('device_settings', [
+        'user_id' => $user->id,
+        'primary_transaction_sim' => 'slot_1',
+    ]);
 });
 
 test('dashboard recent transactions show ussd messages with status styling', function () {

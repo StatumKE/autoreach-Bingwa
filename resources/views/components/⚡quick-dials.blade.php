@@ -26,6 +26,10 @@ new #[Title('Quick Dial')] class extends Component {
 
     public ?string $contactMessage = null;
 
+    public bool $contactsPermissionGranted = false;
+
+    public bool $contactsPermissionRequested = false;
+
     public ?string $awardMessage = null;
 
     public ?string $awardError = null;
@@ -41,6 +45,12 @@ new #[Title('Quick Dial')] class extends Component {
         $this->contactSearch = trim($this->customerPhone);
         $this->contactMessage = null;
         $this->contactResults = [];
+
+        if (! $this->refreshContactsPermissionState()) {
+            $this->requestContactsPermission(auto: true);
+
+            return;
+        }
 
         if ($this->contactSearch !== '') {
             $this->searchContacts($this->contactSearch);
@@ -58,6 +68,7 @@ new #[Title('Quick Dial')] class extends Component {
         $this->contactSearch = '';
         $this->contactResults = [];
         $this->contactMessage = null;
+        $this->contactsPermissionRequested = false;
     }
 
     /**
@@ -85,12 +96,17 @@ new #[Title('Quick Dial')] class extends Component {
 
         $contacts = app(QuickDialContacts::class);
 
-        if (! $contacts->checkPermission()) {
-            $this->contactMessage = __('Contacts permission is required. Grant it during setup, then tap Contacts again.');
+        if (! $this->refreshContactsPermissionState()) {
+            if (! $this->contactsPermissionRequested) {
+                $this->requestContactsPermission(auto: true);
+            } else {
+                $this->contactMessage = __('Contacts permission is still not granted. Allow access in Android, then tap Grant Access again if needed.');
+            }
 
             return;
         }
 
+        $this->contactsPermissionRequested = false;
         $this->contactResults = $contacts->search($query, self::CONTACT_SEARCH_LIMIT);
 
         if ($this->contactResults === []) {
@@ -118,6 +134,35 @@ new #[Title('Quick Dial')] class extends Component {
     }
 
     /**
+     * Request Android contacts permission from the picker flow.
+     */
+    public function requestContactsPermission(bool $auto = false): void
+    {
+        $contacts = app(QuickDialContacts::class);
+
+        if ($this->refreshContactsPermissionState()) {
+            $this->contactMessage = __('Contacts permission granted. You can search now.');
+            $this->contactsPermissionRequested = false;
+
+            return;
+        }
+
+        $requested = $contacts->requestPermission();
+        $this->contactsPermissionRequested = $requested;
+        $this->contactsPermissionGranted = false;
+
+        if ($requested) {
+            $this->contactMessage = $auto
+                ? __('Allow contacts access in the Android prompt, then search again.')
+                : __('Android permission prompt opened. Allow contacts access, then search again.');
+
+            return;
+        }
+
+        $this->contactMessage = __('Contacts permission is required. If Android did not show a prompt, enable Contacts in app settings and try again.');
+    }
+
+    /**
      * Select a phone number from native contact search results.
      */
     public function selectContact(string $phone, string $name = ''): void
@@ -140,6 +185,40 @@ new #[Title('Quick Dial')] class extends Component {
         $this->contactMessage = null;
         $this->awardMessage = null;
         $this->awardError = null;
+    }
+
+    /**
+     * Prepare a focused confirmation flow for the selected offer.
+     */
+    public function prepareAwardOffer(int $offerId): void
+    {
+        $this->awardMessage = null;
+        $this->awardError = null;
+
+        if (! $this->canAward) {
+            $this->selectedOfferId = null;
+            $this->awardError = __('Enter or select a valid customer phone number first.');
+
+            return;
+        }
+
+        $offer = $this->activeOffers->firstWhere('id', $offerId);
+
+        if (! $offer instanceof Offer) {
+            $this->selectedOfferId = null;
+            $this->awardError = __('The selected offer is not available.');
+
+            return;
+        }
+
+        if (blank($offer->ussd_code)) {
+            $this->selectedOfferId = null;
+            $this->awardError = __('This offer has no USSD code configured.');
+
+            return;
+        }
+
+        $this->selectedOfferId = $offer->id;
     }
 
     /**
@@ -316,6 +395,13 @@ new #[Title('Quick Dial')] class extends Component {
     {
         return Auth::user()->deviceSetting?->primary_transaction_sim === 'slot_2' ? 1 : 0;
     }
+
+    private function refreshContactsPermissionState(): bool
+    {
+        $this->contactsPermissionGranted = app(QuickDialContacts::class)->checkPermission();
+
+        return $this->contactsPermissionGranted;
+    }
 }; ?>
 
 <section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
@@ -414,21 +500,15 @@ new #[Title('Quick Dial')] class extends Component {
 
                             <button
                                 type="button"
-                                @disabled(! $this->canAward || $selectedOfferId === $offer->id)
-                                wire:click="awardOffer({{ $offer->id }})"
-                                wire:loading.attr="disabled"
-                                wire:target="awardOffer"
+                                @disabled(! $this->canAward)
+                                wire:click="prepareAwardOffer({{ $offer->id }})"
                                 @class([
                                     'h-12 rounded-[1.25rem] px-6 text-[10px] font-black uppercase tracking-widest transition active:scale-95',
-                                    'bg-green-50 text-zinc-950 shadow-sm ring-1 ring-green-100 hover:bg-green-100' => $this->canAward && $selectedOfferId !== $offer->id,
-                                    'bg-zinc-100 text-zinc-600 cursor-not-allowed ring-1 ring-zinc-300' => ! $this->canAward || $selectedOfferId === $offer->id,
+                                    'bg-green-50 text-zinc-950 shadow-sm ring-1 ring-green-100 hover:bg-green-100' => $this->canAward,
+                                    'bg-zinc-100 text-zinc-600 cursor-not-allowed ring-1 ring-zinc-300' => ! $this->canAward,
                                 ])
                             >
-                                <span wire:loading.remove wire:target="awardOffer">{{ $selectedOfferId === $offer->id ? __('Sending…') : __('Award') }}</span>
-                                <span wire:loading wire:target="awardOffer" class="inline-flex items-center justify-center gap-2">
-                                    <flux:icon.loading variant="mini" class="size-4" />
-                                    {{ __('Sending…') }}
-                                </span>
+                                {{ __('Award') }}
                             </button>
                         </article>
                     @endforeach
@@ -465,6 +545,16 @@ new #[Title('Quick Dial')] class extends Component {
                 </div>
             @endif
 
+            @if (! $contactsPermissionGranted)
+                <button
+                    type="button"
+                    wire:click="requestContactsPermission"
+                    class="app-secondary-button inline-flex h-12 w-full items-center justify-center px-4 text-[10px] font-black uppercase tracking-widest"
+                >
+                    {{ __('Grant Access') }}
+                </button>
+            @endif
+
             @if ($contactResults !== [])
                 <div class="overflow-hidden rounded-[1.5rem] bg-zinc-50 ring-1 ring-zinc-200">
                     @foreach ($contactResults as $contact)
@@ -495,4 +585,93 @@ new #[Title('Quick Dial')] class extends Component {
             @endif
         </div>
     </flux:modal>
+
+    @if ($selectedOfferId !== null)
+        @php
+            $selectedOffer = $this->activeOffers->firstWhere('id', $selectedOfferId);
+        @endphp
+
+        @if ($selectedOffer instanceof \App\Models\Offer)
+            <div class="fixed inset-0 z-[70] flex items-end justify-center bg-zinc-950/45 p-4 backdrop-blur-sm sm:items-center sm:p-6">
+                <button
+                    type="button"
+                    wire:click="$set('selectedOfferId', null)"
+                    class="absolute inset-0 cursor-default"
+                    aria-label="{{ __('Close quick dial confirmation') }}"
+                ></button>
+
+                <div class="relative z-10 w-full max-w-xl overflow-hidden rounded-[2rem] bg-white shadow-2xl ring-1 ring-zinc-200 plans-reveal">
+                    <div class="bg-app-shell px-6 pb-5 pt-6 text-white">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="min-w-0">
+                                <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-green-300/80">{{ __('Confirm Award') }}</div>
+                                <div class="mt-2 text-2xl font-black tracking-tight text-white">{{ $selectedOffer->name }}</div>
+                                <div class="mt-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/55">{{ $selectedOffer->category }}</div>
+                            </div>
+
+                            <button
+                                type="button"
+                                wire:click="$set('selectedOfferId', null)"
+                                class="app-secondary-button flex size-11 shrink-0 items-center justify-center rounded-2xl border-0 bg-white/8 text-white ring-1 ring-white/10 hover:bg-white/14"
+                                aria-label="{{ __('Close') }}"
+                            >
+                                <flux:icon.x-mark class="size-5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6 px-6 py-6">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="rounded-2xl bg-zinc-50 px-4 py-4 ring-1 ring-zinc-200">
+                                <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Customer') }}</div>
+                                <div class="mt-2 text-lg font-black text-zinc-950">{{ $selectedName !== '' ? $selectedName : __('Manual entry') }}</div>
+                                <div class="mt-1 text-sm font-bold text-green-700">{{ $this->normalizedCustomerPhone }}</div>
+                            </div>
+
+                            <div class="rounded-2xl bg-zinc-50 px-4 py-4 ring-1 ring-zinc-200">
+                                <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Amount') }}</div>
+                                <div class="mt-2 text-2xl font-black tracking-tight text-green-700">KES {{ number_format((float) $selectedOffer->price) }}</div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-[1.75rem] bg-zinc-50 p-4 ring-1 ring-zinc-200">
+                            <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-600">{{ __('Routing') }}</div>
+                            <div class="mt-3 flex items-center justify-between">
+                                <div>
+                                    <div class="text-sm font-black text-zinc-950">{{ __('Primary Transaction SIM') }}</div>
+                                    <div class="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-green-700">
+                                        {{ $this->primaryTransactionSimSlot() === 1 ? __('SIM 2') : __('SIM 1') }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-3 sm:flex-row">
+                            <button
+                                type="button"
+                                wire:click="$set('selectedOfferId', null)"
+                                class="app-secondary-button flex h-12 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest sm:w-40"
+                            >
+                                {{ __('Cancel') }}
+                            </button>
+
+                            <button
+                                type="button"
+                                wire:click="awardOffer({{ $selectedOffer->id }})"
+                                class="app-primary-button flex h-12 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest"
+                                wire:loading.attr="disabled"
+                                wire:target="awardOffer"
+                            >
+                                <span wire:loading.remove wire:target="awardOffer">{{ __('Award Now') }}</span>
+                                <span wire:loading wire:target="awardOffer" class="inline-flex items-center justify-center gap-2">
+                                    <flux:icon.loading variant="mini" class="size-4" />
+                                    {{ __('Sending…') }}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endif
 </section>

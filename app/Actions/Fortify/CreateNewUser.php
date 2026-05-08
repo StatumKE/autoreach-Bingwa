@@ -5,11 +5,15 @@ namespace App\Actions\Fortify;
 use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
 use App\Jobs\SyncBingwaFcmTokenJob;
+use App\Models\DeviceSetting;
 use App\Models\User;
+use Illuminate\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
 class CreateNewUser implements CreatesNewUsers
@@ -28,18 +32,51 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        $user = retry(2, function () use ($input): User {
-            return DB::transaction(function () use ($input): User {
-                $user = User::create([
-                    'name' => $input['name'],
-                    'email' => $input['email'],
-                    'autoreach_connect_id' => $input['autoreach_connect_id'],
-                    'password' => $input['password'],
-                ]);
+        $user = null;
 
-                return $user;
+        try {
+            $user = Cache::lock('autoreach-single-account-registration', 10)->block(5, function () use ($input): User {
+                return retry(2, function () use ($input): User {
+                    return DB::transaction(function () use ($input): User {
+                        if (User::query()->exists()) {
+                            throw ValidationException::withMessages([
+                                'email' => __('This app already has a registered account. Only one account is supported per installation.'),
+                            ]);
+                        }
+
+                        $user = User::create([
+                            'name' => $input['name'],
+                            'email' => $input['email'],
+                            'autoreach_connect_id' => $input['autoreach_connect_id'],
+                            'password' => $input['password'],
+                        ]);
+
+                        DeviceSetting::query()->create([
+                            'user_id' => $user->id,
+                            'operator_identity' => $user->name,
+                            'primary_transaction_sim' => 'slot_1',
+                            'sms_auto_reply_sim' => 'slot_1',
+                            'app_interface_mode' => 'express',
+                            'auto_reschedule_rejected' => true,
+                            'retry_tomorrow_at' => '12:30 AM',
+                            'ussd_timeout_seconds' => 30,
+                            'intelligent_auto_retry' => true,
+                            'retry_interval_minutes' => 1,
+                            'max_attempts' => 2,
+                            'retry_network_issues' => true,
+                        ]);
+
+                        return $user;
+                    });
+                }, 0);
             });
-        }, 0);
+        } catch (LockTimeoutException) {
+            throw ValidationException::withMessages([
+                'email' => __('Registration is busy right now. Please try again.'),
+            ]);
+        }
+
+        session()->flash('request_setup_permissions_after_onboarding', true);
 
         $this->startNativePushEnrollment($user);
 

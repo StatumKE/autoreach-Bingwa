@@ -3,7 +3,11 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 overscroll-y-none touch-manipulation">
+    <body
+        class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 overscroll-y-none touch-manipulation"
+        x-data="bingwaPermissionSetup({{ session()->pull('request_setup_permissions_after_onboarding', false) ? 'true' : 'false' }})"
+        x-init="requestAfterOnboarding && requestSetupPermissionsOnce(true)"
+    >
         <flux:sidebar sticky collapsible="mobile" class="bg-app-drawer text-zinc-200 border-e border-white/5">
             <flux:sidebar.header class="px-3 py-4">
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
@@ -49,10 +53,10 @@
         </flux:sidebar>
 
         <!-- Mobile User Menu -->
-        <flux:header class="fixed inset-x-0 top-0 z-50 lg:hidden !px-4 h-24 pt-8 bg-app-shell text-white border-b border-black/10" container="false">
-            <flux:sidebar.toggle class="app-mobile-menu-toggle lg:hidden !text-white translate-y-1 [&_svg]:size-7 [&_svg]:stroke-[2.5px]" icon="bars-3" inset="left" />
+        <flux:header class="fixed inset-x-0 top-0 z-50 h-24 items-center bg-app-shell pt-8 text-white border-b border-black/10 !px-4 lg:hidden" container="false">
+            <flux:sidebar.toggle class="app-mobile-menu-toggle !text-white lg:hidden [&_svg]:size-7 [&_svg]:stroke-[2.5px]" icon="bars-3" inset="left" />
 
-            <div class="min-w-0 flex-1 ps-2">
+            <div class="min-w-0 flex-1 ps-3">
                 <div class="text-[14px] font-black leading-none tracking-tight text-white sm:text-[15px]">
                     {{ config('app.name') }}
                 </div>
@@ -119,6 +123,41 @@
                 <flux:toast />
             </flux:toast.group>
         @endpersist
+
+        <script>
+            function bingwaPermissionSetup(requestAfterOnboarding = false) {
+                return {
+                    requestSetupPermissionsOnce(force = false) {
+                        const sessionKey = 'bingwa-setup-permissions-requested-v1';
+
+                        if (! force && sessionStorage.getItem(sessionKey)) {
+                            return;
+                        }
+
+                        sessionStorage.setItem(sessionKey, '1');
+
+                        fetch('/_native/api/call', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            },
+                            body: JSON.stringify({
+                                method: 'RequestSetupPermissions',
+                                params: {
+                                    force,
+                                    openSpecialSettings: false,
+                                },
+                            }),
+                        }).catch(() => {
+                            if (force) {
+                                sessionStorage.removeItem(sessionKey);
+                            }
+                        });
+                    },
+                };
+            }
+        </script>
 
         @fluxScripts
     </body>

@@ -26,6 +26,11 @@ test('users can authenticate using the login screen', function () {
     $this->assertAuthenticated();
 });
 
+test('authenticated sessions are configured to persist until explicit logout', function () {
+    expect(config('session.lifetime'))->toBe(5256000)
+        ->and(config('session.expire_on_close'))->toBeFalse();
+});
+
 test('users can not authenticate with invalid password', function () {
     $user = User::factory()->create();
 
@@ -61,9 +66,16 @@ test('users with two factor enabled are redirected to two factor challenge', fun
 test('users can logout', function () {
     $user = User::factory()->create();
 
-    $response = $this->actingAs($user)->post(route('logout'));
+    $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertCookie(Auth::getRecallerName());
+
+    $response = $this->post(route('logout'));
 
     $response->assertRedirect(route('home'));
 
     $this->assertGuest();
+
+    $this->get(route('dashboard'))->assertRedirect(route('login'));
 });

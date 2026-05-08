@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $user_id
@@ -21,6 +22,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $retry_interval_minutes
  * @property int $max_attempts
  * @property bool $retry_network_issues
+ * @property float|null $airtime_balance
+ * @property string|null $airtime_balance_raw_response
+ * @property Carbon|null $airtime_balance_checked_at
  * @property-read User $user
  */
 #[Fillable([
@@ -36,6 +40,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'retry_interval_minutes',
     'max_attempts',
     'retry_network_issues',
+    'airtime_balance',
+    'airtime_balance_raw_response',
+    'airtime_balance_checked_at',
 ])]
 class DeviceSetting extends Model
 {
@@ -64,6 +71,8 @@ class DeviceSetting extends Model
             'retry_interval_minutes' => 'integer',
             'max_attempts' => 'integer',
             'retry_network_issues' => 'boolean',
+            'airtime_balance' => 'decimal:2',
+            'airtime_balance_checked_at' => 'datetime',
         ];
     }
 }

@@ -114,7 +114,7 @@
     }
 
     .app-mobile-menu-toggle {
-        @apply relative mt-2 text-white;
+        @apply relative flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-xl text-white;
     }
 
     .app-mobile-menu-toggle svg {

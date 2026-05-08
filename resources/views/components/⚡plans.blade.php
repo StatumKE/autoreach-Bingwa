@@ -22,6 +22,8 @@ new #[Title('Subscriptions')] class extends Component {
 
     public ?int $selectedPlanId = null;
 
+    public bool $permissionRequestInFlight = false;
+
     /**
      * Load the plans after the page has rendered.
      */
@@ -53,6 +55,55 @@ new #[Title('Subscriptions')] class extends Component {
     public function selectPlan(int $planId): void
     {
         $this->selectedPlanId = $planId;
+    }
+
+    /**
+     * Re-trigger Android setup permissions when the purchase flow detects a missing runtime permission.
+     */
+    public function requestSetupPermissions(): void
+    {
+        $this->permissionRequestInFlight = true;
+
+        $this->js(<<<'JS'
+            (async () => {
+                try {
+                    const response = await fetch('/_native/api/call', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        },
+                        body: JSON.stringify({
+                            method: 'RequestSetupPermissions',
+                            params: {
+                                force: true,
+                                openSpecialSettings: false
+                            }
+                        })
+                    });
+
+                    const result = await response.json();
+                    const payload = result.data?.data ?? result.data ?? {};
+                    const missingPermissions = Array.isArray(payload.missingRuntimePermissions)
+                        ? payload.missingRuntimePermissions
+                        : [];
+
+                    if (payload.requestedRuntimePermissions) {
+                        $wire.set('errorMessage', 'Android permission prompt opened. Allow access, then try again.');
+                    } else if (payload.runtimePermissionsGranted) {
+                        $wire.set('errorMessage', null);
+                    } else if (missingPermissions.length > 0) {
+                        $wire.set('errorMessage', `Missing permissions: ${missingPermissions.join(', ')}`);
+                    } else {
+                        $wire.set('errorMessage', 'Permissions were not granted. Enable them in Android app settings and try again.');
+                    }
+                } catch (error) {
+                    $wire.set('errorMessage', 'Unable to request Android permissions right now.');
+                } finally {
+                    $wire.set('permissionRequestInFlight', false);
+                }
+            })();
+        JS);
     }
 
     /**
@@ -205,9 +256,24 @@ new #[Title('Subscriptions')] class extends Component {
                             {{ $this->errorMessage }}
                         </flux:text>
                     </div>
-                    <button type="button" wire:click="$set('errorMessage', null)" class="mt-1 app-secondary-button h-9 w-9 p-0 text-rose-500 hover:text-rose-700 transition-colors">
-                        <flux:icon.x-mark class="size-5" />
-                    </button>
+                    <div class="mt-1 flex shrink-0 items-center gap-2">
+                        @if (str_contains($this->errorMessage, 'permission'))
+                            <button
+                                type="button"
+                                wire:click="requestSetupPermissions"
+                                wire:loading.attr="disabled"
+                                wire:target="requestSetupPermissions"
+                                class="app-secondary-button h-9 px-4 text-[9px] font-black uppercase tracking-[0.18em] text-rose-600 hover:text-rose-700"
+                            >
+                                <span wire:loading.remove wire:target="requestSetupPermissions">{{ __('Grant Access') }}</span>
+                                <span wire:loading wire:target="requestSetupPermissions">{{ __('Opening…') }}</span>
+                            </button>
+                        @endif
+
+                        <button type="button" wire:click="$set('errorMessage', null)" class="app-secondary-button h-9 w-9 p-0 text-rose-500 hover:text-rose-700 transition-colors">
+                            <flux:icon.x-mark class="size-5" />
+                        </button>
+                    </div>
                 </div>
             </div>
         @elseif ($this->plans === [])
@@ -332,47 +398,92 @@ new #[Title('Subscriptions')] class extends Component {
                 @endphp
 
                 @if (is_array($selectedPlan))
-                    <div class="fixed inset-x-0 bottom-0 z-[60] flex flex-col p-6 animate-in slide-in-from-bottom duration-500">
-                        <div class="absolute inset-0 bg-gradient-to-t from-app-bg via-app-bg/70 to-transparent pointer-events-none"></div>
-                        <div class="relative mx-auto w-full max-w-lg rounded-t-2xl bg-white/95 p-5 shadow-lg ring-1 ring-zinc-200 backdrop-blur-3xl">
-                            <div class="flex flex-col gap-4">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex flex-col">
-                                        <div class="text-[10px] font-bold uppercase tracking-widest text-green-600/80">{{ __('Selected plan') }}</div>
-                                        <div class="text-lg font-bold text-zinc-900">{{ $selectedPlan['name'] ?? __('Plan') }}</div>
+                    <div class="fixed inset-0 z-[70] flex items-end justify-center bg-zinc-950/45 p-4 backdrop-blur-sm sm:items-center sm:p-6">
+                        <button
+                            type="button"
+                            wire:click="$set('selectedPlanId', null)"
+                            class="absolute inset-0 cursor-default"
+                            aria-label="{{ __('Close selected plan dialog') }}"
+                        ></button>
+
+                        <div class="relative z-10 w-full max-w-xl overflow-hidden rounded-[2rem] bg-white shadow-2xl ring-1 ring-zinc-200 plans-reveal">
+                            <div class="bg-app-shell px-6 pb-5 pt-6 text-white">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div class="min-w-0">
+                                        <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-green-300/80">{{ __('Purchase Plan') }}</div>
+                                        <div class="mt-2 text-2xl font-black tracking-tight text-white">{{ $selectedPlan['name'] ?? __('Plan') }}</div>
+                                        <div class="mt-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/55">
+                                            {{ str_replace('_', ' ', $selectedPlan['type'] ?? 'PLAN') }}
+                                        </div>
                                     </div>
-                                    <div class="text-right">
-                                        <div class="text-lg font-bold text-green-700">KES {{ number_format((float) ($selectedPlan['price'] ?? 0)) }}</div>
+
+                                    <button
+                                        type="button"
+                                        wire:click="$set('selectedPlanId', null)"
+                                        class="app-secondary-button flex size-11 shrink-0 items-center justify-center rounded-2xl border-0 bg-white/8 text-white ring-1 ring-white/10 hover:bg-white/14"
+                                        aria-label="{{ __('Close') }}"
+                                    >
+                                        <flux:icon.x-mark class="size-5" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-6 px-6 py-6">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="rounded-2xl bg-zinc-50 px-4 py-4 ring-1 ring-zinc-200">
+                                        <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Price') }}</div>
+                                        <div class="mt-2 text-2xl font-black tracking-tight text-green-700">
+                                            KES {{ number_format((float) ($selectedPlan['price'] ?? 0)) }}
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-2xl bg-zinc-50 px-4 py-4 ring-1 ring-zinc-200">
+                                        <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Duration') }}</div>
+                                        <div class="mt-2 text-lg font-black text-zinc-950">
+                                            @if (! empty($selectedPlan['duration_days']))
+                                                {{ trans_choice(':count day|:count days', (int) $selectedPlan['duration_days'], ['count' => (int) $selectedPlan['duration_days']]) }}
+                                            @elseif (($selectedPlan['type'] ?? null) === 'usage_pack' && ! is_null($selectedPlan['ussd_requests_included']))
+                                                {{ number_format((int) $selectedPlan['ussd_requests_included']) }} {{ __('requests') }}
+                                            @else
+                                                {{ __('N/A') }}
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div class="h-px w-full bg-zinc-100"></div>
-
                                 @if ($this->sambazaLine)
-                                    <div class="flex flex-col gap-4">
-                                        <div class="space-y-2">
-                                            <div class="text-[9px] font-bold uppercase tracking-widest text-zinc-600 px-1">{{ __('Choose SIM Slot') }}</div>
-                                            <flux:radio.group wire:model="simSlot" variant="segmented" class="w-full h-10 bg-zinc-50 p-1 rounded-xl ring-1 ring-zinc-200">
-                                                <flux:radio value="0" label="{{ __('SIM 1') }}" class="font-bold text-zinc-700 text-xs" />
-                                                <flux:radio value="1" label="{{ __('SIM 2') }}" class="font-bold text-zinc-700 text-xs" />
-                                            </flux:radio.group>
-                                        </div>
-                                        
-                                        <div class="flex gap-2">
-                                            <button type="button" wire:click="$set('selectedPlanId', null)" class="app-secondary-button flex h-10 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest sm:w-auto sm:px-6">
-                                                {{ __('Clear') }}
-                                            </button>
-
-                                            <button type="button" wire:click="initiateSambaza" class="app-primary-button flex h-10 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest" wire:loading.attr="disabled" wire:target="initiateSambaza">
-                                                <span wire:loading.remove wire:target="initiateSambaza">{{ __('Purchase Now') }}</span>
-                                                <span wire:loading wire:target="initiateSambaza" class="inline-flex items-center justify-center gap-2">
-                                                    <flux:icon.loading variant="mini" class="size-3.5" />
-                                                    {{ __('Purchasing…') }}
-                                                </span>
-                                            </button>
-                                        </div>
+                                    <div class="rounded-[1.75rem] bg-zinc-50 p-4 ring-1 ring-zinc-200">
+                                        <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-600">{{ __('Choose SIM Slot') }}</div>
+                                        <flux:radio.group wire:model="simSlot" variant="segmented" class="mt-4 h-12 w-full rounded-2xl bg-white p-1 ring-1 ring-zinc-200">
+                                            <flux:radio value="0" label="{{ __('SIM 1') }}" class="font-bold text-zinc-700 text-sm" />
+                                            <flux:radio value="1" label="{{ __('SIM 2') }}" class="font-bold text-zinc-700 text-sm" />
+                                        </flux:radio.group>
                                     </div>
                                 @endif
+
+                                <div class="flex flex-col gap-3 sm:flex-row">
+                                    <button
+                                        type="button"
+                                        wire:click="$set('selectedPlanId', null)"
+                                        class="app-secondary-button flex h-12 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest sm:w-40"
+                                    >
+                                        {{ __('Cancel') }}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        wire:click="initiateSambaza"
+                                        class="app-primary-button flex h-12 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest"
+                                        wire:loading.attr="disabled"
+                                        wire:target="initiateSambaza"
+                                    >
+                                        <span wire:loading.remove wire:target="initiateSambaza">{{ __('Purchase Now') }}</span>
+                                        <span wire:loading wire:target="initiateSambaza" class="inline-flex items-center justify-center gap-2">
+                                            <flux:icon.loading variant="mini" class="size-3.5" />
+                                            {{ __('Purchasing…') }}
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

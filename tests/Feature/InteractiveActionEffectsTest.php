@@ -41,7 +41,7 @@ test('quick dial page shows loading feedback for contacts and award actions', fu
     Livewire::test('quick-dials')
         ->call('openContactPicker')
         ->assertSet('showContactPicker', true)
-        ->assertSee('Type a name or number to search contacts.');
+        ->assertSee('Grant Access');
 });
 
 test('dashboard refresh action shows loading feedback', function () {
@@ -57,8 +57,7 @@ test('authenticated mobile shell does not include broadcast bootstrap', function
         ->get(route('dashboard'))
         ->assertOk()
         ->assertDontSee('__autoreachBroadcasting')
-        ->assertDontSee('broadcast-listener')
-        ->assertDontSee('RequestSetupPermissions');
+        ->assertDontSee('broadcast-listener');
 });
 
 test('two factor settings actions show loading feedback', function () {

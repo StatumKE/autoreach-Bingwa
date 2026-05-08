@@ -9,7 +9,7 @@
             <div class="pointer-events-none absolute inset-x-0 top-52 h-px bg-white/30"></div>
 
             <div class="relative flex w-full max-w-md flex-col gap-4">
-                <a href="{{ route('home') }}" class="flex items-center gap-3 rounded-[1.75rem] bg-white/10 px-4 py-3 text-white ring-1 ring-white/10 backdrop-blur" wire:navigate>
+                <a href="{{ route('home') }}" class="flex items-center gap-3 rounded-[1.75rem] bg-white/10 px-4 py-3 text-white ring-1 ring-white/10 backdrop-blur">
                     <div class="min-w-0">
                         <p class="text-[10px] font-black uppercase tracking-[0.22em] text-green-200">{{ __('Autoreach') }}</p>
                         <p class="truncate text-base font-black leading-tight">{{ __('Bingwa') }}</p>

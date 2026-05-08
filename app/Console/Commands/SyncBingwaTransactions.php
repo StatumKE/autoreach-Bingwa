@@ -9,7 +9,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
-#[Signature('bingwa:sync-transactions')]
+#[Signature('bingwa:sync-transactions {--user-id= : Restrict sync to a specific user ID}')]
 #[Description('Pull the next queued Bingwa jobs from the backend and store them locally.')]
 class SyncBingwaTransactions extends Command
 {
@@ -19,10 +19,16 @@ class SyncBingwaTransactions extends Command
     public function handle(FetchNextBingwaJobs $fetchNextBingwaJobs): int
     {
         Log::info('🔄 Starting Bingwa transactions sync...');
-        $user = User::query()
+
+        $userQuery = User::query()
             ->with('bingwaDeviceRegistration')
-            ->whereHas('bingwaDeviceRegistration')
-            ->first();
+            ->whereHas('bingwaDeviceRegistration');
+
+        if ($this->option('user-id')) {
+            $userQuery->whereKey((int) $this->option('user-id'));
+        }
+
+        $user = $userQuery->first();
 
         if ($user) {
             Log::debug("👤 Syncing for user ID: {$user->id}");

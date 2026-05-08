@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c82424a2f7fdb112f2f1db3b70f8d11a",
+    "content-hash": "0850b21da40a14372cb816c7d3dafa06",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -2801,6 +2801,50 @@
                 "source": "https://github.com/NativePHP/mobile-device/tree/1.0.2"
             },
             "time": "2026-03-20T22:08:33+00:00"
+        },
+        {
+            "name": "nativephp/mobile-firebase",
+            "version": "1.1.0",
+            "dist": {
+                "type": "zip",
+                "url": "https://plugins.nativephp.com/dist/nativephp/mobile-firebase/nativephp-mobile-firebase-ed1b98a3e936ea2a2810368ece2e27106f334975-zip-bdda73.zip",
+                "reference": "ed1b98a3e936ea2a2810368ece2e27106f334975",
+                "shasum": "a06c21c5b1c8df5ab6a56631cf7905ebdb6bb363"
+            },
+            "require": {
+                "nativephp/mobile": "*",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\PushNotificationsServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "NativePHP",
+                    "email": "info@nativephp.com"
+                }
+            ],
+            "description": "Firebase plugin for NativePHP Mobile (Push notifications via FCM/APNs)",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-firebase/issues"
+            },
+            "time": "2026-04-04T00:38:56+00:00"
         },
         {
             "name": "nesbot/carbon",

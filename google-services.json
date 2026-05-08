@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "131003096671",
+    "project_id": "com-autoreach-bingwa",
+    "storage_bucket": "com-autoreach-bingwa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:131003096671:android:9b741eca11d8b4c8b405ea",
+        "android_client_info": {
+          "package_name": "com.autoreach.bingwa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZsrNdTrtH69TsGlMH6mASF8KspcB6SlY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

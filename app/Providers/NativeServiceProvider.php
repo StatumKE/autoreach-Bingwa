@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Native\Mobile\Providers\DeviceServiceProvider;
+use Native\Mobile\Providers\PushNotificationsServiceProvider;
 use Statum\NativeContacts\NativeContactsServiceProvider;
 use Statum\NativeScheduler\NativeSchedulerServiceProvider;
 
@@ -20,6 +21,7 @@ class NativeServiceProvider extends ServiceProvider
             NativeContactsServiceProvider::class,
             NativeSchedulerServiceProvider::class,
             DeviceServiceProvider::class,
+            PushNotificationsServiceProvider::class,
         ];
     }
 }

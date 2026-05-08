@@ -74,6 +74,22 @@ class PersistBingwaTransaction
             ];
         }
 
+        $mpesaCode = trim((string) ($payload['mpesa_code'] ?? ''));
+
+        if ($mpesaCode !== '') {
+            $existingMpesaTransaction = Transaction::query()
+                ->where('mpesa_code', $mpesaCode)
+                ->where('transaction_id', '!=', $transactionId)
+                ->first(['id', 'transaction_id']);
+
+            if ($existingMpesaTransaction !== null) {
+                return [
+                    'transaction' => null,
+                    'skipped' => true,
+                ];
+            }
+        }
+
         $amount = (float) ($payload['amount'] ?? 0);
         $matchedOffer = $activeOffers->firstWhere('price', (int) $amount);
         $status = 'queued';
@@ -88,13 +104,13 @@ class PersistBingwaTransaction
             $statusDesc = __("Price mismatch: No active offer found for amount {$amount}.");
         }
 
-        $transaction = DB::transaction(function () use ($amount, $fallbackOfferType, $offerId, $payload, $status, $statusDesc, $transactionId, $user): Transaction {
+        $transaction = DB::transaction(function () use ($amount, $fallbackOfferType, $mpesaCode, $offerId, $payload, $status, $statusDesc, $transactionId, $user): Transaction {
             return Transaction::query()->updateOrCreate(
                 ['transaction_id' => $transactionId],
                 [
                     'user_id' => $user->id,
                     'offer_id' => $offerId,
-                    'mpesa_code' => $payload['mpesa_code'] ?? null,
+                    'mpesa_code' => $mpesaCode !== '' ? $mpesaCode : null,
                     'sender_phone' => $payload['sender_phone'] ?? '',
                     'sender_name' => $payload['sender_name'] ?? null,
                     'amount' => $amount,

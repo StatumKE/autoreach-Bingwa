@@ -209,6 +209,47 @@ test('bingwa transaction sync does not requeue locally finalized transactions', 
     expect($transaction?->processed_at?->format('Y-m-d H:i:s'))->toBe($processedAt->format('Y-m-d H:i:s'));
 });
 
+test('bingwa transaction sync skips duplicate mpesa transaction ids', function () {
+    Transaction::factory()->for($this->user)->create([
+        'transaction_id' => '70',
+        'mpesa_code' => 'UDH9Z12J5E',
+        'sender_phone' => '0719704751',
+        'amount' => 20,
+        'offer_name' => 'Test 1 day',
+        'offer_type' => 'data_bundles',
+        'status' => 'queued',
+        'status_desc' => 'Pulled from backend job queue.',
+    ]);
+
+    Http::fake([
+        'backend.statum.co.ke/api/v1/jobs/next/data_bundles*' => Http::response([
+            'transaction_id' => 71,
+            'mpesa_code' => 'UDH9Z12J5E',
+            'sender_phone' => '0719704752',
+            'sender_name' => 'john doe',
+            'amount' => 20,
+            'offer_name' => 'Test 1 day',
+            'offer_type' => 'data_bundles',
+            'matched_offer' => null,
+            'occurred_at' => '2026-04-17T17:34:15+00:00',
+        ], 200),
+        'backend.statum.co.ke/api/v1/jobs/next/sms*' => Http::response('', 204),
+        'backend.statum.co.ke/api/v1/jobs/next/airtime*' => Http::response('', 204),
+    ]);
+
+    $result = $this->action->sync($this->user, 1);
+
+    expect($result)->toMatchArray([
+        'synced' => 0,
+        'skipped' => 1,
+        'failed' => 0,
+    ]);
+
+    expect(Transaction::query()->count())->toBe(1);
+    expect(Transaction::query()->where('transaction_id', '70')->exists())->toBeTrue();
+    expect(Transaction::query()->where('transaction_id', '71')->exists())->toBeFalse();
+});
+
 test('bingwa transaction sync clamps high limits to ten and treats stopped devices as failed polls', function () {
     Http::fake([
         'backend.statum.co.ke/api/v1/jobs/next/data_bundles*' => Http::response([

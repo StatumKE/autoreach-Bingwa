@@ -120,53 +120,11 @@ describe('Composer Configuration', function () {
 });
 
 describe('Lifecycle Hooks', function () {
-    it('has valid hooks configuration', function () {
+    it('does not patch generated NativePHP framework files', function () {
         $manifest = json_decode(file_get_contents($this->manifestPath), true);
 
-        if (isset($manifest['hooks'])) {
-            expect($manifest['hooks'])->toBeArray();
-
-            $validHooks = ['pre_compile', 'post_compile', 'copy_assets', 'post_build'];
-            foreach (array_keys($manifest['hooks']) as $hook) {
-                expect($hook)->toBeIn($validHooks);
-            }
-        }
-    });
-
-    it('has copy_assets hook command', function () {
-        $manifest = json_decode(file_get_contents($this->manifestPath), true);
-
-        expect($manifest['hooks']['copy_assets'] ?? null)->not->toBeNull();
-
-        $commandFile = $this->pluginPath.'/src/Commands/CopyAssetsCommand.php';
-        expect(file_exists($commandFile))->toBeTrue();
-    });
-
-    it('copy_assets command extends NativePluginHookCommand', function () {
-        $commandFile = $this->pluginPath.'/src/Commands/CopyAssetsCommand.php';
-        $content = file_get_contents($commandFile);
-
-        expect($content)->toContain('extends NativePluginHookCommand');
-        expect($content)->toContain('use Native\Mobile\Plugins\Commands\NativePluginHookCommand');
-    });
-
-    it('copy_assets command has correct signature', function () {
-        $manifest = json_decode(file_get_contents($this->manifestPath), true);
-        $expectedSignature = $manifest['hooks']['copy_assets'];
-
-        $commandFile = $this->pluginPath.'/src/Commands/CopyAssetsCommand.php';
-        $content = file_get_contents($commandFile);
-
-        expect($content)->toContain('$signature = \''.$expectedSignature.'\'');
-    });
-
-    it('copy_assets command has platform-specific methods', function () {
-        $commandFile = $this->pluginPath.'/src/Commands/CopyAssetsCommand.php';
-        $content = file_get_contents($commandFile);
-
-        // Should check for platform
-        expect($content)->toContain('$this->isAndroid()');
-        expect($content)->toContain('$this->isIos()');
+        expect($manifest)->not->toHaveKey('hooks');
+        expect(file_exists($this->pluginPath.'/src/Commands/CopyAssetsCommand.php'))->toBeFalse();
     });
 
     it('has valid assets configuration', function () {

@@ -15,6 +15,9 @@ class HandleNativePushNotificationReceived
 
         Log::debug('Bingwa push notification payload received.', [
             'data' => $data,
+            'transaction_id' => $data['transaction_id'] ?? null,
+            'service' => $data['service'] ?? null,
+            'device_id' => $data['device_id'] ?? null,
         ]);
 
         $backendDeviceId = $this->extractBackendDeviceId($data);
@@ -48,6 +51,8 @@ class HandleNativePushNotificationReceived
         Log::debug('Bingwa push notification dispatched the transaction sync job.', [
             'user_id' => $user->getKey(),
             'backend_device_id' => $backendDeviceId,
+            'transaction_id' => $data['transaction_id'] ?? null,
+            'service' => $data['service'] ?? null,
         ]);
     }
 

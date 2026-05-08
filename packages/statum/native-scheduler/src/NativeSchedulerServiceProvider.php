@@ -3,7 +3,6 @@
 namespace Statum\NativeScheduler;
 
 use Illuminate\Support\ServiceProvider;
-use Statum\NativeScheduler\Commands\CopyAssetsCommand;
 
 class NativeSchedulerServiceProvider extends ServiceProvider
 {
@@ -16,11 +15,6 @@ class NativeSchedulerServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Register plugin hook commands
-        if ($this->app->runningInConsole()) {
-            $this->commands([
-                CopyAssetsCommand::class,
-            ]);
-        }
+        //
     }
 }

@@ -26,6 +26,10 @@ class RefreshAirtimeBalance
         }
 
         $balance = $this->parseBalance($response);
+
+        if ($balance === null) {
+            return $this->cached($user);
+        }
         $checkedAt = now();
 
         $deviceSettings = DeviceSetting::query()->firstOrNew([

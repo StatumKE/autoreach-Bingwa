@@ -15,6 +15,14 @@ class NativeSchedulerServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        if ($this->app->runningInConsole()) {
+            return;
+        }
+
+        try {
+            $this->app->make(NativeScheduler::class)->start();
+        } catch (\Exception $e) {
+            // Ignore if native environment is not ready
+        }
     }
 }

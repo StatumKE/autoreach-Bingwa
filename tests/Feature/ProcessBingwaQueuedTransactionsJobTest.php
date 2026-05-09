@@ -1,0 +1,104 @@
+<?php
+
+use App\Actions\Autoreach\ExecuteBingwaUssd;
+use App\Actions\Autoreach\GetNextBingwaQueuedTransaction;
+use App\Jobs\ProcessBingwaQueuedTransactionsJob;
+use App\Models\Offer;
+use App\Models\Plan;
+use App\Models\Transaction;
+use App\Models\User;
+use Mockery\MockInterface;
+
+it('claims queued transactions, executes ussd, and finalizes them', function (): void {
+    $user = User::factory()->create();
+
+    Offer::factory()->create([
+        'user_id' => $user->id,
+        'ussd_code' => '*180*5*7*PN#',
+        'ussd_mode' => 'express',
+        'price' => 15,
+        'is_active' => true,
+    ]);
+
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'transaction_id' => 'TX-123',
+        'sender_phone' => '0712345678',
+        'amount' => 15,
+        'offer_name' => 'Data',
+        'offer_type' => 'data_bundles',
+        'status' => 'queued',
+        'status_desc' => 'Pulled from backend job queue.',
+    ]);
+
+    $this->mock(GetNextBingwaQueuedTransaction::class, function (MockInterface $mock) use ($transaction): void {
+        $mock->shouldReceive('next')
+            ->twice()
+            ->andReturn(
+                [
+                    'id' => $transaction->id,
+                    'backend_transaction_id' => 'TX-123',
+                    'code' => '*180*5*7*0712345678#',
+                    'mode' => 'express',
+                    'sim_slot' => 0,
+                    'timeout' => 30,
+                    'backend_url' => 'https://backend.example.com',
+                    'device_token' => 'raw-device-token',
+                ],
+                null,
+            );
+    });
+
+    $this->mock(ExecuteBingwaUssd::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('execute')
+            ->once()
+            ->withArgs(function (array $payload, ?string $flowId): bool {
+                return ($payload['backend_transaction_id'] ?? null) === 'TX-123'
+                    && ($payload['code'] ?? null) === '*180*5*7*0712345678#'
+                    && ($payload['mode'] ?? null) === 'express'
+                    && ((int) ($payload['sim_slot'] ?? -1)) === 0
+                    && is_string($flowId) && $flowId !== '';
+            })
+            ->andReturn([
+                'success' => true,
+                'message' => 'USSD request completed.',
+                'raw_response' => '{"data":{"success":true,"message":"USSD request completed."}}',
+            ]);
+    });
+
+    (new ProcessBingwaQueuedTransactionsJob($user->id))
+        ->handle(app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
+
+    $fresh = $transaction->fresh();
+    $plan = $user->plans()->first();
+
+    expect($fresh?->status)->toBe('completed');
+    expect($fresh?->processed_at)->not->toBeNull();
+    expect($fresh?->status_desc)->toBe('USSD request completed.');
+    expect($plan?->ussd_counter)->toBe(1);
+});
+
+it('does nothing when there are no queued transactions', function (): void {
+    $user = User::factory()->create();
+
+    $this->mock(GetNextBingwaQueuedTransaction::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('next')
+            ->once()
+            ->andReturn(null);
+    });
+
+    $this->mock(ExecuteBingwaUssd::class, function (MockInterface $mock): void {
+        $mock->shouldNotReceive('execute');
+    });
+
+    (new ProcessBingwaQueuedTransactionsJob($user->id))
+        ->handle(app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
+
+    expect(Transaction::query()->count())->toBe(0);
+});

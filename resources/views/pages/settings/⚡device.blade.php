@@ -117,6 +117,32 @@ new #[Title('Device settings')] class extends Component {
     }
 
     /**
+     * Handle live property updates.
+     */
+    public function updated(string $property): void
+    {
+        if (in_array($property, ['primary_transaction_sim', 'sms_auto_reply_sim'])) {
+            $this->saveHardwareMapping();
+        }
+
+        if ($property === 'operator_identity') {
+            $this->saveOperatorIdentity();
+        }
+
+        if (in_array($property, [
+            'auto_reschedule_rejected',
+            'retry_tomorrow_at',
+            'ussd_timeout_seconds',
+            'intelligent_auto_retry',
+            'retry_interval_minutes',
+            'max_attempts',
+            'retry_network_issues',
+        ])) {
+            $this->saveTechnicalConfig();
+        }
+    }
+
+    /**
      * Get the platform label shown in the device summary.
      */
     public function getPlatformLabelProperty(): string
@@ -286,23 +312,15 @@ new #[Title('Device settings')] class extends Component {
                     </div>
                 </div>
 
-                <form wire:submit="saveOperatorIdentity" class="mt-8 space-y-5">
+                <div class="mt-8 space-y-5">
                     <flux:input
-                        wire:model="operator_identity"
+                        wire:model.blur="operator_identity"
                         :label="__('Operator display name')"
                         type="text"
                         required
                         placeholder="{{ __('Bob Mwenda') }}"
                     />
-
-                    <flux:button variant="primary" class="app-primary-button h-12 w-full justify-center font-black uppercase tracking-widest text-[10px]" type="submit" wire:loading.attr="disabled" wire:target="saveOperatorIdentity">
-                        <span wire:loading.remove wire:target="saveOperatorIdentity">{{ __('Update Identity') }}</span>
-                        <span wire:loading wire:target="saveOperatorIdentity" class="inline-flex items-center justify-center gap-2">
-                            <flux:icon.loading variant="mini" class="size-4" />
-                            {{ __('Saving…') }}
-                        </span>
-                    </flux:button>
-                </form>
+                </div>
             </article>
 
             <article class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 xl:col-span-1">
@@ -392,14 +410,6 @@ new #[Title('Device settings')] class extends Component {
                             @endforeach
                         </div>
                     </div>
-
-                    <flux:button variant="primary" class="app-primary-button h-12 w-full justify-center font-black uppercase tracking-widest text-[10px]" type="submit" wire:loading.attr="disabled" wire:target="saveHardwareMapping">
-                        <span wire:loading.remove wire:target="saveHardwareMapping">{{ __('Save Hardware Mapping') }}</span>
-                        <span wire:loading wire:target="saveHardwareMapping" class="inline-flex items-center justify-center gap-2">
-                            <flux:icon.loading variant="mini" class="size-4" />
-                            {{ __('Saving…') }}
-                        </span>
-                    </flux:button>
                 </form>
             </article>
         </div>
@@ -418,7 +428,7 @@ new #[Title('Device settings')] class extends Component {
                 </div>
             </div>
 
-            <form wire:submit="saveTechnicalConfig" class="mt-10 space-y-10">
+            <div class="mt-10 space-y-10">
                 <div class="rounded-[1.5rem] bg-zinc-50 p-8 ring-1 ring-zinc-200 shadow-inner">
                     <div class="flex items-start justify-between gap-6">
                         <div>
@@ -431,7 +441,7 @@ new #[Title('Device settings')] class extends Component {
                         </div>
 
                         <label class="relative inline-flex cursor-pointer items-center">
-                            <input wire:model="auto_reschedule_rejected" type="checkbox" class="peer sr-only">
+                            <input wire:model.live="auto_reschedule_rejected" type="checkbox" class="peer sr-only">
                             <span class="h-8 w-14 rounded-full bg-zinc-100 transition peer-checked:bg-green-500 ring-1 ring-zinc-300"></span>
                             <span class="absolute left-1.5 top-1.5 h-5 w-5 rounded-full bg-white shadow-md transition peer-checked:translate-x-6"></span>
                         </label>
@@ -439,7 +449,7 @@ new #[Title('Device settings')] class extends Component {
 
                     @if ($this->auto_reschedule_rejected)
                         <div class="mt-8 border-t border-zinc-200 pt-8">
-                            <flux:select wire:model="retry_tomorrow_at" :label="__('Retry tomorrow at')">
+                            <flux:select wire:model.live="retry_tomorrow_at" :label="__('Retry tomorrow at')">
                                 @foreach ($this->retryScheduleOptions() as $value => $label)
                                     <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                                 @endforeach
@@ -449,7 +459,7 @@ new #[Title('Device settings')] class extends Component {
                 </div>
 
                 <div class="grid gap-8 md:grid-cols-2">
-                    <flux:input wire:model="ussd_timeout_seconds" :label="__('USSD timeout (sec)')" type="number" min="5" max="300" step="1" required />
+                    <flux:input wire:model.blur="ussd_timeout_seconds" :label="__('USSD timeout (sec)')" type="number" min="5" max="300" step="1" required />
 
                     <div class="rounded-[1.5rem] bg-zinc-50 p-8 ring-1 ring-zinc-200 shadow-inner">
                         <div class="flex items-start justify-between gap-6">
@@ -463,7 +473,7 @@ new #[Title('Device settings')] class extends Component {
                             </div>
 
                             <label class="relative inline-flex cursor-pointer items-center">
-                                <input wire:model="intelligent_auto_retry" type="checkbox" class="peer sr-only">
+                                <input wire:model.live="intelligent_auto_retry" type="checkbox" class="peer sr-only">
                                 <span class="h-8 w-14 rounded-full bg-zinc-100 transition peer-checked:bg-green-500 ring-1 ring-zinc-300"></span>
                                 <span class="absolute left-1.5 top-1.5 h-5 w-5 rounded-full bg-white shadow-md transition peer-checked:translate-x-6"></span>
                             </label>
@@ -473,8 +483,8 @@ new #[Title('Device settings')] class extends Component {
 
                 @if ($this->intelligent_auto_retry)
                     <div class="grid gap-8 md:grid-cols-2">
-                        <flux:input wire:model="retry_interval_minutes" :label="__('Interval (mins)')" type="number" min="1" max="60" step="1" required />
-                        <flux:input wire:model="max_attempts" :label="__('Max attempts')" type="number" min="1" max="10" step="1" required />
+                        <flux:input wire:model.blur="retry_interval_minutes" :label="__('Interval (mins)')" type="number" min="1" max="60" step="1" required />
+                        <flux:input wire:model.blur="max_attempts" :label="__('Max attempts')" type="number" min="1" max="10" step="1" required />
                     </div>
                 @endif
 
@@ -490,21 +500,13 @@ new #[Title('Device settings')] class extends Component {
                         </div>
 
                         <label class="relative inline-flex cursor-pointer items-center">
-                            <input wire:model="retry_network_issues" type="checkbox" class="peer sr-only">
+                            <input wire:model.live="retry_network_issues" type="checkbox" class="peer sr-only">
                             <span class="h-8 w-14 rounded-full bg-zinc-100 transition peer-checked:bg-amber-500 ring-1 ring-zinc-300"></span>
                             <span class="absolute left-1.5 top-1.5 h-5 w-5 rounded-full bg-white shadow-md transition peer-checked:translate-x-6"></span>
                         </label>
                     </div>
                 </div>
-
-                <flux:button variant="ghost" class="app-primary-button h-14 w-full justify-center font-black uppercase tracking-widest text-[10px]" type="submit" wire:loading.attr="disabled" wire:target="saveTechnicalConfig">
-                    <span wire:loading.remove wire:target="saveTechnicalConfig">{{ __('Apply Technical Configuration') }}</span>
-                    <span wire:loading wire:target="saveTechnicalConfig" class="inline-flex items-center justify-center gap-2">
-                        <flux:icon.loading variant="mini" class="size-4" />
-                        {{ __('Applying…') }}
-                    </span>
-                </flux:button>
-            </form>
+            </div>
         </article>
     </div>
 </section>

@@ -39,4 +39,22 @@ class NativeScheduler
 
         return null;
     }
+
+    /**
+     * Start the native background scheduler
+     */
+    public function start(): bool
+    {
+        if (function_exists('nativephp_call')) {
+            $result = nativephp_call('StartScheduler', '{}');
+
+            if ($result) {
+                $decoded = json_decode($result);
+
+                return $decoded->data->success ?? false;
+            }
+        }
+
+        return false;
+    }
 }

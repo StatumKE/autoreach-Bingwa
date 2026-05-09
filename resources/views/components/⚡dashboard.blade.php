@@ -25,6 +25,13 @@ new #[Title('Dashboard')] class extends Component
     public bool $callPhonePermissionDenied = false;
 
     /**
+     * Guards against concurrent USSD bridge calls from overlapping polls.
+     * The NativePHP persistent PHP runtime is single-threaded; two simultaneous
+     * nativePersistentDispatch calls cause a SIGSEGV null-pointer crash.
+     */
+    private bool $isRefreshingBalance = false;
+
+    /**
      * Hydrate the dashboard from the latest stored balance snapshot.
      */
     public function mount(): void
@@ -203,26 +210,50 @@ new #[Title('Dashboard')] class extends Component
 
     /**
      * Refresh the airtime balance from the active transaction SIM.
+     *
+     * Guard: if a balance refresh is already in-flight (e.g. from a concurrent
+     * Livewire poll), skip this call entirely. The NativePHP persistent PHP
+     * runtime is single-threaded; concurrent nativePersistentDispatch calls
+     * produce a SIGSEGV null-pointer dereference (native_persistent_dispatch+776).
      */
     public function refreshAirtimeBalance(): void
     {
-        Log::debug('Bingwa dashboard airtime refresh requested.', [
-            'user_id' => Auth::id(),
-        ]);
+        if ($this->isRefreshingBalance) {
+            Log::debug('Bingwa dashboard airtime refresh skipped — already in progress.', [
+                'user_id' => Auth::id(),
+            ]);
 
-        $result = app(RefreshAirtimeBalance::class)->refresh(Auth::user());
+            return;
+        }
 
-        $this->airtimeBalance = $result['balance'];
-        $this->airtimeBalanceCheckedAt = $result['checked_at']?->format('d M, H:i');
-        $this->airtimeBalanceRawResponse = $result['raw_response'];
-        $this->callPhonePermissionDenied = $result['permission_denied'];
+        $this->isRefreshingBalance = true;
 
-        Log::debug('Bingwa dashboard airtime refresh applied.', [
-            'user_id' => Auth::id(),
-            'balance' => $this->airtimeBalance,
-            'checked_at' => $this->airtimeBalanceCheckedAt,
-            'permission_denied' => $this->callPhonePermissionDenied,
-        ]);
+        try {
+            Log::debug('Bingwa dashboard airtime refresh requested. Dispatching to background queue.', [
+                'user_id' => Auth::id(),
+            ]);
+
+            \App\Jobs\RefreshAirtimeBalanceJob::dispatch(Auth::user());
+
+            // We don't have the result immediately anymore. We rely on refreshTransactions()
+            // to automatically pull the new balance on the next poll cycle.
+        } finally {
+            $this->isRefreshingBalance = false;
+        }
+    }
+
+    /**
+     * Dedicated poll target for the recent transactions list.
+     * This is a pure DB read — it does NOT touch the USSD bridge.
+     * Keeping it separate from refreshAirtimeBalance prevents the two
+     * wire:poll directives from ever racing on the native PHP runtime.
+     */
+    public function refreshTransactions(): void
+    {
+        $this->hydrateAirtimeBalance();
+        
+        // Livewire will automatically re-render the recentTransactions computed
+        // property on the next render cycle after this method completes.
     }
 
 }; ?>
@@ -252,25 +283,25 @@ new #[Title('Dashboard')] class extends Component
                 </div>
             </div>
         @endif
-            <a href="{{ route('transactions', ['filter' => 'success']) }}" wire:navigate class="flex flex-col items-center rounded-2xl bg-[#0f652a] px-3 py-3 text-white transition active:scale-[0.97]">
-                <div class="text-2xl font-black leading-none">{{ number_format($this->stats['successful']) }}</div>
-                <div class="mt-1 text-xs font-medium text-emerald-100/90">{{ __('Successful') }}</div>
+            <a href="{{ route('transactions', ['filter' => 'success']) }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#0f652a] px-2 py-2 text-white transition active:scale-[0.97]">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-100/90">{{ __('Successful') }}</div>
+                <div class="mt-1 text-lg font-bold leading-none">{{ number_format($this->stats['successful']) }}</div>
             </a>
 
-            <a href="{{ route('transactions', ['filter' => 'failed']) }}" wire:navigate class="flex flex-col items-center rounded-2xl bg-[#ffd9dc] px-3 py-3 text-[#5e181b] transition active:scale-[0.97]">
-                <div class="text-2xl font-black leading-none">{{ number_format($this->stats['failed']) }}</div>
-                <div class="mt-1 text-xs font-medium text-rose-900/80">{{ __('Failed') }}</div>
+            <a href="{{ route('transactions', ['filter' => 'failed']) }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#ffd9dc] px-2 py-2 text-[#5e181b] transition active:scale-[0.97]">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-rose-900/80">{{ __('Failed') }}</div>
+                <div class="mt-1 text-lg font-bold leading-none">{{ number_format($this->stats['failed']) }}</div>
             </a>
 
-            <a href="{{ route('plans') }}" wire:navigate class="flex flex-col items-center rounded-2xl bg-[#c8ebfb] px-3 py-3 text-[#12313d] transition active:scale-[0.97]">
-                <div class="text-xl font-black leading-none">
+            <a href="{{ route('plans') }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#c8ebfb] px-2 py-2 text-[#12313d] transition active:scale-[0.97]">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-sky-900/80">{{ __('Tokens') }}</div>
+                <div class="mt-1 text-lg font-bold leading-none">
                     @if ($this->tokenText === __('No Plan'))
                         {{ __('Expired') }}
                     @else
                         {{ $this->tokenText }}
                     @endif
                 </div>
-                <div class="mt-1 text-xs font-medium text-sky-900/80">{{ __('Tokens') }}</div>
             </a>
         </div>
 
@@ -332,9 +363,9 @@ new #[Title('Dashboard')] class extends Component
                 $points = $this->commissionData['points'];
                 $max = max($this->commissionData['max'], 1);
                 $width = 640;
-                $height = 152;
+                $height = 100;
                 $paddingX = 56;
-                $paddingY = 16;
+                $paddingY = 12;
                 $usableWidth = $width - ($paddingX * 2);
                 $usableHeight = $height - ($paddingY * 2);
                 $chartPath = '';
@@ -348,7 +379,7 @@ new #[Title('Dashboard')] class extends Component
             @endphp
 
             <div class="mt-1 overflow-hidden">
-                <svg viewBox="0 0 640 152" class="h-[152px] w-full overflow-visible" preserveAspectRatio="none">
+                <svg viewBox="0 0 640 100" class="h-[100px] w-full overflow-visible" preserveAspectRatio="none">
                     <defs>
                         <linearGradient id="dashboardGrid" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stop-color="#d9e2d0" stop-opacity="0.85" />
@@ -393,8 +424,8 @@ new #[Title('Dashboard')] class extends Component
             </flux:button>
         </div>
 
-        <div class="min-h-[200px] px-1 py-4 text-center" wire:poll.10s>
-            <div class="text-base font-medium text-zinc-600">
+        <div class="mt-2 min-h-[150px] overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-200" wire:poll.30s="refreshTransactions">
+            <div class="divide-y divide-zinc-100 text-center">
                 @forelse($this->recentTransactions as $tx)
                     @php
                         $status = strtolower((string) ($tx->status ?? ''));
@@ -403,52 +434,49 @@ new #[Title('Dashboard')] class extends Component
                     @endphp
 
                     <div @class([
-                        'mb-3 rounded-xl px-4 py-3 text-left shadow-sm ring-1 transition last:mb-0',
-                        'bg-emerald-50 ring-emerald-100' => $isSuccess,
-                        'bg-rose-50 ring-rose-100' => $isFailed,
-                        'bg-zinc-50 ring-zinc-200' => ! $isSuccess && ! $isFailed,
+                        'px-2.5 py-1.5 text-left transition',
+                        'bg-emerald-50/40 hover:bg-emerald-50/60' => $isSuccess,
+                        'bg-rose-50/40 hover:bg-rose-50/60' => $isFailed,
+                        'bg-zinc-50/40 hover:bg-zinc-50/60' => ! $isSuccess && ! $isFailed,
                     ])>
-                        <div class="flex items-start justify-between gap-4">
-                            <div class="min-w-0">
-                                <div class="truncate text-sm font-medium text-zinc-900">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex min-w-0 items-center gap-1.5">
+                                <div class="truncate text-xs font-bold text-zinc-900">
                                     {{ $tx->sender_name ?: $tx->sender_phone }}
                                 </div>
-                                <div class="mt-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                                    {{ $tx->occurred_at?->diffForHumans() ?? '—' }}
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <div @class([
-                                    'text-sm font-black',
-                                    'text-green-700' => $isSuccess,
-                                    'text-rose-700' => $isFailed,
-                                    'text-zinc-900' => ! $isSuccess && ! $isFailed,
-                                ])>
-                                    Ksh {{ number_format((float) $tx->amount, 2) }}
-                                </div>
-                                <div class="mt-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                                <div class="shrink-0 rounded bg-black/5 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider text-zinc-600">
                                     {{ $tx->offer_name }}
                                 </div>
+                            </div>
+                            <div @class([
+                                'shrink-0 text-xs font-black',
+                                'text-green-700' => $isSuccess,
+                                'text-rose-700' => $isFailed,
+                                'text-zinc-900' => ! $isSuccess && ! $isFailed,
+                            ])>
+                                Ksh {{ number_format((float) $tx->amount, 2) }}
                             </div>
                         </div>
 
                         @if (filled($tx->status_desc))
-                            <div @class([
-                                'mt-2 rounded-lg px-3 py-2 text-[10px] font-semibold leading-relaxed ring-1',
-                                'bg-green-50 text-green-800 ring-green-100' => $isSuccess,
-                                'bg-rose-50 text-rose-800 ring-rose-100' => $isFailed,
-                                'bg-zinc-50 text-zinc-700 ring-zinc-200' => ! $isSuccess && ! $isFailed,
-                            ])>
-                                <span class="mr-1.5 text-[8px] font-black uppercase tracking-wider text-zinc-500">
-                                    {{ __('USSD') }}
-                                </span>
-                                {{ $tx->status_desc }}
+                            <div class="mt-1 flex items-center justify-between gap-2">
+                                <div @class([
+                                    'truncate text-[9px] font-medium leading-tight',
+                                    'text-green-800/80' => $isSuccess,
+                                    'text-rose-800/80' => $isFailed,
+                                    'text-zinc-600' => ! $isSuccess && ! $isFailed,
+                                ])>
+                                    {{ $tx->status_desc }}
+                                </div>
+                                <div class="shrink-0 text-[8px] font-bold tracking-wider text-zinc-400">
+                                    {{ $tx->occurred_at?->diffForHumans(null, true, true) ?? '—' }}
+                                </div>
                             </div>
                         @endif
                     </div>
                 @empty
-                    <div class="py-12">
-                        <div class="text-base font-semibold text-zinc-700">{{ __('Your most recent transactions will appear here') }}</div>
+                    <div class="py-6">
+                        <div class="text-sm font-semibold text-zinc-500">{{ __('Your most recent transactions will appear here') }}</div>
                     </div>
                 @endforelse
             </div>

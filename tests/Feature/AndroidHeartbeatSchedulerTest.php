@@ -7,8 +7,14 @@ test('the android shell uses NativePHP default persistent queue worker', functio
 
     expect($mainActivity)
         ->toContain('import com.nativephp.mobile.bridge.PHPQueueWorker')
+        ->toContain('import com.nativephp.mobile.bridge.LaravelRuntimeBridgeProvider')
+        ->toContain('import com.nativephp.mobile.runtime.BackgroundRuntimeSyncScheduler')
+        ->toContain('import com.nativephp.mobile.runtime.RuntimeTickForegroundService')
         ->toContain('private var queueWorker: PHPQueueWorker? = null')
         ->toContain('queueWorker = PHPQueueWorker(phpBridge).also { it.start() }')
+        ->toContain('LaravelRuntimeBridgeProvider.register(this, phpBridge)')
+        ->toContain('BackgroundRuntimeSyncScheduler.schedule(this)')
+        ->toContain('RuntimeTickForegroundService.start(this)')
         ->toContain('queueWorker?.stop()')
         ->not->toContain('BingwaHeartbeatScheduler.register(applicationContext)')
         ->not->toContain('BingwaSyncTransactionsScheduler.register(applicationContext)');
@@ -46,9 +52,62 @@ test('the legacy foreground scheduler stack has been removed', function (): void
     }
 });
 
-test('the native scheduler manifest does not register custom android init hooks', function (): void {
+test('the native scheduler manifest registers runtime fallback permissions without init hooks', function (): void {
     $manifest = json_decode(File::get(base_path('packages/statum/native-scheduler/nativephp.json')), true, flags: JSON_THROW_ON_ERROR);
 
     expect($manifest['android']['init_function'] ?? null)->toBeNull();
     expect($manifest['hooks'] ?? null)->toBeNull();
+    expect($manifest['android']['permissions'])
+        ->toContain('android.permission.FOREGROUND_SERVICE')
+        ->toContain('android.permission.FOREGROUND_SERVICE_DATA_SYNC')
+        ->toContain('android.permission.RECEIVE_BOOT_COMPLETED')
+        ->toContain('android.permission.WAKE_LOCK');
+});
+
+test('the connect baseline runtime scheduler files are installed into the android shell', function (): void {
+    $service = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/runtime/RuntimeTickForegroundService.kt'));
+    $backgroundScheduler = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/runtime/BackgroundRuntimeSyncScheduler.kt'));
+    $backgroundJob = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/runtime/BackgroundRuntimeSyncJobService.kt'));
+    $bootReceiver = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/runtime/BootCompletedReceiver.kt'));
+    $wakeLock = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/runtime/RuntimeWakeLock.kt'));
+    $manifest = File::get(base_path('nativephp/android/app/src/main/AndroidManifest.xml'));
+
+    expect($service)
+        ->toContain('ContextCompat.startForegroundService')
+        ->toContain('startForeground(NOTIFICATION_ID, buildNotification())')
+        ->toContain('path = "/api/v1/native/runtime/tick"')
+        ->toContain('"X-Bingwa-Runtime" to "android"')
+        ->toContain('delayMillis.coerceIn(FAST_INTERVAL_MILLIS, IDLE_INTERVAL_MILLIS)');
+
+    expect($backgroundScheduler)
+        ->toContain('setPersisted(true)')
+        ->toContain('setPeriodic(INTERVAL_MILLIS, FLEX_MILLIS)')
+        ->toContain('setExpedited(true)')
+        ->toContain('setMinimumLatency(0L)');
+
+    expect($backgroundJob)
+        ->toContain('LaravelRuntimeBridgeProvider.isInitializing()')
+        ->toContain('RuntimeWakeLock.withLock(this, "background-runtime-job")')
+        ->toContain('path = "/api/v1/native/runtime/tick"')
+        ->toContain('jobFinished(params, false)');
+
+    expect($bootReceiver)
+        ->toContain('Intent.ACTION_BOOT_COMPLETED')
+        ->toContain('Intent.ACTION_MY_PACKAGE_REPLACED')
+        ->toContain('BackgroundRuntimeSyncScheduler.schedule(context)')
+        ->toContain('BackgroundRuntimeSyncScheduler.scheduleImmediate(context)');
+
+    expect($wakeLock)
+        ->toContain('PowerManager.PARTIAL_WAKE_LOCK')
+        ->toContain('wakeLock?.acquire(TIMEOUT_MILLIS)')
+        ->toContain('wakeLock.release()');
+
+    expect($manifest)
+        ->toContain('android.permission.FOREGROUND_SERVICE')
+        ->toContain('android.permission.FOREGROUND_SERVICE_DATA_SYNC')
+        ->toContain('android.permission.RECEIVE_BOOT_COMPLETED')
+        ->toContain('android.permission.WAKE_LOCK')
+        ->toContain('android:name=".runtime.BootCompletedReceiver"')
+        ->toContain('android:name=".runtime.BackgroundRuntimeSyncJobService"')
+        ->toContain('android:foregroundServiceType="dataSync"');
 });

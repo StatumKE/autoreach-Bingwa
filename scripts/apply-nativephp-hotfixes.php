@@ -28,6 +28,11 @@ function replace_or_fail(string $contents, string $search, string $replace, stri
 
 function write_if_changed(string $path, string $contents): void
 {
+    $directory = dirname($path);
+    if (! is_dir($directory)) {
+        mkdir($directory, 0775, true);
+    }
+
     $currentContents = file_exists($path) ? file_get_contents($path) : false;
 
     if ($currentContents === $contents) {
@@ -84,6 +89,23 @@ function guard_supported_versions(): void
             EXPECTED_NATIVEPHP_MOBILE_FIREBASE_VERSION,
             $firebaseVersion ?? 'not installed'
         ));
+    }
+}
+
+/**
+ * @param  non-empty-string  $stub
+ * @param  array<int, non-empty-string>  $targets
+ */
+function copy_stub_to_targets(string $stub, array $targets): void
+{
+    if (! file_exists($stub)) {
+        throw new RuntimeException("NativePHP hotfix failed: runtime scheduler stub was not found at {$stub}.");
+    }
+
+    $contents = (string) file_get_contents($stub);
+
+    foreach ($targets as $target) {
+        write_if_changed($target, $contents);
     }
 }
 
@@ -357,7 +379,8 @@ KOTLIN;
 
         $contents = (string) file_get_contents($target);
 
-        if (! str_contains($contents, $patchedShutdown)) {
+        if (! str_contains($contents, $patchedShutdown)
+            && ! str_contains($contents, 'Persistent runtime state cleared (native shutdown skipped to avoid PHP embed teardown abort)')) {
             $contents = replace_or_fail(
                 $contents,
                 $originalShutdown,
@@ -418,14 +441,257 @@ KOTLIN;
     }
 }
 
+function install_android_runtime_scheduler_sources(): void
+{
+    $sourceRoot = project_path('stubs/nativephp/mobile-runtime');
+    $targetRoots = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/java/com/nativephp/mobile'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/mobile'),
+    ];
+
+    $files = [
+        'bridge/LaravelRuntimeBridgeProvider.kt',
+        'network/InternalLaravelRequestClient.kt',
+        'runtime/BackgroundRuntimeSyncJobService.kt',
+        'runtime/BackgroundRuntimeSyncScheduler.kt',
+        'runtime/BootCompletedReceiver.kt',
+        'runtime/RuntimeTickForegroundService.kt',
+        'runtime/RuntimeWakeLock.kt',
+    ];
+
+    foreach ($files as $file) {
+        copy_stub_to_targets(
+            $sourceRoot.'/'.$file,
+            array_map(fn (string $root): string => $root.'/'.$file, $targetRoots),
+        );
+    }
+}
+
+function patch_android_runtime_scheduler_manifest(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/AndroidManifest.xml'),
+        project_path('nativephp/android/app/src/main/AndroidManifest.xml'),
+    ];
+
+    $permissions = [
+        'android.permission.FOREGROUND_SERVICE',
+        'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
+        'android.permission.RECEIVE_BOOT_COMPLETED',
+        'android.permission.WAKE_LOCK',
+    ];
+
+    $runtimeComponents = <<<'XML'
+        <service
+            android:name=".runtime.BackgroundRuntimeSyncJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+        <service
+            android:name=".runtime.RuntimeTickForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+        <receiver
+            android:name=".runtime.BootCompletedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+XML;
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        foreach ($permissions as $permission) {
+            $line = '    <uses-permission android:name="'.$permission.'" />';
+            if (! str_contains($contents, $permission)) {
+                if (str_contains($contents, '    <!-- NativePHP Plugin Permissions -->')) {
+                    $contents = replace_or_fail(
+                        $contents,
+                        '    <!-- NativePHP Plugin Permissions -->',
+                        $line.PHP_EOL.'    <!-- NativePHP Plugin Permissions -->',
+                        "AndroidManifest permission {$permission}",
+                    );
+                } else {
+                    $contents = replace_or_fail(
+                        $contents,
+                        '    <application',
+                        $line.PHP_EOL.PHP_EOL.'    <application',
+                        "AndroidManifest permission {$permission}",
+                    );
+                }
+            }
+        }
+
+        if (! str_contains($contents, 'RuntimeTickForegroundService')) {
+            $contents = replace_or_fail(
+                $contents,
+                '    </application>',
+                $runtimeComponents.'    </application>',
+                'Android runtime scheduler components',
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
+function patch_android_runtime_scheduler_main_activity(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/java/com/nativephp/mobile/ui/MainActivity.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/mobile/ui/MainActivity.kt'),
+    ];
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (! str_contains($contents, 'import com.nativephp.mobile.bridge.LaravelRuntimeBridgeProvider')) {
+            $contents = replace_or_fail(
+                $contents,
+                'import com.nativephp.mobile.bridge.LaravelEnvironment',
+                <<<'KOTLIN'
+import com.nativephp.mobile.bridge.LaravelEnvironment
+import com.nativephp.mobile.bridge.LaravelRuntimeBridgeProvider
+import com.nativephp.mobile.runtime.BackgroundRuntimeSyncScheduler
+import com.nativephp.mobile.runtime.RuntimeTickForegroundService
+KOTLIN,
+                'MainActivity runtime scheduler imports',
+            );
+        }
+
+        if (! str_contains($contents, 'private var runtimeTickSchedulerStarted = false')) {
+            $contents = replace_or_fail(
+                $contents,
+                '    private var showSplash by mutableStateOf(true)',
+                <<<'KOTLIN'
+    private var showSplash by mutableStateOf(true)
+
+    @Volatile
+    private var laravelEnvironmentReady = false
+    private var runtimeTickSchedulerStarted = false
+KOTLIN,
+                'MainActivity runtime scheduler state',
+            );
+        }
+
+        if (! str_contains($contents, 'LaravelRuntimeBridgeProvider.beginInitialization()')) {
+            $contents = replace_or_fail(
+                $contents,
+                '        Thread {
+            Log.d("LaravelInit", "Starting async Laravel extraction...")
+            laravelEnv = LaravelEnvironment(this)
+            laravelEnv.initialize()
+
+            Log.d("LaravelInit", "Laravel environment ready")',
+                <<<'KOTLIN'
+        Thread {
+            try {
+                Log.d("LaravelInit", "Starting async Laravel extraction...")
+                LaravelRuntimeBridgeProvider.beginInitialization()
+                laravelEnv = LaravelEnvironment(this)
+                laravelEnv.initialize()
+                LaravelRuntimeBridgeProvider.register(this, phpBridge)
+                laravelEnvironmentReady = true
+
+                Log.d("LaravelInit", "Laravel environment ready")
+KOTLIN,
+                'MainActivity Laravel initialization start',
+            );
+
+            $contents = replace_or_fail(
+                $contents,
+                '            Handler(Looper.getMainLooper()).post {
+                onReady()
+            }
+        }.start()',
+                <<<'KOTLIN'
+                Handler(Looper.getMainLooper()).post {
+                    onReady()
+                    startRuntimeScheduler()
+                }
+            } catch (exception: Exception) {
+                LaravelRuntimeBridgeProvider.failInitialization()
+                Log.e("LaravelInit", "Laravel environment initialization failed", exception)
+                BackgroundRuntimeSyncScheduler.schedule(applicationContext)
+                BackgroundRuntimeSyncScheduler.scheduleImmediate(applicationContext)
+                Handler(Looper.getMainLooper()).post {
+                    showSplash = false
+                }
+            }
+        }.start()
+KOTLIN,
+                'MainActivity Laravel initialization finish',
+            );
+        }
+
+        if (! str_contains($contents, 'private fun startRuntimeScheduler()')) {
+            $contents = replace_or_fail(
+                $contents,
+                '    private fun initializeEnvironment() {',
+                <<<'KOTLIN'
+    private fun startRuntimeScheduler() {
+        if (!laravelEnvironmentReady || runtimeTickSchedulerStarted) {
+            return
+        }
+
+        runtimeTickSchedulerStarted = true
+        BackgroundRuntimeSyncScheduler.schedule(this)
+
+        try {
+            RuntimeTickForegroundService.start(this)
+        } catch (exception: Exception) {
+            runtimeTickSchedulerStarted = false
+            Log.e("RuntimeTickService", "Foreground runtime scheduler could not start", exception)
+            BackgroundRuntimeSyncScheduler.scheduleImmediate(this)
+        }
+    }
+
+    private fun initializeEnvironment() {
+KOTLIN,
+                'MainActivity startRuntimeScheduler method',
+            );
+        }
+
+        if (! str_contains($contents, 'LaravelRuntimeBridgeProvider.reset(shutdown = false)')) {
+            $contents = replace_or_fail(
+                $contents,
+                '        instance = null',
+                <<<'KOTLIN'
+        instance = null
+        laravelEnvironmentReady = false
+        runtimeTickSchedulerStarted = false
+        LaravelRuntimeBridgeProvider.reset(shutdown = false)
+KOTLIN,
+                'MainActivity runtime provider reset',
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
 try {
     guard_supported_versions();
     patch_mobile_firebase_dispatch_command();
     patch_mobile_firebase_android_service();
+    install_android_runtime_scheduler_sources();
     patch_mobile_background_initializer();
     patch_mobile_debug_extraction_marker();
     patch_mobile_persistent_shutdown();
     patch_mobile_main_activity_destroy_order();
+    patch_android_runtime_scheduler_manifest();
+    patch_android_runtime_scheduler_main_activity();
 } catch (Throwable $throwable) {
     fwrite(STDERR, $throwable->getMessage().PHP_EOL);
 

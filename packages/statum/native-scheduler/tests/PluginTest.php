@@ -86,22 +86,9 @@ describe('PHP Classes', function () {
         expect($content)->toContain('class NativeSchedulerServiceProvider');
     });
 
-    it('has facade', function () {
-        $file = $this->pluginPath.'/src/Facades/NativeScheduler.php';
-        expect(file_exists($file))->toBeTrue();
-
-        $content = file_get_contents($file);
-        expect($content)->toContain('namespace Statum\NativeScheduler\Facades');
-        expect($content)->toContain('class NativeScheduler extends Facade');
-    });
-
-    it('has main implementation class', function () {
-        $file = $this->pluginPath.'/src/NativeScheduler.php';
-        expect(file_exists($file))->toBeTrue();
-
-        $content = file_get_contents($file);
-        expect($content)->toContain('namespace Statum\NativeScheduler');
-        expect($content)->toContain('class NativeScheduler');
+    it('does not ship the removed scheduler facade or PHP implementation class', function () {
+        expect(file_exists($this->pluginPath.'/src/Facades/NativeScheduler.php'))->toBeFalse();
+        expect(file_exists($this->pluginPath.'/src/NativeScheduler.php'))->toBeFalse();
     });
 });
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $user_id
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $linked_connect_device_id
  * @property string|null $device_name
  * @property string|null $app_version
+ * @property Carbon|null $last_seen_at
+ * @property string|null $status
  * @property array<string, mixed>|null $device_info
  * @property array<string, mixed>|null $metadata
  * @property-read User $user
@@ -33,6 +36,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'linked_connect_device_id',
     'device_name',
     'app_version',
+    'last_seen_at',
+    'status',
     'device_info',
     'metadata',
 ])]
@@ -55,6 +60,7 @@ class BingwaDeviceRegistration extends Model
     {
         return [
             'backend_device_id' => 'integer',
+            'last_seen_at' => 'datetime',
             'device_info' => 'array',
             'metadata' => 'array',
         ];

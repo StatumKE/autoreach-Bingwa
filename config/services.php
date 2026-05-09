@@ -37,6 +37,7 @@ return [
 
     'autoreach' => [
         'backend_url' => env('AUTOREACH_BACKEND_URL', 'https://backend.statum.co.ke/'),
+        'heartbeat_interval_seconds' => env('AUTOREACH_HEARTBEAT_INTERVAL_SECONDS', 300),
     ],
 
 ];

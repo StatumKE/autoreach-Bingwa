@@ -13,10 +13,6 @@
         {
             "name": "RequestSetupPermissions",
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.RequestSetupPermissions"
-        },
-        {
-            "name": "StartScheduler",
-            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.StartScheduler"
         }
     ],
     "assets": {
@@ -29,15 +25,18 @@
         "min_version": 26,
         "dependencies": {
             "implementation": [
-                "com.squareup.okhttp3:okhttp:4.12.0",
-                "androidx.work:work-runtime-ktx:2.8.1"
+                "com.squareup.okhttp3:okhttp:4.12.0"
             ]
         },
         "permissions": [
             "android.permission.POST_NOTIFICATIONS",
             "android.permission.CALL_PHONE",
             "android.permission.SYSTEM_ALERT_WINDOW",
-            "android.permission.READ_PHONE_STATE"
+            "android.permission.READ_PHONE_STATE",
+            "android.permission.FOREGROUND_SERVICE",
+            "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+            "android.permission.RECEIVE_BOOT_COMPLETED",
+            "android.permission.WAKE_LOCK"
         ],
         "services": [],
         "receivers": []

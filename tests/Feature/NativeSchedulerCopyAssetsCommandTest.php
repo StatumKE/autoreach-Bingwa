@@ -24,10 +24,13 @@ test('native scheduler android bridge source no longer exposes scheduler queuein
 
     expect($bridgeSource)
         ->not->toContain('QueueSchedulerRun')
-        ->not->toContain('BingwaScheduler.enqueueStartupRun(context)');
+        ->not->toContain('BingwaScheduler.enqueueStartupRun(context)')
+        ->not->toContain('StartScheduler')
+        ->not->toContain('WorkManager')
+        ->not->toContain('PeriodicWorkRequestBuilder');
 });
 
-test('native scheduler manifest no longer registers the removed android scheduler wiring', function () {
+test('native scheduler manifest no longer registers the removed workmanager scheduler wiring', function () {
     $manifest = File::get(base_path('packages/statum/native-scheduler/nativephp.json'));
 
     expect($manifest)
@@ -35,17 +38,13 @@ test('native scheduler manifest no longer registers the removed android schedule
         ->not->toContain('BingwaSchedulerService')
         ->not->toContain('SchedulerBootReceiver')
         ->not->toContain('work-runtime-ktx')
-        ->not->toContain('RECEIVE_BOOT_COMPLETED')
-        ->not->toContain('FOREGROUND_SERVICE_DATA_SYNC')
         ->not->toContain('initNativeScheduler');
 });
 
-test('native android manifest does not register the removed scheduler components', function () {
+test('native android manifest does not register the removed workmanager scheduler components', function () {
     $manifest = File::get(base_path('nativephp/android/app/src/main/AndroidManifest.xml'));
 
     expect($manifest)
         ->not->toContain('BingwaSchedulerService')
-        ->not->toContain('SchedulerBootReceiver')
-        ->not->toContain('RECEIVE_BOOT_COMPLETED')
-        ->not->toContain('FOREGROUND_SERVICE_DATA_SYNC');
+        ->not->toContain('SchedulerBootReceiver');
 });

@@ -11,13 +11,9 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import com.nativephp.mobile.bridge.BridgeError
 import com.nativephp.mobile.bridge.BridgeFunction
 import kotlinx.coroutines.runBlocking
-import java.util.concurrent.TimeUnit
 
 object BingwaFunctions {
     private const val SETUP_PERMISSION_REQUEST_CODE = 5107
@@ -28,22 +24,6 @@ object BingwaFunctions {
     class TriggerSambaza(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
             return executeUssd(context, parameters, defaultMode = "advanced", defaultIsSambaza = true)
-        }
-    }
-
-    class StartScheduler(private val context: Context) : BridgeFunction {
-        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
-            val workRequest = PeriodicWorkRequestBuilder<BingwaWorker>(15, TimeUnit.MINUTES)
-                .build()
-
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                "BingwaScheduler",
-                ExistingPeriodicWorkPolicy.KEEP,
-                workRequest
-            )
-
-            Log.i(TAG, "Scheduled BingwaWorker to run every 15 minutes")
-            return mapOf("success" to true)
         }
     }
 

@@ -6,7 +6,7 @@
     <body
         class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 overscroll-y-none touch-manipulation"
         x-data="bingwaPermissionSetup({{ session()->pull('request_setup_permissions_after_onboarding', false) ? 'true' : 'false' }})"
-        x-init="requestAfterOnboarding && requestSetupPermissionsOnce(true)"
+        x-init="if (requestAfterOnboarding) requestSetupPermissionsOnce(true)"
     >
         <flux:sidebar sticky collapsible="mobile" class="bg-app-drawer text-zinc-200 border-e border-white/5">
             <flux:sidebar.header class="px-3 py-4">
@@ -138,6 +138,8 @@
 
             function bingwaPermissionSetup(requestAfterOnboarding = false) {
                 return {
+                    requestAfterOnboarding,
+
                     requestSetupPermissionsOnce(force = false) {
                         const sessionKey = 'bingwa-setup-permissions-requested-v1';
 

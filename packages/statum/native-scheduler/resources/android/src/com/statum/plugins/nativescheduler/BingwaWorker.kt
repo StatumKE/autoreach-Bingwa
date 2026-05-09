@@ -32,14 +32,16 @@ class BingwaWorker(
             
             // Run commands
             Log.i("BingwaWorker", "Running bingwa:heartbeat")
-            synchronized(PHPBridge.phpLock) {
+            val heartbeatOutput = synchronized(PHPBridge.phpLock) {
                 phpBridge.nativeEphemeralArtisan("bingwa:heartbeat")
             }
+            Log.i("BingwaWorker", "bingwa:heartbeat output: ${heartbeatOutput.take(1000)}")
             
             Log.i("BingwaWorker", "Running bingwa:sync-transactions")
-            synchronized(PHPBridge.phpLock) {
+            val syncOutput = synchronized(PHPBridge.phpLock) {
                 phpBridge.nativeEphemeralArtisan("bingwa:sync-transactions")
             }
+            Log.i("BingwaWorker", "bingwa:sync-transactions output: ${syncOutput.take(1000)}")
             
             // Shutdown
             synchronized(PHPBridge.phpLock) {

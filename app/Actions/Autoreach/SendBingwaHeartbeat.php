@@ -5,33 +5,59 @@ namespace App\Actions\Autoreach;
 use App\Models\User;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class SendBingwaHeartbeat
 {
     /**
      * Send a heartbeat to the Bingwa backend.
      */
-    public function send(User $user): void
+    public function send(User $user): bool
     {
         $registration = $user->bingwaDeviceRegistration;
 
         if ($registration === null || blank($registration->device_token)) {
-            return;
+            Log::warning('Bingwa heartbeat skipped because the user has no device token.', [
+                'user_id' => $user->getKey(),
+                'registration_id' => $registration?->getKey(),
+            ]);
+
+            return false;
         }
 
         $baseUrl = rtrim((string) config('services.autoreach.backend_url'), '/');
         $token = $registration->device_token;
+
+        Log::info('Bingwa heartbeat request starting.', [
+            'user_id' => $user->getKey(),
+            'registration_id' => $registration->getKey(),
+            'backend_device_id' => $registration->backend_device_id,
+            'base_url' => $baseUrl,
+        ]);
 
         try {
             $response = $this->executeHeartbeat($baseUrl, $token);
 
             // If unauthorized, attempt to recover the token once and retry
             if ($response->status() === 401) {
+                Log::warning('Bingwa heartbeat returned unauthorized; attempting token recovery.', [
+                    'user_id' => $user->getKey(),
+                    'registration_id' => $registration->getKey(),
+                    'backend_device_id' => $registration->backend_device_id,
+                    'status' => $response->status(),
+                ]);
+
                 try {
                     $registration = app(RecoverBingwaDeviceToken::class)->recover($user);
                     $response = $this->executeHeartbeat($baseUrl, $registration->device_token);
                 } catch (\Throwable $e) {
                     report(new \RuntimeException('Failed to recover token during heartbeat: '.$e->getMessage(), 0, $e));
+                    Log::error('Bingwa heartbeat token recovery failed.', [
+                        'user_id' => $user->getKey(),
+                        'registration_id' => $registration->getKey(),
+                        'backend_device_id' => $registration->backend_device_id,
+                        'message' => $e->getMessage(),
+                    ]);
                 }
             }
 
@@ -42,7 +68,15 @@ class SendBingwaHeartbeat
                     // We don't update app_version in DB here, but we could if we added the column.
                 ]);
 
-                return;
+                Log::info('Bingwa heartbeat accepted by backend.', [
+                    'user_id' => $user->getKey(),
+                    'registration_id' => $registration->getKey(),
+                    'backend_device_id' => $registration->backend_device_id,
+                    'status' => $response->status(),
+                    'recorded_at' => now()->toISOString(),
+                ]);
+
+                return true;
             }
 
             if ($response->status() === 403 || $response->json('code') === 'device_stopped') {
@@ -51,8 +85,26 @@ class SendBingwaHeartbeat
             }
 
             report(new \RuntimeException("Heartbeat failed with status: {$response->status()}"));
+            Log::warning('Bingwa heartbeat was rejected by backend.', [
+                'user_id' => $user->getKey(),
+                'registration_id' => $registration->getKey(),
+                'backend_device_id' => $registration->backend_device_id,
+                'status' => $response->status(),
+                'response_code' => $response->json('code'),
+                'response_message' => $response->json('message'),
+            ]);
+
+            return false;
         } catch (\Throwable $e) {
             report(new \RuntimeException('Heartbeat threw exception: '.$e->getMessage(), 0, $e));
+            Log::error('Bingwa heartbeat threw an exception.', [
+                'user_id' => $user->getKey(),
+                'registration_id' => $registration->getKey(),
+                'backend_device_id' => $registration->backend_device_id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return false;
         }
     }
 

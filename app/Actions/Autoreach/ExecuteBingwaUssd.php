@@ -55,10 +55,9 @@ class ExecuteBingwaUssd
             'isSambaza' => $isSambaza,
         ]);
 
-        Log::debug('Bingwa USSD execution started.', [
-            'flow_id' => $flowId,
-            'transaction_id' => $payload['backend_transaction_id'] ?? null,
-            'id' => $payload['id'] ?? null,
+        Log::info("📡 [BRIDGE DISPATCH] Sending USSD to Android Hardware", [
+            'transaction_id' => $payload['id'] ?? null,
+            'code' => $code,
             'sim_slot' => $simSlot,
             'mode' => $mode,
         ]);

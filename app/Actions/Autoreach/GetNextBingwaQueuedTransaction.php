@@ -20,8 +20,7 @@ class GetNextBingwaQueuedTransaction
 
         $transactionQuery = Transaction::query()
             ->with(['offer:id,ussd_code,ussd_mode', 'user.deviceSetting', 'user.bingwaDeviceRegistration', 'user.plans'])
-            ->where('status', 'queued')
-            ->whereNotNull('offer_id');
+            ->where('status', 'queued');
 
         if ($userId !== null) {
             $transactionQuery->where('user_id', $userId);
@@ -31,7 +30,26 @@ class GetNextBingwaQueuedTransaction
             ->oldest('occurred_at')
             ->first();
 
-        if ($transaction === null || $transaction->offer === null) {
+        if ($transaction === null) {
+            return null;
+        }
+
+        // Self-healing: If offer_id is missing, try to re-match it now
+        if ($transaction->offer_id === null && $transaction->amount > 0) {
+            $matchedOffer = $transaction->user?->offers()
+                ->where('is_active', true)
+                ->where('price', (int) $transaction->amount)
+                ->first();
+
+            if ($matchedOffer) {
+                $transaction->update(['offer_id' => $matchedOffer->id]);
+                $transaction->setRelation('offer', $matchedOffer);
+                Log::info("Self-healed transaction #{$transaction->id}: Linked to offer #{$matchedOffer->id}");
+            }
+        }
+
+        if ($transaction->offer === null) {
+            Log::warning("Transaction #{$transaction->id} skipped: No matching offer found for amount {$transaction->amount}");
             return null;
         }
 

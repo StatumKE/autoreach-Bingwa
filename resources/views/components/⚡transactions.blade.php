@@ -59,6 +59,25 @@ new #[Title('Transactions')] class extends Component
     }
 
     /**
+     * Sync transactions from the backend.
+     */
+    public function syncTransactions(): void
+    {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('bingwa:sync-transactions', [
+                '--user-id' => Auth::id(),
+            ]);
+
+            $this->loadTransactions();
+            
+            Flux::toast(variant: 'success', text: __('Transactions synced and processed.'));
+        } catch (\Throwable $e) {
+            Log::error('Manual sync failed: ' . $e->getMessage());
+            $this->errorMessage = __('Failed to sync transactions. Please try again.');
+        }
+    }
+
+    /**
      * Load the transactions after the page has rendered.
      */
     public function loadTransactions(): void
@@ -121,7 +140,7 @@ new #[Title('Transactions')] class extends Component
 };
 ?>
 
-<div class="flex flex-col gap-3 px-4 pb-24 pt-3 bg-app-bg text-zinc-900 min-h-screen" wire:init="loadTransactions" wire:poll.10s="loadTransactions">
+<div class="flex flex-col gap-3 px-4 pb-24 pt-3 bg-app-bg text-zinc-900 min-h-screen" wire:init="syncTransactions" wire:poll.10s="loadTransactions">
     <style>
         @keyframes transactions-reveal {
             from { opacity: 0; transform: translateY(8px); }
@@ -130,8 +149,24 @@ new #[Title('Transactions')] class extends Component
         .transactions-reveal { animation: transactions-reveal 300ms ease-out both; }
     </style>
 
-    <div class="px-1">
+    <div class="flex items-center justify-between px-1">
         <div class="text-xl font-bold text-zinc-900">{{ __('Transactions') }}</div>
+        <flux:button
+            type="button"
+            variant="ghost"
+            wire:click="syncTransactions"
+            wire:loading.attr="disabled"
+            class="app-secondary-button !h-9 px-3 text-[10px] font-bold uppercase tracking-widest"
+        >
+            <span wire:loading.remove wire:target="syncTransactions">
+                <flux:icon.arrow-path variant="mini" class="size-3.5 mr-1" />
+                {{ __('Sync') }}
+            </span>
+            <span wire:loading wire:target="syncTransactions" class="inline-flex items-center gap-1.5">
+                <flux:icon.loading variant="mini" class="size-3" />
+                {{ __('Syncing…') }}
+            </span>
+        </flux:button>
     </div>
 
     <div class="flex flex-col gap-3">

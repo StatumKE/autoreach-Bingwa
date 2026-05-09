@@ -256,9 +256,25 @@ new #[Title('Dashboard')] class extends Component
         // property on the next render cycle after this method completes.
     }
 
+    /**
+     * Sync transactions and process jobs.
+     */
+    public function syncTransactions(): void
+    {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('bingwa:sync-transactions', [
+                '--user-id' => Auth::id(),
+            ]);
+            
+            $this->refreshTransactions();
+        } catch (\Throwable $e) {
+            Log::error('Dashboard background sync failed: ' . $e->getMessage());
+        }
+    }
+
 }; ?>
 
-<div class="min-h-screen bg-app-bg px-4 pb-24 pt-3 text-zinc-900" wire:poll.15m="refreshAirtimeBalance">
+<div class="min-h-screen bg-app-bg px-4 pb-24 pt-3 text-zinc-900" wire:init="syncTransactions" wire:poll.15m="refreshAirtimeBalance">
     <div class="mx-auto flex max-w-[780px] flex-col gap-3">
         {{-- Greeting --}}
         <div class="flex items-start justify-between px-1">

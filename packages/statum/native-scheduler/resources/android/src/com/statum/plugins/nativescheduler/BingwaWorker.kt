@@ -11,26 +11,20 @@ class BingwaWorker(
     workerParams: WorkerParameters
 ) : Worker(context, workerParams) {
 
-    companion object {
-        @Volatile
-        private var isRuntimeGloballyInitialized = false
-    }
-
     override fun doWork(): Result {
         Log.i("BingwaWorker", "Starting scheduled background work")
         val phpBridge = PHPBridge(context)
         
         try {
-            if (!isRuntimeGloballyInitialized) {
-                phpBridge.ensureRuntimeInitialized()
-                isRuntimeGloballyInitialized = true
-            }
+            phpBridge.ensureRuntimeInitialized()
             
             // Boot ephemeral runtime
             val laravelPath = phpBridge.getLaravelPath()
             val bootstrapScript = "$laravelPath/vendor/nativephp/mobile/bootstrap/android/persistent.php"
             
-            val bootResult = phpBridge.nativeEphemeralBoot(bootstrapScript)
+            val bootResult = synchronized(PHPBridge.phpLock) {
+                phpBridge.nativeEphemeralBoot(bootstrapScript)
+            }
             if (bootResult != 0) {
                 Log.e("BingwaWorker", "Failed to boot ephemeral runtime: $bootResult")
                 return Result.retry()
@@ -38,13 +32,19 @@ class BingwaWorker(
             
             // Run commands
             Log.i("BingwaWorker", "Running bingwa:heartbeat")
-            phpBridge.nativeEphemeralArtisan("bingwa:heartbeat")
+            synchronized(PHPBridge.phpLock) {
+                phpBridge.nativeEphemeralArtisan("bingwa:heartbeat")
+            }
             
             Log.i("BingwaWorker", "Running bingwa:sync-transactions")
-            phpBridge.nativeEphemeralArtisan("bingwa:sync-transactions")
+            synchronized(PHPBridge.phpLock) {
+                phpBridge.nativeEphemeralArtisan("bingwa:sync-transactions")
+            }
             
             // Shutdown
-            phpBridge.nativeEphemeralShutdown()
+            synchronized(PHPBridge.phpLock) {
+                phpBridge.nativeEphemeralShutdown()
+            }
             Log.i("BingwaWorker", "Finished scheduled background work")
             
             return Result.success()

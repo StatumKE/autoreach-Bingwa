@@ -32,7 +32,7 @@ class extends Component {
 
         <h1 class="text-2xl font-black text-center tracking-tight">Set up your app</h1>
         <p class="text-sm text-zinc-400 text-center mt-2 max-w-xs mx-auto leading-relaxed">
-            Grant the following permissions so Bingwa can automatically send data bundles to your customers.
+            Grant the following permissions so Bingwa can automatically send data, airtime, and SMS packages to your customers.
         </p>
     </div>
 
@@ -209,7 +209,7 @@ class extends Component {
                             Enabled
                         </span>
                     </div>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed">Reads USSD responses from the network to confirm data delivery.</p>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed">Reads USSD responses from the network to confirm transaction delivery.</p>
                     <div x-show="!status.accessibilityEnabled" x-cloak class="mt-3 space-y-2">
                         <button
                             @click="openAccessibilitySettings()"
@@ -246,7 +246,7 @@ class extends Component {
                             Granted
                         </span>
                     </div>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed">Show a USSD overlay so the screen stays on while sending data.</p>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed">Show a USSD overlay so the screen stays on while processing transactions.</p>
                     <button
                         x-show="!status.overlayGranted"
                         x-cloak

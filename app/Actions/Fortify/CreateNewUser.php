@@ -66,6 +66,8 @@ class CreateNewUser implements CreatesNewUsers
                             'retry_network_issues' => true,
                         ]);
 
+                        (new \App\Actions\Bingwa\PopulateDefaultOffers)->handle($user);
+
                         return $user;
                     });
                 }, 0);

@@ -117,29 +117,13 @@ new #[Title('Device settings')] class extends Component {
     }
 
     /**
-     * Handle live property updates.
+     * Save all device settings.
      */
-    public function updated(string $property): void
+    public function save(): void
     {
-        if (in_array($property, ['primary_transaction_sim', 'sms_auto_reply_sim'])) {
-            $this->saveHardwareMapping();
-        }
-
-        if ($property === 'operator_identity') {
-            $this->saveOperatorIdentity();
-        }
-
-        if (in_array($property, [
-            'auto_reschedule_rejected',
-            'retry_tomorrow_at',
-            'ussd_timeout_seconds',
-            'intelligent_auto_retry',
-            'retry_interval_minutes',
-            'max_attempts',
-            'retry_network_issues',
-        ])) {
-            $this->saveTechnicalConfig();
-        }
+        $this->saveOperatorIdentity();
+        $this->saveHardwareMapping();
+        $this->saveTechnicalConfig();
     }
 
     /**
@@ -299,28 +283,34 @@ new #[Title('Device settings')] class extends Component {
 
         <div class="grid gap-4 xl:grid-cols-3">
             <article class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 xl:col-span-1">
-                <div class="flex items-center gap-4">
-                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-50 text-green-700 shadow-inner ring-1 ring-green-100">
-                        <span class="text-lg font-black">{{ strtoupper(substr($this->operator_identity ?: Auth::user()->name, 0, 1)) }}</span>
-                    </div>
-
-                    <div>
-                        <div class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                            {{ __('Operator identity') }}
+                <form wire:submit="saveOperatorIdentity">
+                    <div class="flex items-center gap-4">
+                        <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-50 text-green-700 shadow-inner ring-1 ring-green-100">
+                            <span class="text-lg font-black">{{ strtoupper(substr($this->operator_identity ?: Auth::user()->name, 0, 1)) }}</span>
                         </div>
-                        <div class="mt-1 text-base font-bold text-zinc-900">{{ $this->operator_identity ?: Auth::user()->name }}</div>
-                    </div>
-                </div>
 
-                <div class="mt-8 space-y-5">
-                    <flux:input
-                        wire:model.blur="operator_identity"
-                        :label="__('Operator display name')"
-                        type="text"
-                        required
-                        placeholder="{{ __('Bob Mwenda') }}"
-                    />
-                </div>
+                        <div>
+                            <div class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                                {{ __('Operator identity') }}
+                            </div>
+                            <div class="mt-1 text-base font-bold text-zinc-900">{{ $this->operator_identity ?: Auth::user()->name }}</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 space-y-5">
+                        <flux:input
+                            wire:model="operator_identity"
+                            :label="__('Operator display name')"
+                            type="text"
+                            required
+                            placeholder="{{ __('Bob Mwenda') }}"
+                        />
+
+                        <div class="flex justify-end">
+                            <flux:button type="submit" variant="primary" size="sm">{{ __('Save') }}</flux:button>
+                        </div>
+                    </div>
+                </form>
             </article>
 
             <article class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 xl:col-span-1">
@@ -379,7 +369,7 @@ new #[Title('Device settings')] class extends Component {
                                         ])></div>
                                         <span class="text-base font-black text-zinc-950">{{ $label }}</span>
                                     </div>
-                                    <input wire:model.live="primary_transaction_sim" type="radio" class="sr-only" value="{{ $value }}">
+                                    <input wire:model="primary_transaction_sim" type="radio" class="sr-only" value="{{ $value }}">
                                 </label>
                             @endforeach
                         </div>
@@ -405,10 +395,14 @@ new #[Title('Device settings')] class extends Component {
                                         ])></div>
                                         <span class="text-base font-black text-zinc-950">{{ $label }}</span>
                                     </div>
-                                    <input wire:model.live="sms_auto_reply_sim" type="radio" class="sr-only" value="{{ $value }}">
+                                    <input wire:model="sms_auto_reply_sim" type="radio" class="sr-only" value="{{ $value }}">
                                 </label>
                             @endforeach
                         </div>
+                    </div>
+
+                    <div class="flex justify-end pt-4 border-t border-zinc-100">
+                        <flux:button type="submit" variant="primary">{{ __('Save SIM Mapping') }}</flux:button>
                     </div>
                 </form>
             </article>
@@ -428,7 +422,7 @@ new #[Title('Device settings')] class extends Component {
                 </div>
             </div>
 
-            <div class="mt-10 space-y-10">
+            <form wire:submit="saveTechnicalConfig" class="mt-10 space-y-10">
                 <div class="rounded-[1.5rem] bg-zinc-50 p-8 ring-1 ring-zinc-200 shadow-inner">
                     <div class="flex items-start justify-between gap-6">
                         <div>
@@ -449,7 +443,7 @@ new #[Title('Device settings')] class extends Component {
 
                     @if ($this->auto_reschedule_rejected)
                         <div class="mt-8 border-t border-zinc-200 pt-8">
-                            <flux:select wire:model.live="retry_tomorrow_at" :label="__('Retry tomorrow at')">
+                            <flux:select wire:model="retry_tomorrow_at" :label="__('Retry tomorrow at')">
                                 @foreach ($this->retryScheduleOptions() as $value => $label)
                                     <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                                 @endforeach
@@ -459,7 +453,7 @@ new #[Title('Device settings')] class extends Component {
                 </div>
 
                 <div class="grid gap-8 md:grid-cols-2">
-                    <flux:input wire:model.blur="ussd_timeout_seconds" :label="__('USSD timeout (sec)')" type="number" min="5" max="300" step="1" required />
+                    <flux:input wire:model="ussd_timeout_seconds" :label="__('USSD timeout (sec)')" type="number" min="5" max="300" step="1" required />
 
                     <div class="rounded-[1.5rem] bg-zinc-50 p-8 ring-1 ring-zinc-200 shadow-inner">
                         <div class="flex items-start justify-between gap-6">
@@ -483,8 +477,8 @@ new #[Title('Device settings')] class extends Component {
 
                 @if ($this->intelligent_auto_retry)
                     <div class="grid gap-8 md:grid-cols-2">
-                        <flux:input wire:model.blur="retry_interval_minutes" :label="__('Interval (mins)')" type="number" min="1" max="60" step="1" required />
-                        <flux:input wire:model.blur="max_attempts" :label="__('Max attempts')" type="number" min="1" max="10" step="1" required />
+                        <flux:input wire:model="retry_interval_minutes" :label="__('Interval (mins)')" type="number" min="1" max="60" step="1" required />
+                        <flux:input wire:model="max_attempts" :label="__('Max attempts')" type="number" min="1" max="10" step="1" required />
                     </div>
                 @endif
 
@@ -506,7 +500,11 @@ new #[Title('Device settings')] class extends Component {
                         </label>
                     </div>
                 </div>
-            </div>
+
+                <div class="flex justify-end mt-4">
+                    <flux:button type="submit" variant="primary" class="w-full md:w-auto">{{ __('Save Advanced Configuration') }}</flux:button>
+                </div>
+            </form>
         </article>
     </div>
 </section>

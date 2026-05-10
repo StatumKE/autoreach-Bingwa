@@ -11,11 +11,23 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('device_settings', function (Blueprint $table) {
-            $table->decimal('airtime_balance', 12, 2)->nullable()->after('updated_at');
-            $table->text('airtime_balance_raw_response')->nullable()->after('airtime_balance');
-            $table->timestamp('airtime_balance_checked_at')->nullable()->after('airtime_balance_raw_response');
-        });
+        if (! Schema::hasColumn('device_settings', 'airtime_balance')) {
+            Schema::table('device_settings', function (Blueprint $table): void {
+                $table->decimal('airtime_balance', 12, 2)->nullable()->after('updated_at');
+            });
+        }
+
+        if (! Schema::hasColumn('device_settings', 'airtime_balance_raw_response')) {
+            Schema::table('device_settings', function (Blueprint $table): void {
+                $table->text('airtime_balance_raw_response')->nullable()->after('airtime_balance');
+            });
+        }
+
+        if (! Schema::hasColumn('device_settings', 'airtime_balance_checked_at')) {
+            Schema::table('device_settings', function (Blueprint $table): void {
+                $table->timestamp('airtime_balance_checked_at')->nullable()->after('airtime_balance_raw_response');
+            });
+        }
     }
 
     /**
@@ -23,12 +35,16 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('device_settings', function (Blueprint $table) {
-            $table->dropColumn([
-                'airtime_balance',
-                'airtime_balance_raw_response',
-                'airtime_balance_checked_at',
-            ]);
-        });
+        foreach ([
+            'airtime_balance_checked_at',
+            'airtime_balance_raw_response',
+            'airtime_balance',
+        ] as $column) {
+            if (Schema::hasColumn('device_settings', $column)) {
+                Schema::table('device_settings', function (Blueprint $table) use ($column): void {
+                    $table->dropColumn($column);
+                });
+            }
+        }
     }
 };

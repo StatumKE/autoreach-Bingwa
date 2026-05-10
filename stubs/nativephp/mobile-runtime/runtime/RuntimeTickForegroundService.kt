@@ -33,7 +33,7 @@ class RuntimeTickForegroundService : Service() {
         private const val NOTIFICATION_ID = 48_603
 
         const val FAST_INTERVAL_MILLIS = 15_000L
-        const val IDLE_INTERVAL_MILLIS = 300_000L
+        const val IDLE_INTERVAL_MILLIS = 15 * 60 * 1000L // 15 minutes
 
         fun start(context: Context) {
             val intent = Intent(context, RuntimeTickForegroundService::class.java)
@@ -66,14 +66,11 @@ class RuntimeTickForegroundService : Service() {
                     rescheduleBackgroundRuntime()
 
                     val nextTickMillis = resolveNextTickMillis(result.body)
-                    Log.d(
-                        TAG,
-                        "Runtime tick completed [status=${result.statusCode} nextTickMillis=$nextTickMillis]",
-                    )
-                    scheduleNextTick(nextTickMillis)
+                    Log.d(TAG, "Runtime tick completed [status=${result.statusCode}] — next tick in 15 min")
+                    delay(nextTickMillis)
                 } catch (exception: Exception) {
                     Log.e(TAG, "Runtime tick failed: ${exception.message}", exception)
-                    scheduleNextTick(FAST_INTERVAL_MILLIS)
+                    delay(15_000L) // Retry faster on failure
                 }
             }
         }

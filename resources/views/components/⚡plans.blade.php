@@ -30,6 +30,16 @@ new #[Title('Subscriptions')] class extends Component {
     public function loadPlans(): void
     {
         \Illuminate\Support\Facades\Log::debug('⚡ Livewire: loadPlans triggered');
+        
+        $this->activePlan = Auth::user()->plans()->where('is_active', true)->first();
+        
+        // If we already have an active plan, we don't need to force a slow remote fetch
+        // unless the user manually clicks "Refresh".
+        if ($this->activePlan && ! $this->loaded) {
+            $this->loaded = true;
+            return;
+        }
+
         $this->loaded = true;
         $this->errorMessage = null;
 
@@ -38,8 +48,6 @@ new #[Title('Subscriptions')] class extends Component {
 
             $this->plans = $result['plans'];
             $this->sambazaLine = $result['sambaza_line'] ?? null;
-            
-            $this->activePlan = Auth::user()->plans()->where('is_active', true)->first();
         } catch (ValidationException $exception) {
             $this->plans = [];
             $this->errorMessage = collect($exception->errors())->flatten()->first() ?? __('Unable to load subscription plans right now.');
@@ -204,13 +212,6 @@ new #[Title('Subscriptions')] class extends Component {
 ?>
 
 <section class="min-h-screen bg-app-bg px-4 pb-24 pt-3" wire:init="loadPlans">
-    <style>
-        @keyframes plans-reveal {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .plans-reveal { animation: plans-reveal 400ms ease-out both; }
-    </style>
 
     <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between px-1">

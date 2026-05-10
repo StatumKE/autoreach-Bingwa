@@ -16,18 +16,32 @@ class RefreshAirtimeBalance
      */
     public function refresh(User $user): array
     {
+        Log::info('Bingwa airtime balance refresh started.', ['user_id' => $user->id]);
+
         $settings = $this->ensureSettings($user);
 
         $simSlot = $settings->primary_transaction_sim === 'slot_2' ? 1 : 0;
         $response = $this->executeBalanceQuery($simSlot);
 
         if ($response === null) {
+            Log::warning('Bingwa airtime balance refresh failed: No response from USSD bridge.', ['user_id' => $user->id]);
+
             return $this->cached($user);
         }
+
+        Log::info('Bingwa airtime balance USSD response received.', [
+            'user_id' => $user->id,
+            'response_length' => strlen($response),
+        ]);
 
         $balance = $this->parseBalance($response);
 
         if ($balance === null) {
+            Log::warning('Bingwa airtime balance refresh failed: Could not parse balance.', [
+                'user_id' => $user->id,
+                'raw_response' => $response,
+            ]);
+
             return $this->cached($user);
         }
         $checkedAt = now();

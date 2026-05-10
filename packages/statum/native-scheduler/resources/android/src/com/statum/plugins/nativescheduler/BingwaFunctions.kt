@@ -46,15 +46,37 @@ object BingwaFunctions {
 
             if ((force || !alreadyRequested) && missingPermissions.isNotEmpty()) {
                 requestedRuntimePermissions = true
-                prefs.edit().putBoolean(PERMISSION_SETUP_REQUESTED, true).apply()
-                activity.runOnUiThread {
-                    ActivityCompat.requestPermissions(
-                        activity,
-                        missingPermissions.toTypedArray(),
-                        SETUP_PERMISSION_REQUEST_CODE
-                    )
+                
+                var permanentlyDenied = false
+                if (alreadyRequested) {
+                    for (permission in missingPermissions) {
+                        if (!ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)) {
+                            permanentlyDenied = true
+                            break
+                        }
+                    }
                 }
-                Log.i(TAG, "Requested setup runtime permissions: ${missingPermissions.joinToString()}")
+
+                prefs.edit().putBoolean(PERMISSION_SETUP_REQUESTED, true).apply()
+
+                if (permanentlyDenied) {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    val uri = Uri.fromParts("package", activity.packageName, null)
+                    intent.data = uri
+                    activity.runOnUiThread {
+                        activity.startActivity(intent)
+                    }
+                    Log.i(TAG, "Permissions permanently denied. Opened App Settings.")
+                } else {
+                    activity.runOnUiThread {
+                        ActivityCompat.requestPermissions(
+                            activity,
+                            missingPermissions.toTypedArray(),
+                            SETUP_PERMISSION_REQUEST_CODE
+                        )
+                    }
+                    Log.i(TAG, "Requested setup runtime permissions: ${missingPermissions.joinToString()}")
+                }
             } else if (!alreadyRequested) {
                 prefs.edit().putBoolean(PERMISSION_SETUP_REQUESTED, true).apply()
             }
@@ -112,10 +134,6 @@ object BingwaFunctions {
             add(Manifest.permission.CALL_PHONE)
             add(Manifest.permission.READ_CONTACTS)
             add(Manifest.permission.READ_PHONE_STATE)
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
         }
     }
 

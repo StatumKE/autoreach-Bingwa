@@ -100,24 +100,32 @@ class UssdAccessibilityService : AccessibilityService() {
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
         ) return
 
-        val root = rootInActiveWindow ?: return
+        // Get the root of the window that triggered the event
+        var node = event.source ?: rootInActiveWindow ?: return
+        var root = node
+        while (root.parent != null) {
+            root = root.parent
+        }
+
+        // EXPLICIT SAFETY: Never capture text from our own app
+        if (root.packageName?.toString() == packageName) {
+            return
+        }
 
         // A USSD dialog is identifiable by the presence of a Send/OK button.
-        // We don't require an EditText — confirmation dialogs often have none.
         val sendButton = findSendButton(root)
         if (sendButton == null) {
-            root.recycle()
             return
         }
 
         // Extract the dialog message text
+        // Extract the dialog message text, strictly filtering by the dialer package
         val textNodes = findNodesByClass(root, "android.widget.TextView")
         val dialogText = textNodes
-            .mapNotNull { node -> node.text?.toString()?.trim()?.takeIf { it.isNotBlank() } }
+            .filter { n -> n.packageName?.toString() in DIALER_PACKAGES }
+            .mapNotNull { n -> n.text?.toString()?.trim()?.takeIf { it.isNotBlank() } }
             .joinToString("\n")
             .trim()
-
-        root.recycle()
 
         if (dialogText.isBlank()) return
 
@@ -189,7 +197,9 @@ class UssdAccessibilityService : AccessibilityService() {
         queue.add(root)
         while (queue.isNotEmpty()) {
             val node = queue.removeFirst()
-            if (node.className?.toString() == className) result.add(node)
+            if (node.className?.toString() == className) {
+                result.add(node)
+            }
             for (i in 0 until node.childCount) {
                 node.getChild(i)?.let { queue.add(it) }
             }

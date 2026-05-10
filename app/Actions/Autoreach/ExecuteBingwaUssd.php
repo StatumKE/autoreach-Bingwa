@@ -120,6 +120,10 @@ class ExecuteBingwaUssd
         $success = (bool) ($nativeData['success'] ?? false);
         $message = (string) ($nativeData['message'] ?? $decoded['message'] ?? '');
 
+        if (! $success && str_contains(strtolower($message), 'success')) {
+            $success = true;
+        }
+
         if ($message === '') {
             $message = $success
                 ? __('USSD request completed.')

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\UpdateRemoteTransactionStatusJob;
 use App\Models\Transaction;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -59,7 +60,11 @@ class CompleteTransactionCommand extends Command
 
         return DB::transaction(function () use ($transaction, $id, $status, $statusDesc, $message, $settings, $finalizeOnce) {
             // Intelligent Auto-Retry Logic
-            if (! $finalizeOnce && $status === 'failed' && $settings?->intelligent_auto_retry) {
+            $isNonRetryable = str_contains(strtolower($message ?? ''), 'already been recommended')
+                           || str_contains(strtolower($message ?? ''), 'dashboard')
+                           || str_contains(strtolower($message ?? ''), 'workspace');
+
+            if (! $finalizeOnce && $status === 'failed' && $settings?->intelligent_auto_retry && ! $isNonRetryable) {
                 if ($transaction->retry_count < ($settings->max_attempts - 1)) {
                     $transaction->increment('retry_count');
 
@@ -125,6 +130,41 @@ class CompleteTransactionCommand extends Command
                         }
                     }
                 }
+            }
+
+            // Dispatch update to remote backend
+            $remoteTransactionId = $transaction->transaction_id;
+            $deviceToken = $transaction->user?->bingwaDeviceRegistration?->device_token;
+
+            if ($remoteTransactionId && $deviceToken) {
+                $executionTimeMs = $transaction->updated_at ? (int) abs(now()->diffInMilliseconds($transaction->updated_at)) : null;
+                $failureCode = null;
+
+                if ($status === 'failed') {
+                    $lowerMessage = strtolower($message ?? '');
+                    if (str_contains($lowerMessage, 'already been recommended') || str_contains($lowerMessage, 'invalid') || str_contains($lowerMessage, 'not allowed') || str_contains($lowerMessage, 'rejected')) {
+                        $failureCode = 'INVALID_RECIPIENT';
+                    } elseif (str_contains($lowerMessage, 'insufficient') || str_contains($lowerMessage, 'low balance') || str_contains($lowerMessage, 'not enough')) {
+                        $failureCode = 'LOW_BALANCE';
+                    } elseif (str_contains($lowerMessage, 'timeout') || str_contains($lowerMessage, 'failed to execute') || str_contains($lowerMessage, 'failed to reach')) {
+                        $failureCode = 'USSD_TIMEOUT';
+                    } elseif (str_contains($lowerMessage, 'session ended') || str_contains($lowerMessage, 'cancelled')) {
+                        $failureCode = 'SESSION_ENDED';
+                    } else {
+                        $failureCode = 'SYSTEM_ERROR';
+                    }
+                }
+
+                UpdateRemoteTransactionStatusJob::dispatch(
+                    $remoteTransactionId,
+                    $deviceToken,
+                    $status === 'completed' ? 'successful' : 'failed',
+                    $message,
+                    null, // airtime_used is optional, omitting for now
+                    $executionTimeMs,
+                    now()->toIso8601String(),
+                    $failureCode
+                );
             }
 
             return self::SUCCESS;

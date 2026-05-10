@@ -11,24 +11,9 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Quick Dial')] class extends Component {
-    private const CONTACT_SEARCH_LIMIT = 100;
-
     public string $customerPhone = '';
 
-    public string $selectedName = '';
-
-    public bool $showContactPicker = false;
-
-    public string $contactSearch = '';
-
-    /** @var array<int, array{name: string, phone: string, label: ?string}> */
-    public array $contactResults = [];
-
-    public ?string $contactMessage = null;
-
-    public bool $contactsPermissionGranted = false;
-
-    public bool $contactsPermissionRequested = false;
+    public ?string $awardMessage = null;
 
     public ?string $awardMessage = null;
 
@@ -37,152 +22,11 @@ new #[Title('Quick Dial')] class extends Component {
     public ?int $selectedOfferId = null;
 
     /**
-     * Open the contact picker modal.
-     */
-    public function openContactPicker(): void
-    {
-        $this->showContactPicker = true;
-        $this->contactSearch = trim($this->customerPhone);
-        $this->contactMessage = null;
-        $this->contactResults = [];
-
-        if (! $this->refreshContactsPermissionState()) {
-            $this->requestContactsPermission(auto: true);
-
-            return;
-        }
-
-        if ($this->contactSearch !== '') {
-            $this->searchContacts($this->contactSearch);
-        } else {
-            $this->contactMessage = __('Type a name or number to search contacts.');
-        }
-    }
-
-    /**
-     * Close the contact picker modal.
-     */
-    public function closeContactPicker(): void
-    {
-        $this->showContactPicker = false;
-        $this->contactSearch = '';
-        $this->contactResults = [];
-        $this->contactMessage = null;
-        $this->contactsPermissionRequested = false;
-    }
-
-    /**
-     * Search the native Android contacts provider using the current input.
-     */
-    public function searchContacts(?string $query = null): void
-    {
-        $this->contactMessage = null;
-        $this->contactResults = [];
-
-        $query = $query ?? $this->contactSearch;
-
-        if (blank($query)) {
-            $query = $this->customerPhone;
-        }
-
-        $query = trim($query);
-        $this->contactSearch = $query;
-
-        if ($query === '') {
-            $this->contactMessage = __('Type a name or number to search contacts.');
-
-            return;
-        }
-
-        $contacts = app(QuickDialContacts::class);
-
-        if (! $this->refreshContactsPermissionState()) {
-            if (! $this->contactsPermissionRequested) {
-                $this->requestContactsPermission(auto: true);
-            } else {
-                $this->contactMessage = __('Contacts permission is still not granted. Allow access in Android, then tap Grant Access again if needed.');
-            }
-
-            return;
-        }
-
-        $this->contactsPermissionRequested = false;
-        $this->contactResults = $contacts->search($query, self::CONTACT_SEARCH_LIMIT);
-
-        if ($this->contactResults === []) {
-            $this->contactMessage = __('No matching contacts found.');
-        }
-    }
-
-    /**
-     * Keep the modal search responsive as the user types.
-     */
-    public function updatedContactSearch(): void
-    {
-        if (! $this->showContactPicker) {
-            return;
-        }
-
-        if (trim($this->contactSearch) === '') {
-            $this->contactResults = [];
-            $this->contactMessage = __('Type a name or number to search contacts.');
-
-            return;
-        }
-
-        $this->searchContacts($this->contactSearch);
-    }
-
-    /**
-     * Request Android contacts permission from the picker flow.
-     */
-    public function requestContactsPermission(bool $auto = false): void
-    {
-        $contacts = app(QuickDialContacts::class);
-
-        if ($this->refreshContactsPermissionState()) {
-            $this->contactMessage = __('Contacts permission granted. You can search now.');
-            $this->contactsPermissionRequested = false;
-
-            return;
-        }
-
-        $requested = $contacts->requestPermission();
-        $this->contactsPermissionRequested = $requested;
-        $this->contactsPermissionGranted = false;
-
-        if ($requested) {
-            $this->contactMessage = $auto
-                ? __('Allow contacts access in the Android prompt, then search again.')
-                : __('Android permission prompt opened. Allow contacts access, then search again.');
-
-            return;
-        }
-
-        $this->contactMessage = __('Contacts permission is required. If Android did not show a prompt, enable Contacts in app settings and try again.');
-    }
-
-    /**
-     * Select a phone number from native contact search results.
-     */
-    public function selectContact(string $phone, string $name = ''): void
-    {
-        $this->customerPhone = $this->normalizePhone($phone);
-        $this->selectedName = trim($name);
-        $this->contactResults = [];
-        $this->contactMessage = null;
-        $this->closeContactPicker();
-    }
-
-    /**
-     * Clear the selected/manual customer details.
+     * Clear the manual customer details.
      */
     public function clearSelectedContact(): void
     {
         $this->customerPhone = '';
-        $this->selectedName = '';
-        $this->contactResults = [];
-        $this->contactMessage = null;
         $this->awardMessage = null;
         $this->awardError = null;
     }
@@ -260,7 +104,6 @@ new #[Title('Quick Dial')] class extends Component {
             'mode' => $offer->ussd_mode,
             'simSlot' => $this->primaryTransactionSimSlot(),
             'phone' => $phone,
-            'name' => $this->selectedName,
         ]);
 
         $this->js(<<<JS
@@ -290,9 +133,9 @@ new #[Title('Quick Dial')] class extends Component {
                     const success = response.ok && result.status === 'success' && nativeData.success === true;
                     const message = nativeData.message || result.message || 'USSD request completed.';
 
-                    @this.recordQuickDialResult(payload.offerId, success, message, payload.phone, payload.name);
+                    @this.recordQuickDialResult(payload.offerId, success, message, payload.phone);
                 } catch (error) {
-                    @this.recordQuickDialResult(payload.offerId, false, error?.message || 'Unable to reach native USSD bridge.', payload.phone, payload.name);
+                    @this.recordQuickDialResult(payload.offerId, false, error?.message || 'Unable to reach native USSD bridge.', payload.phone);
                 }
             })();
         JS);
@@ -301,7 +144,7 @@ new #[Title('Quick Dial')] class extends Component {
     /**
      * Record the native USSD result locally for visibility in Transactions.
      */
-    public function recordQuickDialResult(int $offerId, bool $success, string $message = '', ?string $customerPhone = null, ?string $customerName = null): void
+    public function recordQuickDialResult(int $offerId, bool $success, string $message = '', ?string $customerPhone = null): void
     {
         $offer = $this->activeOffers->firstWhere('id', $offerId);
 
@@ -313,7 +156,6 @@ new #[Title('Quick Dial')] class extends Component {
         }
 
         $phone = $this->normalizePhone($customerPhone ?? $this->customerPhone);
-        $name = trim($customerName ?? $this->selectedName);
 
         if (preg_match('/^0\d{9}$/', $phone) !== 1) {
             $this->selectedOfferId = null;
@@ -328,7 +170,7 @@ new #[Title('Quick Dial')] class extends Component {
             'transaction_id' => 'QD-'.now()->format('YmdHis').'-'.Str::upper(Str::random(5)),
             'mpesa_code' => null,
             'sender_phone' => $phone,
-            'sender_name' => $name !== '' ? $name : null,
+            'sender_name' => null,
             'amount' => $offer->price,
             'offer_name' => $offer->name,
             'offer_type' => $offer->category,
@@ -395,13 +237,6 @@ new #[Title('Quick Dial')] class extends Component {
     {
         return Auth::user()->deviceSetting?->primary_transaction_sim === 'slot_2' ? 1 : 0;
     }
-
-    private function refreshContactsPermissionState(): bool
-    {
-        $this->contactsPermissionGranted = app(QuickDialContacts::class)->checkPermission();
-
-        return $this->contactsPermissionGranted;
-    }
 }; ?>
 
 <section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
@@ -427,19 +262,13 @@ new #[Title('Quick Dial')] class extends Component {
                         class="h-14 w-full rounded-2xl bg-zinc-50 pl-12 pr-4 text-base font-black text-zinc-950 outline-none ring-1 ring-zinc-200 transition focus:ring-2 focus:ring-green-500/50"
                     >
                 </div>
-
-                <flux:modal.trigger name="contact-picker">
-                    <button type="button" class="app-primary-button h-14 px-8 font-black uppercase tracking-widest text-[10px] transition active:scale-95" wire:click="openContactPicker">
-                        {{ __('Contacts') }}
-                    </button>
-                </flux:modal.trigger>
             </div>
 
             @if ($this->normalizedCustomerPhone !== '')
                 <div class="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-zinc-50 px-5 py-4 text-sm ring-1 ring-zinc-200 shadow-inner">
                     <div class="min-w-0">
                         <div class="truncate font-black text-zinc-950">
-                            {{ $this->selectedName !== '' ? $this->selectedName : __('Manual entry') }}
+                            {{ __('Manual entry') }}
                         </div>
                         <div class="text-[10px] font-black text-green-600/70 uppercase tracking-widest mt-0.5">{{ $this->normalizedCustomerPhone }}</div>
                     </div>
@@ -447,12 +276,6 @@ new #[Title('Quick Dial')] class extends Component {
                     <flux:button variant="ghost" size="sm" type="button" wire:click="clearSelectedContact" class="app-secondary-button text-zinc-700 hover:text-rose-500">
                         {{ __('Clear') }}
                     </flux:button>
-                </div>
-            @endif
-
-            @if ($contactMessage)
-                <div class="mt-4 rounded-2xl bg-green-50 px-5 py-4 text-xs font-black text-green-700 ring-1 ring-green-100">
-                    {{ $contactMessage }}
                 </div>
             @endif
         </div>
@@ -517,74 +340,7 @@ new #[Title('Quick Dial')] class extends Component {
         </div>
     </div>
 
-    <flux:modal
-        name="contact-picker"
-        focusable
-        class="max-w-md sm:max-w-lg"
-        @close="closeContactPicker"
-    >
-        <div class="max-h-[72vh] space-y-5 overflow-y-auto p-1 pb-2">
-            <div>
-                <flux:heading size="lg" class="font-black tracking-tight">{{ __('Find contact') }}</flux:heading>
-                <flux:subheading>{{ __('Search your device contacts by name or number.') }}</flux:subheading>
-            </div>
 
-            <div class="relative group">
-                <flux:icon.magnifying-glass class="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-zinc-500 group-focus-within:text-green-600 transition-colors" />
-                <input
-                    type="text"
-                    wire:model.live.debounce.350ms="contactSearch"
-                    placeholder="{{ __('Search name or number') }}"
-                    class="h-14 w-full rounded-2xl bg-zinc-50 pl-12 pr-4 text-base font-black text-zinc-950 outline-none ring-1 ring-zinc-200 transition focus:ring-2 focus:ring-green-500/50"
-                >
-            </div>
-
-            @if ($contactMessage)
-                <div class="rounded-2xl bg-green-50 px-5 py-4 text-xs font-black text-green-700 ring-1 ring-green-100">
-                    {{ $contactMessage }}
-                </div>
-            @endif
-
-            @if (! $contactsPermissionGranted)
-                <button
-                    type="button"
-                    wire:click="requestContactsPermission"
-                    class="app-secondary-button inline-flex h-12 w-full items-center justify-center px-4 text-[10px] font-black uppercase tracking-widest"
-                >
-                    {{ __('Grant Access') }}
-                </button>
-            @endif
-
-            @if ($contactResults !== [])
-                <div class="overflow-hidden rounded-[1.5rem] bg-zinc-50 ring-1 ring-zinc-200">
-                    @foreach ($contactResults as $contact)
-                        <button
-                            type="button"
-                            class="flex w-full items-center justify-between gap-4 border-b border-zinc-200 px-5 py-4 text-left last:border-b-0 hover:bg-white transition-colors"
-                            wire:click="selectContact(@js($contact['phone'] ?? ''), @js($contact['name'] ?? ''))"
-                        >
-                            <span class="min-w-0">
-                                <span class="block truncate font-black text-zinc-950">{{ $contact['name'] ?? $contact['phone'] ?? '' }}</span>
-                                <span class="block text-[10px] font-black text-green-600/70 uppercase tracking-widest mt-0.5">{{ $contact['phone'] ?? '' }}</span>
-                            </span>
-
-                            @if (! empty($contact['label']))
-                                <span class="shrink-0 rounded-xl bg-white px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] text-zinc-500 ring-1 ring-zinc-200">
-                                    {{ $contact['label'] }}
-                                </span>
-                            @endif
-                        </button>
-                    @endforeach
-                </div>
-            @else
-                <div class="rounded-[1.5rem] border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center">
-                    <div class="text-sm font-black text-zinc-600">
-                        {{ __('Type at least one character to search.') }}
-                    </div>
-                </div>
-            @endif
-        </div>
-    </flux:modal>
 
     @if ($selectedOfferId !== null)
         @php
@@ -624,7 +380,7 @@ new #[Title('Quick Dial')] class extends Component {
                         <div class="grid grid-cols-2 gap-3">
                             <div class="rounded-2xl bg-zinc-50 px-4 py-4 ring-1 ring-zinc-200">
                                 <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Customer') }}</div>
-                                <div class="mt-2 text-lg font-black text-zinc-950">{{ $selectedName !== '' ? $selectedName : __('Manual entry') }}</div>
+                                <div class="mt-2 text-lg font-black text-zinc-950">{{ __('Manual entry') }}</div>
                                 <div class="mt-1 text-sm font-bold text-green-700">{{ $this->normalizedCustomerPhone }}</div>
                             </div>
 

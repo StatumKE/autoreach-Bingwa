@@ -1,8 +1,10 @@
 <?php
 
+use App\Jobs\ProcessBingwaQueuedTransactionsJob;
 use App\Models\Transaction;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -53,13 +55,15 @@ new #[Title('Transactions')] class extends Component
             'processed_at' => null,
         ]);
 
+        ProcessBingwaQueuedTransactionsJob::dispatch(Auth::id());
+
         $this->resetPage();
 
-        Flux::toast(variant: 'success', text: __('Transaction queued for retry.'));
+        Flux::toast(variant: 'success', text: __('Transaction queued and processing started.'));
     }
 
     /**
-     * Sync transactions from the backend.
+     * Sync transactions from the backend manually (with toast).
      */
     public function syncTransactions(): void
     {
@@ -68,8 +72,6 @@ new #[Title('Transactions')] class extends Component
                 '--user-id' => Auth::id(),
             ]);
 
-            $this->loadTransactions();
-            
             Flux::toast(variant: 'success', text: __('Transactions synced and processed.'));
         } catch (\Throwable $e) {
             Log::error('Manual sync failed: ' . $e->getMessage());
@@ -78,12 +80,11 @@ new #[Title('Transactions')] class extends Component
     }
 
     /**
-     * Load the transactions after the page has rendered.
+     * Load transactions after page render without blocking sync.
      */
     public function loadTransactions(): void
     {
         $this->loaded = true;
-        $this->refreshKey++;
     }
 
     /**
@@ -140,14 +141,7 @@ new #[Title('Transactions')] class extends Component
 };
 ?>
 
-<div class="flex flex-col gap-3 px-4 pb-24 pt-3 bg-app-bg text-zinc-900 min-h-screen" wire:init="syncTransactions" wire:poll.10s="loadTransactions">
-    <style>
-        @keyframes transactions-reveal {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .transactions-reveal { animation: transactions-reveal 300ms ease-out both; }
-    </style>
+<div class="flex flex-col gap-3 px-4 pb-24 pt-3 bg-app-bg text-zinc-900 min-h-screen" wire:init="loadTransactions">
 
     <div class="flex items-center justify-between px-1">
         <div class="text-xl font-bold text-zinc-900">{{ __('Transactions') }}</div>
@@ -212,8 +206,7 @@ new #[Title('Transactions')] class extends Component
     @if (! $this->loaded)
         <div class="flex flex-col gap-4">
             @for ($i = 0; $i < 4; $i++)
-            <div class="relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
-                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-green-500/5 to-transparent motion-safe:animate-[pulse_1.8s_ease-in-out_infinite]"></div>
+                <div class="relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 animate-pulse">
                     <div class="relative h-4 w-24 rounded bg-zinc-100"></div>
                     <div class="relative mt-4 h-6 w-40 rounded bg-zinc-100"></div>
                     <div class="relative mt-4 h-16 w-full rounded bg-zinc-100/70"></div>
@@ -245,13 +238,30 @@ new #[Title('Transactions')] class extends Component
                     $isFailed = $status === 'failed';
                     $delay = ($loop->index * 60) + 100;
                 @endphp
-                <article class="transactions-reveal group relative overflow-hidden rounded-xl bg-white p-3 shadow-sm ring-1 ring-zinc-200 transition hover:ring-green-500/30" style="animation-delay: {{ $delay }}ms">
-                    <div class="flex items-center justify-between gap-4">
-                            <div class="flex flex-col gap-1">
+                <article 
+                    @class([
+                        'group relative rounded-xl bg-white p-2 shadow-sm ring-1 transition hover:ring-green-500/30',
+                        'ring-green-500/50 bg-green-50/10' => in_array($transaction->id, $this->selectedIds ?? []),
+                        'ring-zinc-200' => ! in_array($transaction->id, $this->selectedIds ?? []),
+                    ])
+                >
+                    <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <label class="relative flex items-center cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        wire:model.live="selectedIds" 
+                                        value="{{ $transaction->id }}"
+                                        class="peer sr-only"
+                                    >
+                                    <div class="size-4 rounded border-2 border-zinc-200 bg-white transition-all peer-checked:border-green-600 peer-checked:bg-green-600 flex items-center justify-center">
+                                        <flux:icon.check variant="mini" class="size-3 text-white scale-0 transition-transform peer-checked:scale-100" />
+                                    </div>
+                                </label>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-sm font-bold text-zinc-900">#{{ $transaction->id }}</span>
+                                    <span class="text-xs font-bold text-zinc-900">#{{ $transaction->id }}</span>
                                 <span @class([
-                                    'inline-flex items-center rounded-lg px-2 py-0.5 text-[9px] font-black uppercase tracking-widest',
+                                    'inline-flex items-center rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest',
                                     'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400' => $isSuccess,
                                     'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' => $isFailed,
                                     'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400' => strtolower($status) === 'queued',
@@ -261,11 +271,11 @@ new #[Title('Transactions')] class extends Component
                                 </span>
                             </div>
                             
-                            <div class="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                            <div class="flex items-center gap-2 text-xs font-medium text-zinc-700">
                                 @if ($transaction->sender_name || $transaction->sender_phone)
                                     <span>{{ $transaction->sender_name ?: $transaction->sender_phone }}</span>
                                     @if ($transaction->sender_phone && $transaction->sender_name)
-                                        <span class="text-xs text-zinc-400">({{ $transaction->sender_phone }})</span>
+                                        <span class="text-[10px] text-zinc-400">({{ $transaction->sender_phone }})</span>
                                     @endif
                                 @else
                                     <span class="text-zinc-400 italic">{{ __('Unknown sender') }}</span>
@@ -273,32 +283,32 @@ new #[Title('Transactions')] class extends Component
                             </div>
                         </div>
 
-                        <div class="flex flex-col items-end gap-1">
+                        <div class="flex flex-col items-end gap-0.5">
                             <div @class([
-                                'text-sm font-bold tracking-tight',
+                                'text-xs font-bold tracking-tight',
                                 'text-green-600' => $isSuccess,
                                 'text-zinc-900' => ! $isSuccess,
                             ])>
                                 Ksh {{ number_format((float) ($transaction->amount ?? 0)) }}
                             </div>
-                            <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                            <span class="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">
                                 {{ $transaction->occurred_at?->format('H:i, M j') ?? '—' }}
                             </span>
                         </div>
                     </div>
 
-                    <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                    <div class="mt-2 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
                         @if (! empty($transaction->mpesa_code))
-                            <span class="inline-flex items-center gap-1.5 rounded-lg bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700 ring-1 ring-green-100 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20">
-                                <span class="text-[8px] opacity-60 uppercase tracking-widest">{{ __('M-PESA') }}</span>
+                            <span class="inline-flex items-center gap-1.5 rounded-md bg-green-50 px-1.5 py-0.5 text-[9px] font-bold text-green-700 ring-1 ring-green-100 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20">
+                                <span class="text-[7px] opacity-60 uppercase tracking-widest">{{ __('M-PESA') }}</span>
                                 {{ $transaction->mpesa_code }}
                             </span>
                         @endif
                         
 
                         @if ($transaction->offer_name)
-                            <span class="inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-2 py-1 text-[10px] font-bold text-zinc-600 ring-1 ring-zinc-200 dark:bg-zinc-800/50 dark:text-zinc-400 dark:ring-zinc-700/50">
-                                <span class="text-[8px] opacity-60 uppercase tracking-widest">{{ __('Product') }}</span>
+                            <span class="inline-flex items-center gap-1.5 rounded-md bg-zinc-50 px-1.5 py-0.5 text-[9px] font-bold text-zinc-600 ring-1 ring-zinc-200 dark:bg-zinc-800/50 dark:text-zinc-400 dark:ring-zinc-700/50">
+                                <span class="text-[7px] opacity-60 uppercase tracking-widest">{{ __('Product') }}</span>
                                 <span class="truncate max-w-[120px]">{{ $transaction->offer_name }}</span>
                             </span>
                         @endif
@@ -307,31 +317,31 @@ new #[Title('Transactions')] class extends Component
 
                     @if (filled($transaction->status_desc))
                         <div @class([
-                            'mt-3 rounded-xl px-3 py-2 text-xs font-semibold leading-relaxed ring-1',
+                            'mt-2 rounded-lg px-2 py-1.5 text-[10px] font-medium leading-snug ring-1',
                             'bg-green-50 text-green-800 ring-green-100 dark:bg-green-500/10 dark:text-green-300 dark:ring-green-500/20' => $isSuccess,
                             'bg-rose-50 text-rose-800 ring-rose-100 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/20' => $isFailed,
                             'bg-zinc-50 text-zinc-700 ring-zinc-200 dark:bg-zinc-800/60 dark:text-zinc-300 dark:ring-zinc-700' => ! $isSuccess && ! $isFailed,
                         ])>
-                            <span class="mr-2 text-[9px] font-black uppercase tracking-widest opacity-60">{{ __('USSD') }}</span>
+                            <span class="mr-2 text-[8px] font-black uppercase tracking-widest opacity-60">{{ __('USSD') }}</span>
                             {{ $transaction->status_desc }}
                         </div>
                     @endif
 
 
                     @if ($this->canRetryTransaction($transaction))
-                        <div class="mt-3 flex justify-end">
+                        <div class="mt-2 flex justify-end">
                             <flux:button
                                 type="button"
                                 variant="ghost"
                                 wire:click="retryTransaction({{ $transaction->id }})"
                                 wire:loading.attr="disabled"
                                 wire:target="retryTransaction({{ $transaction->id }})"
-                                class="app-secondary-button h-8 px-4 text-[10px] font-bold uppercase tracking-widest"
+                                class="app-secondary-button !h-6 px-3 text-[9px] font-bold uppercase tracking-widest"
                             >
                                 <span wire:loading.remove wire:target="retryTransaction({{ $transaction->id }})">
                                     {{ __('Retry') }}
                                 </span>
-                                <span wire:loading wire:target="retryTransaction({{ $transaction->id }})" class="inline-flex items-center gap-2">
+                                <span wire:loading wire:target="retryTransaction({{ $transaction->id }})" class="inline-flex items-center gap-1.5">
                                     <flux:icon.loading variant="mini" class="size-3" />
                                     {{ __('Retrying…') }}
                                 </span>

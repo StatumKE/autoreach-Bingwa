@@ -29,7 +29,7 @@ new #[Title('Dashboard')] class extends Component
      * The NativePHP persistent PHP runtime is single-threaded; two simultaneous
      * nativePersistentDispatch calls cause a SIGSEGV null-pointer crash.
      */
-    private bool $isRefreshingBalance = false;
+    public bool $isRefreshingBalance = false;
 
     /**
      * Hydrate the dashboard from the latest stored balance snapshot.
@@ -169,22 +169,7 @@ new #[Title('Dashboard')] class extends Component
         ];
     }
 
-    /**
-     * Recent transactions.
-     */
-    public function getRecentTransactionsProperty()
-    {
-        return Transaction::where('user_id', Auth::id())
-            ->orderBy('id', 'desc')
-            ->take(10)
-            ->get();
-    }
 
-    /**
-     * Get the current week labels for the chart axis.
-     *
-     * @return array<int, string>
-     */
     public function getWeekLabelsProperty(): array
     {
         $date = now()->startOfWeek(Carbon::SUNDAY);
@@ -210,19 +195,10 @@ new #[Title('Dashboard')] class extends Component
 
     /**
      * Refresh the airtime balance from the active transaction SIM.
-     *
-     * Guard: if a balance refresh is already in-flight (e.g. from a concurrent
-     * Livewire poll), skip this call entirely. The NativePHP persistent PHP
-     * runtime is single-threaded; concurrent nativePersistentDispatch calls
-     * produce a SIGSEGV null-pointer dereference (native_persistent_dispatch+776).
      */
     public function refreshAirtimeBalance(): void
     {
         if ($this->isRefreshingBalance) {
-            Log::debug('Bingwa dashboard airtime refresh skipped — already in progress.', [
-                'user_id' => Auth::id(),
-            ]);
-
             return;
         }
 
@@ -234,11 +210,9 @@ new #[Title('Dashboard')] class extends Component
             ]);
 
             \App\Jobs\RefreshAirtimeBalanceJob::dispatch(Auth::user());
-
-            // We don't have the result immediately anymore. We rely on refreshTransactions()
-            // to automatically pull the new balance on the next poll cycle.
         } finally {
-            $this->isRefreshingBalance = false;
+            // We keep it true for a few seconds to let the poll catch it
+            $this->js('setTimeout(() => $wire.set("isRefreshingBalance", false), 10000)');
         }
     }
 
@@ -274,18 +248,18 @@ new #[Title('Dashboard')] class extends Component
 
 }; ?>
 
-<div class="min-h-screen bg-app-bg px-4 pb-24 pt-3 text-zinc-900" wire:init="syncTransactions" wire:poll.15m="refreshAirtimeBalance">
+<div class="min-h-screen bg-app-bg px-4 pb-24 pt-3 text-zinc-900">
     <div class="mx-auto flex max-w-[780px] flex-col gap-3">
         {{-- Greeting --}}
         <div class="flex items-start justify-between px-1">
             <div class="min-w-0">
-                <div class="text-sm font-medium leading-tight text-zinc-700">{{ $this->greeting }},</div>
-                <div class="text-2xl font-bold leading-tight text-zinc-900">{{ auth()->user()->name }}</div>
+                <div class="text-[9px] font-medium leading-tight text-zinc-700">{{ $this->greeting }},</div>
+                <div class="text-sm font-bold leading-tight text-zinc-900">{{ auth()->user()->name }}</div>
             </div>
         </div>
 
         {{-- Stat Cards --}}
-        <div class="grid grid-cols-3 gap-3">
+        <div class="grid grid-cols-3 gap-2">
 
         {{-- CALL_PHONE permission warning --}}
         @if ($this->callPhonePermissionDenied)
@@ -294,24 +268,31 @@ new #[Title('Dashboard')] class extends Component
                 <div class="min-w-0">
                     <div class="text-xs font-bold text-amber-800">{{ __('Phone Permission Required') }}</div>
                     <div class="mt-0.5 text-[11px] leading-snug text-amber-700">
-                        {{ __('Airtime balance cannot be fetched. Go to Settings → Apps → Bingwa → Permissions and enable Phone access.') }}
+                        {{ __('Airtime balance cannot be fetched. Enable Phone access to see your balance.') }}
                     </div>
+                    <button 
+                        type="button"
+                        x-on:click="requestSetupPermissionsOnce(true)"
+                        class="mt-2 rounded-lg bg-amber-200/50 px-3 py-1 text-[10px] font-bold text-amber-900 transition hover:bg-amber-200 active:scale-95"
+                    >
+                        {{ __('Grant Access') }}
+                    </button>
                 </div>
             </div>
         @endif
-            <a href="{{ route('transactions', ['filter' => 'success']) }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#0f652a] px-2 py-2 text-white transition active:scale-[0.97]">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-100/90">{{ __('Successful') }}</div>
-                <div class="mt-1 text-lg font-bold leading-none">{{ number_format($this->stats['successful']) }}</div>
+            <a href="{{ route('transactions', ['filter' => 'success']) }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#0f652a] px-1.5 py-1 text-white transition active:scale-[0.97]">
+                <div class="text-[8px] font-bold uppercase tracking-wider text-emerald-100/90">{{ __('Successful') }}</div>
+                <div class="mt-0.5 text-sm font-bold leading-none">{{ number_format($this->stats['successful']) }}</div>
             </a>
 
-            <a href="{{ route('transactions', ['filter' => 'failed']) }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#ffd9dc] px-2 py-2 text-[#5e181b] transition active:scale-[0.97]">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-rose-900/80">{{ __('Failed') }}</div>
-                <div class="mt-1 text-lg font-bold leading-none">{{ number_format($this->stats['failed']) }}</div>
+            <a href="{{ route('transactions', ['filter' => 'failed']) }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#ffd9dc] px-1.5 py-1 text-[#5e181b] transition active:scale-[0.97]">
+                <div class="text-[8px] font-bold uppercase tracking-wider text-rose-900/80">{{ __('Failed') }}</div>
+                <div class="mt-0.5 text-sm font-bold leading-none">{{ number_format($this->stats['failed']) }}</div>
             </a>
 
-            <a href="{{ route('plans') }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#c8ebfb] px-2 py-2 text-[#12313d] transition active:scale-[0.97]">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-sky-900/80">{{ __('Tokens') }}</div>
-                <div class="mt-1 text-lg font-bold leading-none">
+            <a href="{{ route('plans') }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#c8ebfb] px-1.5 py-1 text-[#12313d] transition active:scale-[0.97]">
+                <div class="text-[8px] font-bold uppercase tracking-wider text-sky-900/80">{{ __('Tokens') }}</div>
+                <div class="mt-0.5 text-sm font-bold leading-none">
                     @if ($this->tokenText === __('No Plan'))
                         {{ __('Expired') }}
                     @else
@@ -322,31 +303,31 @@ new #[Title('Dashboard')] class extends Component
         </div>
 
         {{-- Airtime Row --}}
-        <div class="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-xl bg-[#f6f8f0] px-4 py-3 ring-1 ring-black/5">
+        <div class="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-xl bg-[#f6f8f0] px-2 py-1.5 ring-1 ring-black/5">
             <div class="flex flex-col items-center text-center">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{{ __('Airtime Used Today') }}</div>
-                <div class="mt-1 flex items-center gap-1.5 text-sm font-medium text-zinc-800">
+                <div class="text-[8px] font-bold uppercase tracking-wider text-zinc-500">{{ __('Airtime Used Today') }}</div>
+                <div class="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-zinc-800">
                     <span>Ksh {{ $this->showBalance ? number_format($this->airtime['used_today'], 2) : '••••' }}</span>
                     <button wire:click="toggleBalance" class="text-zinc-400" type="button">
                         @if($this->showBalance)
-                            <flux:icon.eye class="size-4" />
+                            <flux:icon.eye class="size-3.5" />
                         @else
-                            <flux:icon.eye-slash class="size-4" />
+                            <flux:icon.eye-slash class="size-3.5" />
                         @endif
                     </button>
                 </div>
             </div>
 
-            <div class="flex flex-col items-center text-center">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{{ __('Airtime Balance') }}</div>
-                <div class="mt-1 flex flex-col items-center gap-1">
-                    <div class="flex items-center gap-1.5 text-sm font-medium text-zinc-800">
+            <div class="flex flex-col items-center text-center border-l border-black/5 pl-2">
+                <div class="text-[8px] font-bold uppercase tracking-wider text-zinc-500">{{ __('Airtime Balance') }}</div>
+                <div class="mt-0.5 flex flex-col items-center gap-1">
+                    <div class="flex items-center gap-1.5 text-[11px] font-medium text-zinc-800">
                         <span>Ksh {{ $this->showBalance ? number_format($this->airtimeBalance ?? 0, 2) : '••••' }}</span>
                         <button wire:click="toggleBalance" class="text-zinc-400" type="button">
                             @if($this->showBalance)
-                                <flux:icon.eye class="size-4" />
+                                <flux:icon.eye class="size-3.5" />
                             @else
-                                <flux:icon.eye-slash class="size-4" />
+                                <flux:icon.eye-slash class="size-3.5" />
                             @endif
                         </button>
                     </div>
@@ -362,16 +343,19 @@ new #[Title('Dashboard')] class extends Component
                 wire:click="refreshData"
                 wire:loading.attr="disabled"
                 wire:target="refreshData"
-                class="text-zinc-500 transition hover:text-green-700 disabled:opacity-60"
+                @class([
+                    'text-zinc-500 transition hover:text-green-700 disabled:opacity-60 ml-1 pl-2 border-l border-black/5',
+                    'animate-spin text-green-600' => $this->isRefreshingBalance
+                ])
                 type="button"
             >
-                <flux:icon.arrow-path class="size-5" />
+                <flux:icon.arrow-path class="size-4" />
             </button>
         </div>
 
         {{-- Commission Chart --}}
         <div class="rounded-xl bg-[#f6f8f0] px-4 py-3 ring-1 ring-black/5">
-            <div class="text-center text-[0.95rem] font-bold leading-none text-green-700">
+            <div class="text-center text-[10px] font-bold uppercase tracking-widest text-green-700/90">
                 {{ __("This week's commission (Ksh. :amount)", ['amount' => number_format($this->commissionData['total'], 2)]) }}
             </div>
 
@@ -394,7 +378,7 @@ new #[Title('Dashboard')] class extends Component
                 }
             @endphp
 
-            <div class="mt-1 overflow-hidden">
+            <div class="mt-1">
                 <svg viewBox="0 0 640 100" class="h-[100px] w-full overflow-visible" preserveAspectRatio="none">
                     <defs>
                         <linearGradient id="dashboardGrid" x1="0" y1="0" x2="0" y2="1">
@@ -434,68 +418,14 @@ new #[Title('Dashboard')] class extends Component
 
         {{-- Recent Transactions --}}
         <div class="flex items-center justify-between px-1 pt-1">
-            <div class="text-base font-semibold text-zinc-900">{{ __('Recent Transactions') }}</div>
-            <flux:button variant="ghost" size="sm" :href="route('transactions')" wire:navigate class="text-sm font-medium text-zinc-600 transition hover:text-green-700">
-                {{ __('All') }} <flux:icon.arrow-right class="ml-1 size-4 text-green-600" />
+            <div class="text-xs font-bold text-zinc-900">{{ __('Recent Transactions') }}</div>
+            <flux:button variant="ghost" size="sm" :href="route('transactions')" wire:navigate class="!h-8 text-xs font-medium text-zinc-600 transition hover:text-green-700">
+                {{ __('All') }} <flux:icon.arrow-right class="ml-1 size-3.5 text-green-600" />
             </flux:button>
         </div>
 
-        <div class="mt-2 min-h-[150px] overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-200" wire:poll.30s="refreshTransactions">
-            <div class="divide-y divide-zinc-100 text-center">
-                @forelse($this->recentTransactions as $tx)
-                    @php
-                        $status = strtolower((string) ($tx->status ?? ''));
-                        $isSuccess = in_array($status, ['completed', 'successful'], true);
-                        $isFailed = $status === 'failed';
-                    @endphp
-
-                    <div @class([
-                        'px-2.5 py-1.5 text-left transition',
-                        'bg-emerald-50/40 hover:bg-emerald-50/60' => $isSuccess,
-                        'bg-rose-50/40 hover:bg-rose-50/60' => $isFailed,
-                        'bg-zinc-50/40 hover:bg-zinc-50/60' => ! $isSuccess && ! $isFailed,
-                    ])>
-                        <div class="flex items-center justify-between gap-2">
-                            <div class="flex min-w-0 items-center gap-1.5">
-                                <div class="truncate text-xs font-bold text-zinc-900">
-                                    {{ $tx->sender_name ?: $tx->sender_phone }}
-                                </div>
-                                <div class="shrink-0 rounded bg-black/5 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider text-zinc-600">
-                                    {{ $tx->offer_name }}
-                                </div>
-                            </div>
-                            <div @class([
-                                'shrink-0 text-xs font-black',
-                                'text-green-700' => $isSuccess,
-                                'text-rose-700' => $isFailed,
-                                'text-zinc-900' => ! $isSuccess && ! $isFailed,
-                            ])>
-                                Ksh {{ number_format((float) $tx->amount, 2) }}
-                            </div>
-                        </div>
-
-                        @if (filled($tx->status_desc))
-                            <div class="mt-1 flex items-center justify-between gap-2">
-                                <div @class([
-                                    'truncate text-[9px] font-medium leading-tight',
-                                    'text-green-800/80' => $isSuccess,
-                                    'text-rose-800/80' => $isFailed,
-                                    'text-zinc-600' => ! $isSuccess && ! $isFailed,
-                                ])>
-                                    {{ $tx->status_desc }}
-                                </div>
-                                <div class="shrink-0 text-[8px] font-bold tracking-wider text-zinc-400">
-                                    {{ $tx->occurred_at?->diffForHumans(null, true, true) ?? '—' }}
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-                @empty
-                    <div class="py-6">
-                        <div class="text-sm font-semibold text-zinc-500">{{ __('Your most recent transactions will appear here') }}</div>
-                    </div>
-                @endforelse
-            </div>
+        <div class="mt-2 min-h-[150px] rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
+            <livewire:actions.recent-transactions />
         </div>
     </div>
 </div>

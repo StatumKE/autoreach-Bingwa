@@ -53,10 +53,10 @@
         </flux:sidebar>
 
         <!-- Mobile User Menu -->
-        <flux:header class="fixed inset-x-0 top-0 z-50 h-24 items-center bg-app-shell pt-8 text-white border-b border-black/10 !px-4 lg:hidden" container="false">
+        <flux:header class="fixed inset-x-0 top-0 z-50 h-24 items-center bg-app-shell pt-8 text-white border-b border-black/10 !px-2 lg:hidden" container="false">
             <flux:sidebar.toggle class="app-mobile-menu-toggle !text-white lg:hidden [&_svg]:size-7 [&_svg]:stroke-[2.5px]" icon="bars-3" inset="left" />
 
-            <div class="min-w-0 flex-1 ps-3">
+            <div class="min-w-0 flex-1 ps-2">
                 <div class="text-[14px] font-black leading-none tracking-tight text-white sm:text-[15px]">
                     {{ config('app.name') }}
                 </div>
@@ -171,6 +171,7 @@
                 };
             }
         </script>
+
 
         @fluxScripts
     </body>

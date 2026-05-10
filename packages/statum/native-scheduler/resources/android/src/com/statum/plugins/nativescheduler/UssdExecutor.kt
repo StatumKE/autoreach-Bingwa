@@ -17,10 +17,16 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
-private const val PURCHASE_SUCCESS_TEXT = "You have successfully purchased"
+private val SUCCESS_KEYWORDS = listOf(
+    "successfully purchased",
+    "recommendation submitted successfully",
+    "you have received",
+    "transaction successful",
+    "successful"
+)
 
 internal fun isPurchaseSuccessMessage(message: String): Boolean {
-    return message.contains(PURCHASE_SUCCESS_TEXT, ignoreCase = true)
+    return SUCCESS_KEYWORDS.any { message.contains(it, ignoreCase = true) }
 }
 
 /**

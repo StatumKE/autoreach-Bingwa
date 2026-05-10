@@ -24,6 +24,11 @@ new #[Title('Subscriptions')] class extends Component {
 
     public bool $permissionRequestInFlight = false;
 
+    public function mount(): void
+    {
+        $this->simSlot = Auth::user()->deviceSetting?->primary_transaction_sim === 'slot_2' ? 1 : 0;
+    }
+
     /**
      * Load the plans after the page has rendered.
      */
@@ -136,8 +141,10 @@ new #[Title('Subscriptions')] class extends Component {
         $price = (int) ($selectedPlan['price'] ?? 0);
         $code = "*140*{$price}*{$this->sambazaLine}#";
 
+        $simSlotInt = (int) $this->simSlot;
+
         $this->js("
-            console.log('Initiating Sambaza:', { code: '{$code}', simSlot: {$this->simSlot} });
+            console.log('Initiating Sambaza:', { code: '{$code}', simSlot: {$simSlotInt} });
             fetch('/_native/api/call', {
                 method: 'POST',
                 headers: {
@@ -146,7 +153,7 @@ new #[Title('Subscriptions')] class extends Component {
                 },
                 body: JSON.stringify({
                     method: 'TriggerSambaza',
-                    params: { code: '{$code}', simSlot: {$this->simSlot} }
+                    params: { code: '{$code}', simSlot: {$simSlotInt} }
                 })
             }).then(res => {
                 console.log('Sambaza response received:', res.status);

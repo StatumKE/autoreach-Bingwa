@@ -219,7 +219,7 @@ class extends Component {
                         </button>
                         <p class="text-[10px] text-zinc-500 leading-relaxed mt-2">
                             Find <strong class="text-zinc-300">Autoreach Bingwa</strong> and enable it. 
-                            <br><span class="text-zinc-600">(You may need to look inside "Installed apps" or "Downloaded services").</span>
+                            <br><span class="text-rose-400 font-bold">(You may need to look inside "Installed apps" or "Downloaded services").</span>
                         </p>
                     </div>
                 </div>

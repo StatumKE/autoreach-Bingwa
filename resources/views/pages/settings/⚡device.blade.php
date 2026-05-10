@@ -349,53 +349,43 @@ new #[Title('Device settings')] class extends Component {
                 </div>
 
                 <form wire:submit="saveHardwareMapping" class="mt-8 space-y-8">
-                    <div class="space-y-4">
+                    <div class="space-y-4" x-data="{ sim: @entangle('primary_transaction_sim') }">
                         <div class="text-[10px] font-black uppercase tracking-widest text-green-600/70">
                             {{ __('Primary transaction SIM') }}
                         </div>
 
                         <div class="grid gap-4 sm:grid-cols-2">
                             @foreach ($this->simSlotOptions() as $value => $label)
-                                <label @class([
-                                    'flex cursor-pointer items-center justify-between rounded-2xl border px-6 py-5 transition active:scale-[0.98]',
-                                    'border-green-500/50 bg-zinc-50 shadow-inner ring-4 ring-green-500/5' => $this->primary_transaction_sim === $value,
-                                    'border-zinc-200 bg-white' => $this->primary_transaction_sim !== $value,
-                                ])>
+                                <label class="group relative flex cursor-pointer items-center justify-between rounded-2xl border px-6 py-5 transition active:scale-[0.98]"
+                                    :class="sim === '{{ $value }}' ? 'border-green-500/50 bg-zinc-50 shadow-inner ring-4 ring-green-500/5' : 'border-zinc-200 bg-white'">
+                                    <input x-model="sim" name="primary_transaction_sim" type="radio" class="sr-only" value="{{ $value }}">
                                     <div class="flex items-center gap-4">
-                                        <div @class([
-                                            'h-2.5 w-2.5 rounded-full',
-                                            'bg-green-400 shadow-[0_0_10px_rgba(52,211,153,0.6)]' => $this->primary_transaction_sim === $value,
-                                            'bg-zinc-300' => $this->primary_transaction_sim !== $value,
-                                        ])></div>
-                                        <span class="text-base font-black text-zinc-950">{{ $label }}</span>
+                                        <div class="h-2.5 w-2.5 rounded-full transition-colors"
+                                             :class="sim === '{{ $value }}' ? 'bg-green-400 shadow-[0_0_10px_rgba(52,211,153,0.6)]' : 'bg-zinc-300'"></div>
+                                        <span class="text-base font-black transition-colors"
+                                              :class="sim === '{{ $value }}' ? 'text-green-700' : 'text-zinc-950'">{{ $label }}</span>
                                     </div>
-                                    <input wire:model="primary_transaction_sim" type="radio" class="sr-only" value="{{ $value }}">
                                 </label>
                             @endforeach
                         </div>
                     </div>
 
-                    <div class="space-y-4">
+                    <div class="space-y-4" x-data="{ sim: @entangle('sms_auto_reply_sim') }">
                         <div class="text-[10px] font-black uppercase tracking-widest text-green-600/60">
                             {{ __('SMS auto-reply SIM') }}
                         </div>
 
                         <div class="grid gap-4 sm:grid-cols-2">
                             @foreach ($this->simSlotOptions() as $value => $label)
-                                <label @class([
-                                    'flex cursor-pointer items-center justify-between rounded-2xl border px-6 py-5 transition active:scale-[0.98]',
-                                    'border-green-500/50 bg-zinc-50 shadow-inner ring-4 ring-green-500/5' => $this->sms_auto_reply_sim === $value,
-                                    'border-zinc-200 bg-white' => $this->sms_auto_reply_sim !== $value,
-                                ])>
+                                <label class="group relative flex cursor-pointer items-center justify-between rounded-2xl border px-6 py-5 transition active:scale-[0.98]"
+                                    :class="sim === '{{ $value }}' ? 'border-green-500/50 bg-zinc-50 shadow-inner ring-4 ring-green-500/5' : 'border-zinc-200 bg-white'">
+                                    <input x-model="sim" name="sms_auto_reply_sim" type="radio" class="sr-only" value="{{ $value }}">
                                     <div class="flex items-center gap-4">
-                                        <div @class([
-                                            'h-2.5 w-2.5 rounded-full',
-                                            'bg-green-500 shadow-[0_0_10px_rgba(58,163,53,0.6)]' => $this->sms_auto_reply_sim === $value,
-                                            'bg-zinc-300' => $this->sms_auto_reply_sim !== $value,
-                                        ])></div>
-                                        <span class="text-base font-black text-zinc-950">{{ $label }}</span>
+                                        <div class="h-2.5 w-2.5 rounded-full transition-colors"
+                                             :class="sim === '{{ $value }}' ? 'bg-green-500 shadow-[0_0_10px_rgba(58,163,53,0.6)]' : 'bg-zinc-300'"></div>
+                                        <span class="text-base font-black transition-colors"
+                                              :class="sim === '{{ $value }}' ? 'text-green-700' : 'text-zinc-950'">{{ $label }}</span>
                                     </div>
-                                    <input wire:model="sms_auto_reply_sim" type="radio" class="sr-only" value="{{ $value }}">
                                 </label>
                             @endforeach
                         </div>

@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Laravel\Fortify\Contracts\RegisterResponse;
 use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
@@ -19,7 +20,18 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Redirect new registrations to the permission setup wizard
+        $this->app->bind(RegisterResponse::class, function () {
+            return new class implements RegisterResponse
+            {
+                public function toResponse($request): mixed
+                {
+                    return $request->wantsJson()
+                        ? response()->json(['two_factor' => false])
+                        : redirect()->route('setup');
+                }
+            };
+        });
     }
 
     /**

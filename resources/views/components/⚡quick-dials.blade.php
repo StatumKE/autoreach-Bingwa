@@ -15,8 +15,6 @@ new #[Title('Quick Dial')] class extends Component {
 
     public ?string $awardMessage = null;
 
-    public ?string $awardMessage = null;
-
     public ?string $awardError = null;
 
     public ?int $selectedOfferId = null;

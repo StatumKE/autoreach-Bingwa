@@ -3,11 +3,7 @@
     <head>
         @include('partials.head')
     </head>
-    <body
-        class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 overscroll-y-none touch-manipulation"
-        x-data="bingwaPermissionSetup({{ session()->pull('request_setup_permissions_after_onboarding', false) ? 'true' : 'false' }})"
-        x-init="if (requestAfterOnboarding) requestSetupPermissionsOnce(true)"
-    >
+    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 overscroll-y-none touch-manipulation">
         <flux:sidebar sticky collapsible="mobile" class="bg-app-drawer text-zinc-200 border-e border-white/5">
             <flux:sidebar.header class="px-3 py-4">
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
@@ -124,53 +120,18 @@
             </flux:toast.group>
         @endpersist
 
-        <script>
-            document.addEventListener('livewire:init', () => {
-                Livewire.hook('request', ({ fail }) => {
-                    fail(({ status, preventDefault }) => {
-                        if (status === 419) {
-                            preventDefault();
-                            window.location.reload();
-                        }
-                    });
+    <script>
+        document.addEventListener('livewire:init', () => {
+            Livewire.hook('request', ({ fail }) => {
+                fail(({ status, preventDefault }) => {
+                    if (status === 419) {
+                        preventDefault();
+                        window.location.reload();
+                    }
                 });
             });
-
-            function bingwaPermissionSetup(requestAfterOnboarding = false) {
-                return {
-                    requestAfterOnboarding,
-
-                    requestSetupPermissionsOnce(force = false) {
-                        const sessionKey = 'bingwa-setup-permissions-requested-v1';
-
-                        if (! force && sessionStorage.getItem(sessionKey)) {
-                            return;
-                        }
-
-                        sessionStorage.setItem(sessionKey, '1');
-
-                        fetch('/_native/api/call', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                            },
-                            body: JSON.stringify({
-                                method: 'RequestSetupPermissions',
-                                params: {
-                                    force,
-                                    openSpecialSettings: false,
-                                },
-                            }),
-                        }).catch(() => {
-                            if (force) {
-                                sessionStorage.removeItem(sessionKey);
-                            }
-                        });
-                    },
-                };
-            }
-        </script>
+        });
+    </script>
 
 
         @fluxScripts

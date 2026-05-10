@@ -13,6 +13,26 @@
         {
             "name": "RequestSetupPermissions",
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.RequestSetupPermissions"
+        },
+        {
+            "name": "CheckSetupStatus",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.CheckSetupStatus"
+        },
+        {
+            "name": "RequestRuntimePermissions",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.RequestRuntimePermissions"
+        },
+        {
+            "name": "OpenBatterySettings",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.OpenBatterySettings"
+        },
+        {
+            "name": "OpenAccessibilitySettings",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.OpenAccessibilitySettings"
+        },
+        {
+            "name": "OpenOverlaySettings",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.OpenOverlaySettings"
         }
     ],
     "assets": {
@@ -31,12 +51,14 @@
         "permissions": [
             "android.permission.POST_NOTIFICATIONS",
             "android.permission.CALL_PHONE",
-            "android.permission.SYSTEM_ALERT_WINDOW",
+            "android.permission.READ_CONTACTS",
             "android.permission.READ_PHONE_STATE",
+            "android.permission.SYSTEM_ALERT_WINDOW",
             "android.permission.FOREGROUND_SERVICE",
             "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
             "android.permission.RECEIVE_BOOT_COMPLETED",
-            "android.permission.WAKE_LOCK"
+            "android.permission.WAKE_LOCK",
+            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
         ],
         "services": [],
         "receivers": []

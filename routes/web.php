@@ -20,4 +20,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('auto-replies', 'auto-replies')->name('auto-replies');
 });
 
+// Permission onboarding — auth only, no email-verification gate
+Route::middleware(['auth'])->group(function () {
+    Route::livewire('setup', 'setup')->name('setup');
+});
+
 require __DIR__.'/settings.php';

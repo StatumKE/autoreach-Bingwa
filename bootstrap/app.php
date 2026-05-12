@@ -21,6 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             ForcePersistentAuthentication::class,
         ]);
+
+        $middleware->validateCsrfTokens(except: [
+            'livewire/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

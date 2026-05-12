@@ -119,6 +119,13 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - The application is served by Laravel Herd at `https?://[kebab-case-project-dir].test`. Use the `get-absolute-url` tool to generate valid URLs. Never run commands to serve the site. It is always available.
 - Use the `herd` CLI to manage services, PHP versions, and sites (e.g. `herd sites`, `herd services:start <service>`, `herd php:list`). Run `herd list` to discover all available commands.
 
+=== tests rules ===
+
+# Test Enforcement
+
+- Every change must be programmatically tested. Write a new test or update an existing test, then run the affected tests to make sure they pass.
+- Run the minimum number of tests needed to ensure code quality and speed. Use `php artisan test --compact` with a specific filename or filter.
+
 === laravel/core rules ===
 
 # Do Things the Laravel Way
@@ -198,6 +205,334 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 **Always ask which platform before giving any build or run command.** If the user hasn't specified iOS or Android, ask: "Which platform do you want to build/test on — iOS or Android?" Never assume a platform.
 
 When the platform is confirmed, give the relevant command(s) above and tell the user to run it in their terminal. Do not run it yourself.
+</laravel-boost-guidelines>
+
+=== nativephp/mobile-device rules ===
+
+## nativephp/device
+
+Device hardware operations including vibration, flashlight, device info, and battery status.
+
+### PHP Usage (Livewire/Blade)
+
+<code-snippet name="Device Operations" lang="php">
+use Native\Mobile\Facades\Device;
+
+// Get unique device ID
+$id = Device::getId();
+
+// Get device info (JSON)
+$info = Device::getInfo();
+$deviceInfo = json_decode($info);
+// $deviceInfo->platform, $deviceInfo->model, $deviceInfo->osVersion
+
+// Vibrate the device
+Device::vibrate();
+
+// Toggle flashlight
+$result = Device::flashlight();
+// result.state = true (on) or false (off)
+
+// Get battery info
+$batteryInfo = Device::getBatteryInfo();
+// batteryLevel: 0-1 (e.g., 0.85 = 85%), isCharging: true/false
+</code-snippet>
+
+### JavaScript Usage (Vue/React/Inertia)
+
+<code-snippet name="Device Operations in JavaScript" lang="javascript">
+import { device } from '#nativephp';
+
+// Get unique device ID
+const result = await device.getId();
+const deviceId = result.id;
+
+// Get device info
+const infoResult = await device.getInfo();
+const deviceInfo = JSON.parse(infoResult.info);
+console.log(deviceInfo.platform);  // 'ios' or 'android'
+console.log(deviceInfo.model);     // e.g., 'iPhone13,4'
+console.log(deviceInfo.osVersion); // e.g., '17.0'
+
+// Vibrate the device
+await device.vibrate();
+
+// Toggle flashlight
+const flashResult = await device.flashlight();
+console.log(flashResult.state); // true = on, false = off
+
+// Get battery info
+const batteryResult = await device.getBatteryInfo();
+const battery = JSON.parse(batteryResult.info);
+console.log(batteryResult.batteryLevel); // 0-1
+console.log(batteryResult.isCharging);   // true/false
+</code-snippet>
+
+### Device Info Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| name | string | Device name |
+| model | string | Device model identifier |
+| platform | 'ios' \| 'android' | Operating platform |
+| osVersion | string | OS version string |
+| isVirtual | boolean | Running in simulator/emulator |
+| memUsed | number | App memory usage in bytes |
+| webViewVersion | string | Browser version |
+
+### Battery Info Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| batteryLevel | number | Charge percentage (0-1) |
+| isCharging | boolean | Current charging status |
+
+</laravel-boost-guidelines>
+
+=== nativephp/mobile-device rules ===
+
+## nativephp/device
+
+Device hardware operations including vibration, flashlight, device info, and battery status.
+
+### PHP Usage (Livewire/Blade)
+
+<code-snippet name="Device Operations" lang="php">
+use Native\Mobile\Facades\Device;
+
+// Get unique device ID
+$id = Device::getId();
+
+// Get device info (JSON)
+$info = Device::getInfo();
+$deviceInfo = json_decode($info);
+// $deviceInfo->platform, $deviceInfo->model, $deviceInfo->osVersion
+
+// Vibrate the device
+Device::vibrate();
+
+// Toggle flashlight
+$result = Device::flashlight();
+// result.state = true (on) or false (off)
+
+// Get battery info
+$batteryInfo = Device::getBatteryInfo();
+// batteryLevel: 0-1 (e.g., 0.85 = 85%), isCharging: true/false
+</code-snippet>
+
+### JavaScript Usage (Vue/React/Inertia)
+
+<code-snippet name="Device Operations in JavaScript" lang="javascript">
+import { device } from '#nativephp';
+
+// Get unique device ID
+const result = await device.getId();
+const deviceId = result.id;
+
+// Get device info
+const infoResult = await device.getInfo();
+const deviceInfo = JSON.parse(infoResult.info);
+console.log(deviceInfo.platform);  // 'ios' or 'android'
+console.log(deviceInfo.model);     // e.g., 'iPhone13,4'
+console.log(deviceInfo.osVersion); // e.g., '17.0'
+
+// Vibrate the device
+await device.vibrate();
+
+// Toggle flashlight
+const flashResult = await device.flashlight();
+console.log(flashResult.state); // true = on, false = off
+
+// Get battery info
+const batteryResult = await device.getBatteryInfo();
+const battery = JSON.parse(batteryResult.info);
+console.log(batteryResult.batteryLevel); // 0-1
+console.log(batteryResult.isCharging);   // true/false
+</code-snippet>
+
+### Device Info Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| name | string | Device name |
+| model | string | Device model identifier |
+| platform | 'ios' \| 'android' | Operating platform |
+| osVersion | string | OS version string |
+| isVirtual | boolean | Running in simulator/emulator |
+| memUsed | number | App memory usage in bytes |
+| webViewVersion | string | Browser version |
+
+### Battery Info Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| batteryLevel | number | Charge percentage (0-1) |
+| isCharging | boolean | Current charging status |
+
+</laravel-boost-guidelines>
+
+=== nativephp/mobile-device rules ===
+
+## nativephp/device
+
+Device hardware operations including vibration, flashlight, device info, and battery status.
+
+### PHP Usage (Livewire/Blade)
+
+<code-snippet name="Device Operations" lang="php">
+use Native\Mobile\Facades\Device;
+
+// Get unique device ID
+$id = Device::getId();
+
+// Get device info (JSON)
+$info = Device::getInfo();
+$deviceInfo = json_decode($info);
+// $deviceInfo->platform, $deviceInfo->model, $deviceInfo->osVersion
+
+// Vibrate the device
+Device::vibrate();
+
+// Toggle flashlight
+$result = Device::flashlight();
+// result.state = true (on) or false (off)
+
+// Get battery info
+$batteryInfo = Device::getBatteryInfo();
+// batteryLevel: 0-1 (e.g., 0.85 = 85%), isCharging: true/false
+</code-snippet>
+
+### JavaScript Usage (Vue/React/Inertia)
+
+<code-snippet name="Device Operations in JavaScript" lang="javascript">
+import { device } from '#nativephp';
+
+// Get unique device ID
+const result = await device.getId();
+const deviceId = result.id;
+
+// Get device info
+const infoResult = await device.getInfo();
+const deviceInfo = JSON.parse(infoResult.info);
+console.log(deviceInfo.platform);  // 'ios' or 'android'
+console.log(deviceInfo.model);     // e.g., 'iPhone13,4'
+console.log(deviceInfo.osVersion); // e.g., '17.0'
+
+// Vibrate the device
+await device.vibrate();
+
+// Toggle flashlight
+const flashResult = await device.flashlight();
+console.log(flashResult.state); // true = on, false = off
+
+// Get battery info
+const batteryResult = await device.getBatteryInfo();
+const battery = JSON.parse(batteryResult.info);
+console.log(batteryResult.batteryLevel); // 0-1
+console.log(batteryResult.isCharging);   // true/false
+</code-snippet>
+
+### Device Info Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| name | string | Device name |
+| model | string | Device model identifier |
+| platform | 'ios' \| 'android' | Operating platform |
+| osVersion | string | OS version string |
+| isVirtual | boolean | Running in simulator/emulator |
+| memUsed | number | App memory usage in bytes |
+| webViewVersion | string | Browser version |
+
+### Battery Info Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| batteryLevel | number | Charge percentage (0-1) |
+| isCharging | boolean | Current charging status |
+
+</laravel-boost-guidelines>
+
+=== nativephp/mobile-device rules ===
+
+## nativephp/device
+
+Device hardware operations including vibration, flashlight, device info, and battery status.
+
+### PHP Usage (Livewire/Blade)
+
+<code-snippet name="Device Operations" lang="php">
+use Native\Mobile\Facades\Device;
+
+// Get unique device ID
+$id = Device::getId();
+
+// Get device info (JSON)
+$info = Device::getInfo();
+$deviceInfo = json_decode($info);
+// $deviceInfo->platform, $deviceInfo->model, $deviceInfo->osVersion
+
+// Vibrate the device
+Device::vibrate();
+
+// Toggle flashlight
+$result = Device::flashlight();
+// result.state = true (on) or false (off)
+
+// Get battery info
+$batteryInfo = Device::getBatteryInfo();
+// batteryLevel: 0-1 (e.g., 0.85 = 85%), isCharging: true/false
+</code-snippet>
+
+### JavaScript Usage (Vue/React/Inertia)
+
+<code-snippet name="Device Operations in JavaScript" lang="javascript">
+import { device } from '#nativephp';
+
+// Get unique device ID
+const result = await device.getId();
+const deviceId = result.id;
+
+// Get device info
+const infoResult = await device.getInfo();
+const deviceInfo = JSON.parse(infoResult.info);
+console.log(deviceInfo.platform);  // 'ios' or 'android'
+console.log(deviceInfo.model);     // e.g., 'iPhone13,4'
+console.log(deviceInfo.osVersion); // e.g., '17.0'
+
+// Vibrate the device
+await device.vibrate();
+
+// Toggle flashlight
+const flashResult = await device.flashlight();
+console.log(flashResult.state); // true = on, false = off
+
+// Get battery info
+const batteryResult = await device.getBatteryInfo();
+const battery = JSON.parse(batteryResult.info);
+console.log(batteryResult.batteryLevel); // 0-1
+console.log(batteryResult.isCharging);   // true/false
+</code-snippet>
+
+### Device Info Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| name | string | Device name |
+| model | string | Device model identifier |
+| platform | 'ios' \| 'android' | Operating platform |
+| osVersion | string | OS version string |
+| isVirtual | boolean | Running in simulator/emulator |
+| memUsed | number | App memory usage in bytes |
+| webViewVersion | string | Browser version |
+
+### Battery Info Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| batteryLevel | number | Charge percentage (0-1) |
+| isCharging | boolean | Current charging status |
+
 </laravel-boost-guidelines>
 
 === nativephp/mobile-device rules ===

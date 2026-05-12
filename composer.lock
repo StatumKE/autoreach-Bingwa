@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b4ac3bfa168452195cb7f7c62e969cf6",
+    "content-hash": "66ec1a7103304b1b1379c3f53143d00e",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -2676,20 +2676,20 @@
         },
         {
             "name": "nativephp/mobile",
-            "version": "3.2.6",
+            "version": "3.3.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/NativePHP/mobile-air.git",
-                "reference": "01bbfe4a9a1bb17e81a49dfc5408381dfd5c0db9"
+                "reference": "ddf704d743364de259b59849331aa94253b95cab"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/NativePHP/mobile-air/zipball/01bbfe4a9a1bb17e81a49dfc5408381dfd5c0db9",
-                "reference": "01bbfe4a9a1bb17e81a49dfc5408381dfd5c0db9",
+                "url": "https://api.github.com/repos/NativePHP/mobile-air/zipball/ddf704d743364de259b59849331aa94253b95cab",
+                "reference": "ddf704d743364de259b59849331aa94253b95cab",
                 "shasum": ""
             },
             "require": {
-                "endroid/qr-code": "^6.1.3",
+                "endroid/qr-code": "^6.0.9",
                 "ext-dom": "*",
                 "ext-simplexml": "*",
                 "guzzlehttp/guzzle": "^7.9",
@@ -2753,9 +2753,9 @@
             ],
             "support": {
                 "issues": "https://github.com/NativePHP/mobile-air/issues",
-                "source": "https://github.com/NativePHP/mobile-air/tree/3.2.6"
+                "source": "https://github.com/NativePHP/mobile-air/tree/3.3.4"
             },
-            "time": "2026-04-28T02:27:06+00:00"
+            "time": "2026-05-09T20:16:30+00:00"
         },
         {
             "name": "nativephp/mobile-background-tasks",
@@ -3064,16 +3064,16 @@
         },
         {
             "name": "nette/utils",
-            "version": "v4.1.3",
+            "version": "v4.1.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nette/utils.git",
-                "reference": "bb3ea637e3d131d72acc033cfc2746ee893349fe"
+                "reference": "7da6c396d7ebe142bc857c20479d5e70a5e1aac7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nette/utils/zipball/bb3ea637e3d131d72acc033cfc2746ee893349fe",
-                "reference": "bb3ea637e3d131d72acc033cfc2746ee893349fe",
+                "url": "https://api.github.com/repos/nette/utils/zipball/7da6c396d7ebe142bc857c20479d5e70a5e1aac7",
+                "reference": "7da6c396d7ebe142bc857c20479d5e70a5e1aac7",
                 "shasum": ""
             },
             "require": {
@@ -3149,9 +3149,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nette/utils/issues",
-                "source": "https://github.com/nette/utils/tree/v4.1.3"
+                "source": "https://github.com/nette/utils/tree/v4.1.4"
             },
-            "time": "2026-02-13T03:05:33+00:00"
+            "time": "2026-05-11T20:49:54+00:00"
         },
         {
             "name": "nikic/php-parser",

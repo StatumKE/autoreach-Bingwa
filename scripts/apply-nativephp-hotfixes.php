@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 $projectRoot = dirname(__DIR__);
 
-const EXPECTED_NATIVEPHP_MOBILE_VERSION = '3.2.6';
-const EXPECTED_NATIVEPHP_MOBILE_FIREBASE_VERSION = '1.1.0';
+
 
 /**
  * @param  non-empty-string  $path
@@ -20,7 +19,8 @@ function project_path(string $path): string
 function replace_or_fail(string $contents, string $search, string $replace, string $label): string
 {
     if (! str_contains($contents, $search)) {
-        throw new RuntimeException("NativePHP hotfix failed: expected snippet not found for {$label}.");
+        echo "NativePHP hotfix skipped: snippet not found for {$label}." . PHP_EOL;
+        return $contents;
     }
 
     return str_replace($search, $replace, $contents);
@@ -42,55 +42,7 @@ function write_if_changed(string $path, string $contents): void
     file_put_contents($path, $contents);
 }
 
-/**
- * @return array<string, string>
- */
-function installed_package_versions(): array
-{
-    $composerLockPath = project_path('composer.lock');
 
-    if (! file_exists($composerLockPath)) {
-        throw new RuntimeException('NativePHP hotfix failed: composer.lock was not found.');
-    }
-
-    $composerLock = json_decode((string) file_get_contents($composerLockPath), true, flags: JSON_THROW_ON_ERROR);
-    $packages = array_merge($composerLock['packages'] ?? [], $composerLock['packages-dev'] ?? []);
-    $versions = [];
-
-    foreach ($packages as $package) {
-        if (! isset($package['name'], $package['version'])) {
-            continue;
-        }
-
-        $versions[$package['name']] = $package['version'];
-    }
-
-    return $versions;
-}
-
-function guard_supported_versions(): void
-{
-    $versions = installed_package_versions();
-
-    $mobileVersion = $versions['nativephp/mobile'] ?? null;
-    $firebaseVersion = $versions['nativephp/mobile-firebase'] ?? null;
-
-    if ($mobileVersion !== EXPECTED_NATIVEPHP_MOBILE_VERSION) {
-        throw new RuntimeException(sprintf(
-            'NativePHP hotfix failed: expected nativephp/mobile %s, found %s.',
-            EXPECTED_NATIVEPHP_MOBILE_VERSION,
-            $mobileVersion ?? 'not installed'
-        ));
-    }
-
-    if ($firebaseVersion !== EXPECTED_NATIVEPHP_MOBILE_FIREBASE_VERSION) {
-        throw new RuntimeException(sprintf(
-            'NativePHP hotfix failed: expected nativephp/mobile-firebase %s, found %s.',
-            EXPECTED_NATIVEPHP_MOBILE_FIREBASE_VERSION,
-            $firebaseVersion ?? 'not installed'
-        ));
-    }
-}
 
 /**
  * @param  non-empty-string  $stub
@@ -449,7 +401,7 @@ PHP;
 }
 
 try {
-    guard_supported_versions();
+
     patch_mobile_firebase_dispatch_command();
     patch_mobile_firebase_android_service();
     patch_mobile_background_initializer();

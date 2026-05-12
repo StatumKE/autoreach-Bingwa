@@ -4,7 +4,7 @@
         @include('partials.head')
     </head>
     <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 overscroll-y-none touch-manipulation">
-        <flux:sidebar sticky collapsible="mobile" class="bg-app-drawer text-zinc-200 border-e border-white/5">
+        <flux:sidebar name="main" sticky collapsible="mobile" class="bg-app-drawer text-zinc-200 border-e border-white/5">
             <flux:sidebar.header class="px-3 py-4">
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden text-zinc-300 hover:text-white" />
@@ -50,7 +50,7 @@
 
         <!-- Mobile User Menu -->
         <flux:header class="fixed inset-x-0 top-0 z-50 h-24 items-center bg-app-shell pt-8 text-white border-b border-black/10 !px-2 lg:hidden" container="false">
-            <flux:sidebar.toggle class="app-mobile-menu-toggle !text-white lg:hidden [&_svg]:size-7 [&_svg]:stroke-[2.5px]" icon="bars-3" inset="left" />
+            <flux:button variant="subtle" icon="bars-3" class="app-mobile-menu-toggle !text-white lg:hidden [&_svg]:size-7 [&_svg]:stroke-[2.5px] z-[100] relative pointer-events-auto" x-on:click="$flux.sidebar('main').toggle()" />
 
             <div class="min-w-0 flex-1 ps-2">
                 <div class="text-[14px] font-black leading-none tracking-tight text-white sm:text-[15px]">

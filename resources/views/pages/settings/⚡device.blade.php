@@ -125,14 +125,8 @@ new #[Title('Device settings')] class extends Component {
     private function persist(array $data): void
     {
         $userId = Auth::id();
-        
-        \Illuminate\Support\Facades\Log::info('DeviceSetting::persist', [
-            'user_id' => $userId,
-            'data_keys' => array_keys($data),
-        ]);
 
         if (! $userId) {
-            \Illuminate\Support\Facades\Log::error('DeviceSetting::persist - No Authenticated User');
             return;
         }
 

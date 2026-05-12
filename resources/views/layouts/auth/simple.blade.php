@@ -55,7 +55,7 @@
         <script>
             function bingwaPermissionSetup() {
                 return {
-                    requestSetupPermissionsOnce() {
+                    requestSetupPermissionsOnce(force = false) {
                         const sessionKey = 'bingwa-setup-permissions-requested-v1';
 
                         if (sessionStorage.getItem(sessionKey)) {

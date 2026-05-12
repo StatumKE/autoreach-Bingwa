@@ -33,18 +33,6 @@ return [
         'storage/framework/cache',
         'storage/framework/testing',
         'storage/logs/laravel.log',
-        'vendor/larastan',
-        'vendor/laravel/boost',
-        'vendor/laravel/pail',
-        'vendor/laravel/pint',
-        'vendor/laravel/sail',
-        'vendor/fakerphp',
-        'vendor/mockery',
-        'vendor/pestphp',
-        'vendor/phpstan',
-        'vendor/phpunit',
-        'vendor/brianium/paratest',
-        'vendor/nunomaduro/collision',
         'vendor/livewire/livewire/dist/*.map',
         'vendor/livewire/livewire/src/Features/SupportFileUploads/browser_test_image_big.jpg',
         'vendor/_laravel_ide',
@@ -55,7 +43,7 @@ return [
     ],
 
     'runtime' => [
-        'mode' => env('NATIVEPHP_RUNTIME_MODE', 'persistent'),
+        'mode' => env('NATIVEPHP_RUNTIME_MODE', 'classic'),
     ],
 
     'android' => [

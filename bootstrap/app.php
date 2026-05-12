@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\ForcePersistentAuthentication;
+use App\Http\Middleware\HydrateNativeFormBody;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,7 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->prependToGroup('web', [
+            HydrateNativeFormBody::class,
+        ]);
+
+        $middleware->web(append: [
+            ForcePersistentAuthentication::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

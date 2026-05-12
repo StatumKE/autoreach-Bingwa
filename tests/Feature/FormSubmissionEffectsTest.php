@@ -19,8 +19,8 @@ test('register form shows submission feedback', function () {
 
     $this->get(route('register'))
         ->assertOk()
-        ->assertSee('x-on:submit="submitting = true"', false)
-        ->assertSee('Creating…');
+        ->assertSee('data-test="register-user-button"', false)
+        ->assertSee('Create Account');
 });
 
 test('password and verification forms show submission feedback', function () {

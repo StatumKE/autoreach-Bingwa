@@ -1,3 +1,6 @@
+import './bootstrap';
+import './native-forms';
+
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 const lightThemeColor = '#bedbff';
 const darkThemeColor = '#02130d';

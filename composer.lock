@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0850b21da40a14372cb816c7d3dafa06",
+    "content-hash": "b4ac3bfa168452195cb7f7c62e969cf6",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -2756,6 +2756,50 @@
                 "source": "https://github.com/NativePHP/mobile-air/tree/3.2.6"
             },
             "time": "2026-04-28T02:27:06+00:00"
+        },
+        {
+            "name": "nativephp/mobile-background-tasks",
+            "version": "0.0.3",
+            "dist": {
+                "type": "zip",
+                "url": "https://plugins.nativephp.com/dist/nativephp/mobile-background-tasks/nativephp-mobile-background-tasks-d7c25148d9bebe78e74ba8b125673969d94fb151-zip-58d276.zip",
+                "reference": "d7c25148d9bebe78e74ba8b125673969d94fb151",
+                "shasum": "9bdf0a82d7ec826d9081b96fc72acf53fbe6ace8"
+            },
+            "require": {
+                "nativephp/mobile": "^3.2.1",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "NativePHP\\BackgroundTasks\\BackgroundTasksServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "NativePHP\\BackgroundTasks\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "NativePHP",
+                    "email": "support@nativephp.com"
+                }
+            ],
+            "description": "Background task scheduling via WorkManager for NativePHP Mobile",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-background-tasks/issues"
+            },
+            "time": "2026-04-24T15:21:34+00:00"
         },
         {
             "name": "nativephp/mobile-device",

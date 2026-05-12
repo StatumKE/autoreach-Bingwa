@@ -83,7 +83,7 @@ test('new users can register', function () {
     $response->assertSessionHasNoErrors()
         ->assertSessionHas('request_setup_permissions_after_onboarding', true)
         ->assertCookie(Auth::getRecallerName())
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('setup', absolute: false));
 
     $this->assertAuthenticated();
 
@@ -116,7 +116,7 @@ test('new users register without waiting for backend device sync', function () {
 
     $response->assertSessionHasNoErrors()
         ->assertSessionHas('request_setup_permissions_after_onboarding', true)
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('setup', absolute: false));
 
     $this->assertAuthenticated();
 
@@ -141,7 +141,7 @@ test('registration does not depend on backend device registration being availabl
 
     $response->assertSessionHasNoErrors()
         ->assertSessionHas('request_setup_permissions_after_onboarding', true)
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('setup', absolute: false));
 
     $this->assertAuthenticated();
 

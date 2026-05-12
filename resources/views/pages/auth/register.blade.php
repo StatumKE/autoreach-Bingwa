@@ -8,76 +8,104 @@
         <x-auth-session-status class="text-center" :status="session('status')" />
 
         @if (!($deviceAlreadyRegistered ?? false))
-            <form method="POST" action="{{ route('register.store') }}" class="flex flex-col gap-4 sm:gap-6" x-data="{ submitting: false }" x-on:submit="submitting = true">
+            <form
+                method="POST"
+                action="{{ route('register.store') }}"
+                class="flex flex-col gap-4 sm:gap-6"
+                data-native-method="POST"
+            >
                 @csrf
+
+                @if ($errors->any())
+                    <div class="rounded-2xl bg-red-500/10 p-4 ring-1 ring-red-500/20">
+                        <ul class="list-disc list-inside text-xs font-black text-red-700 dark:text-red-400">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
                 
                 <div class="flex flex-col gap-4">
                     <!-- Name -->
-                    <flux:input
-                        name="name"
-                        :value="old('name')"
-                        type="text"
-                        required
-                        autofocus
-                        autocomplete="name"
-                        :placeholder="__('Full name')"
-                    />
+                    <div class="flex flex-col gap-1.5">
+                        <input
+                            name="name"
+                            value="{{ old('name') }}"
+                            type="text"
+                            required
+                            autofocus
+                            autocomplete="name"
+                            placeholder="{{ __('Full name') }}"
+                            class="block w-full rounded-2xl border-zinc-200 bg-white px-4 py-3.5 text-sm font-medium focus:border-green-500 focus:ring-green-500 dark:border-zinc-800 dark:bg-zinc-900"
+                        >
+                        <flux:error name="name" />
+                    </div>
 
                     <!-- Email Address -->
-                    <flux:input
-                        name="email"
-                        :value="old('email')"
-                        type="email"
-                        required
-                        autocomplete="email"
-                        :placeholder="__('Email Address')"
-                    />
+                    <div class="flex flex-col gap-1.5">
+                        <input
+                            name="email"
+                            value="{{ old('email') }}"
+                            type="email"
+                            required
+                            autocomplete="email"
+                            placeholder="{{ __('Email Address') }}"
+                            class="block w-full rounded-2xl border-zinc-200 bg-white px-4 py-3.5 text-sm font-medium focus:border-green-500 focus:ring-green-500 dark:border-zinc-800 dark:bg-zinc-900"
+                        >
+                        <flux:error name="email" />
+                    </div>
 
                     <!-- Connect ID -->
-                    <flux:input
-                        name="autoreach_connect_id"
-                        :value="old('autoreach_connect_id')"
-                        type="text"
-                        required
-                        autocomplete="off"
-                        :placeholder="__('Autoreach Connect ID')"
-                    />
+                    <div class="flex flex-col gap-1.5">
+                        <input
+                            name="autoreach_connect_id"
+                            value="{{ old('autoreach_connect_id') }}"
+                            type="text"
+                            required
+                            autocomplete="off"
+                            placeholder="{{ __('Autoreach Connect ID') }}"
+                            class="block w-full rounded-2xl border-zinc-200 bg-white px-4 py-3.5 text-sm font-medium focus:border-green-500 focus:ring-green-500 dark:border-zinc-800 dark:bg-zinc-900"
+                        >
+                        <flux:error name="autoreach_connect_id" />
+                    </div>
 
                     <!-- Password -->
-                    <flux:input
-                        name="password"
-                        type="password"
-                        required
-                        autocomplete="new-password"
-                        :placeholder="__('Create Password')"
-                        viewable
-                    />
+                    <div class="flex flex-col gap-1.5">
+                        <input
+                            name="password"
+                            type="password"
+                            required
+                            autocomplete="new-password"
+                            placeholder="{{ __('Create Password') }}"
+                            class="block w-full rounded-2xl border-zinc-200 bg-white px-4 py-3.5 text-sm font-medium focus:border-green-500 focus:ring-green-500 dark:border-zinc-800 dark:bg-zinc-900"
+                        >
+                        <flux:error name="password" />
+                    </div>
 
                     <!-- Confirm Password -->
-                    <flux:input
-                        name="password_confirmation"
-                        type="password"
-                        required
-                        autocomplete="new-password"
-                        :placeholder="__('Confirm Password')"
-                        viewable
-                    />
+                    <div class="flex flex-col gap-1.5">
+                        <input
+                            name="password_confirmation"
+                            type="password"
+                            required
+                            autocomplete="new-password"
+                            placeholder="{{ __('Confirm Password') }}"
+                            class="block w-full rounded-2xl border-zinc-200 bg-white px-4 py-3.5 text-sm font-medium focus:border-green-500 focus:ring-green-500 dark:border-zinc-800 dark:bg-zinc-900"
+                        >
+                        <flux:error name="password_confirmation" />
+                    </div>
                 </div>
 
-                <div>
-                    <flux:button
+                <div class="mt-2">
+                    <button
                         type="submit"
-                        variant="primary"
-                        class="auth-submit-button"
+                        class="w-full rounded-2xl bg-green-600 px-4 py-4 text-sm font-black uppercase tracking-widest text-white transition-all hover:bg-green-700 active:scale-[0.98]"
+                        data-loading-text="Creating account..."
                         data-test="register-user-button"
-                        x-bind:disabled="submitting"
                     >
-                        <span x-cloak x-show="!submitting">{{ __('Create Account') }}</span>
-                        <span x-cloak x-show="submitting" class="inline-flex items-center justify-center gap-2">
-                            <flux:icon.loading variant="mini" class="size-4" />
-                            {{ __('Creating…') }}
-                        </span>
-                    </flux:button>
+                        {{ __('Create Account') }}
+                    </button>
                 </div>
             </form>
         @else

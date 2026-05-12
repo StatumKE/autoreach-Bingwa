@@ -2,6 +2,7 @@
 
 namespace App\Actions\Fortify;
 
+use App\Actions\Bingwa\PopulateDefaultOffers;
 use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
 use App\Jobs\SyncBingwaFcmTokenJob;
@@ -27,10 +28,14 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
+        Log::debug('CreateNewUser: Starting registration process.', ['input' => array_merge($input, ['password' => 'REDACTED', 'password_confirmation' => 'REDACTED'])]);
+
         Validator::make($input, [
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
         ])->validate();
+
+        Log::debug('CreateNewUser: Input validation passed.');
 
         $user = null;
 
@@ -39,10 +44,13 @@ class CreateNewUser implements CreatesNewUsers
                 return retry(2, function () use ($input): User {
                     return DB::transaction(function () use ($input): User {
                         if (User::query()->exists()) {
+                            Log::warning('CreateNewUser: Registration blocked - user already exists in the database.');
                             throw ValidationException::withMessages([
                                 'email' => __('This app already has a registered account. Only one account is supported per installation.'),
                             ]);
                         }
+
+                        Log::debug('CreateNewUser: Creating user record.');
 
                         $user = User::create([
                             'name' => $input['name'],
@@ -66,16 +74,27 @@ class CreateNewUser implements CreatesNewUsers
                             'retry_network_issues' => true,
                         ]);
 
-                        (new \App\Actions\Bingwa\PopulateDefaultOffers)->handle($user);
+                        (new PopulateDefaultOffers)->handle($user);
+
+                        Log::info('CreateNewUser: User created successfully.', ['user_id' => $user->id]);
 
                         return $user;
                     });
                 }, 0);
             });
         } catch (LockTimeoutException) {
+            Log::error('CreateNewUser: Registration failed due to lock timeout.');
             throw ValidationException::withMessages([
                 'email' => __('Registration is busy right now. Please try again.'),
             ]);
+        } catch (\Throwable $e) {
+            Log::error('CreateNewUser: Fatal error during registration.', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
         }
 
         session()->flash('request_setup_permissions_after_onboarding', true);

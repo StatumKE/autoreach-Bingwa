@@ -37,8 +37,6 @@ class CreateNewUser implements CreatesNewUsers
 
         Log::debug('CreateNewUser: Input validation passed.');
 
-        $user = null;
-
         try {
             $user = Cache::lock('autoreach-single-account-registration', 10)->block(5, function () use ($input): User {
                 return retry(2, function () use ($input): User {
@@ -114,7 +112,7 @@ class CreateNewUser implements CreatesNewUsers
                 'flow_id' => $flowId,
             ]);
 
-            SyncBingwaFcmTokenJob::dispatch($user->getKey(), $flowId);
+            SyncBingwaFcmTokenJob::dispatchSync($user->getKey(), $flowId);
 
             Log::debug('Bingwa FCM enrollment job dispatched to the queue.', [
                 'user_id' => $user->getKey(),

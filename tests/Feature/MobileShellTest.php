@@ -102,12 +102,23 @@ test('the native form bridge leaves logout forms on the standard webview submit 
         ->toContain('return false;');
 });
 
-test('the mobile sidebar has an app-owned fallback toggle for android webview', function () {
+test('the dashboard mobile navigation uses a plain alpine drawer instead of flux mobile sidebar controls', function () {
+    $sidebarLayout = File::get(base_path('resources/views/layouts/app/sidebar.blade.php'));
     $appJs = File::get(base_path('resources/js/app.js'));
 
+    expect($sidebarLayout)
+        ->toContain("@persist('mobile-nav')")
+        ->toContain('x-data="{ open: false }"')
+        ->toContain('id="mobile-navigation-drawer"')
+        ->toContain('Open navigation menu')
+        ->toContain('Close navigation menu')
+        ->not->toContain('flux:sidebar.toggle')
+        ->not->toContain('data-flux-sidebar-toggle')
+        ->not->toContain('data-flux-sidebar-collapsed-mobile');
+
     expect($appJs)
-        ->toContain('data-flux-sidebar-toggle')
-        ->toContain('data-flux-sidebar-backdrop')
-        ->toContain('data-flux-sidebar-collapsed-mobile')
-        ->toContain('window.__bingwaMobileSidebarFallbackInstalled');
+        ->not->toContain('data-flux-sidebar-toggle')
+        ->not->toContain('data-flux-sidebar-backdrop')
+        ->not->toContain('data-flux-sidebar-collapsed-mobile')
+        ->not->toContain('window.__bingwaMobileSidebarFallbackInstalled');
 });

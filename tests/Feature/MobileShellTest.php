@@ -31,6 +31,12 @@ test('the native php android shell runs migrations during filesystem prep', func
         ->toContain('phpBridge.runArtisanCommand("migrate --force")');
 });
 
+test('the android shell starts at the home router instead of login directly', function () {
+    $env = File::get(base_path('.env'));
+
+    expect($env)->toContain('NATIVEPHP_START_URL=/');
+});
+
 test('the android csrf helper only sends the cookie-backed xsrf header', function () {
     $securitySource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/security/LaravelSecurity.kt'));
     $webViewManagerSource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/network/WebViewManager.kt'));

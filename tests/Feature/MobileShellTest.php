@@ -37,6 +37,22 @@ test('the android shell starts at the home router instead of login directly', fu
     expect($env)->toContain('NATIVEPHP_START_URL=/');
 });
 
+test('the android shell keeps the splash visible until the first committed web frame', function () {
+    $mainActivitySource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/ui/MainActivity.kt'));
+    $webViewManagerSource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/network/WebViewManager.kt'));
+
+    expect($mainActivitySource)
+        ->toContain('fun hideSplash(reason: String)')
+        ->toContain('hideSplash("Laravel environment initialization failed")');
+
+    expect($webViewManagerSource)
+        ->toContain('cacheMode = WebSettings.LOAD_DEFAULT')
+        ->toContain('onPageCommitVisible')
+        ->toContain('startupMainFrameStatusCode')
+        ->toContain('hideSplash("main frame committed: $url")')
+        ->not->toContain('LOAD_CACHE_ELSE_NETWORK');
+});
+
 test('the android csrf helper only sends the cookie-backed xsrf header', function () {
     $securitySource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/security/LaravelSecurity.kt'));
     $webViewManagerSource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/network/WebViewManager.kt'));
@@ -67,4 +83,31 @@ test('the native php hotfix script preserves the coordinator crash fix', functio
         ->toContain('patch_mobile_webview_csrf_bridge')
         ->toContain('commitNowAllowingStateLoss()')
         ->toContain('Looper.myLooper() != Looper.getMainLooper()');
+});
+
+test('the native form bridge uses a real navigation for redirected responses', function () {
+    $nativeFormsScript = File::get(base_path('resources/js/native-forms.js'));
+
+    expect($nativeFormsScript)
+        ->toContain('window.location.replace(responseUrl)')
+        ->toContain('queuePendingScrollRestore(responseUrl)')
+        ->toContain('document.write(html)');
+});
+
+test('the native form bridge leaves logout forms on the standard webview submit path', function () {
+    $nativeFormsScript = File::get(base_path('resources/js/native-forms.js'));
+
+    expect($nativeFormsScript)
+        ->toContain("actionUrl.pathname === '/logout'")
+        ->toContain('return false;');
+});
+
+test('the mobile sidebar has an app-owned fallback toggle for android webview', function () {
+    $appJs = File::get(base_path('resources/js/app.js'));
+
+    expect($appJs)
+        ->toContain('data-flux-sidebar-toggle')
+        ->toContain('data-flux-sidebar-backdrop')
+        ->toContain('data-flux-sidebar-collapsed-mobile')
+        ->toContain('window.__bingwaMobileSidebarFallbackInstalled');
 });

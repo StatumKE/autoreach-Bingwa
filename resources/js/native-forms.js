@@ -357,6 +357,10 @@ function shouldBridgeNativeFormSubmission(form, effectiveMethod) {
     try {
         const actionUrl = new URL(form.action || window.location.href, window.location.href);
 
+        if (actionUrl.pathname === '/logout') {
+            return false;
+        }
+
         return actionUrl.origin === window.location.origin;
     } catch {
         return false;
@@ -390,6 +394,14 @@ async function submitNativeForm(form, submitButton = null) {
 
         const html = await response.text();
         const responseUrl = response.url || window.location.href;
+        const currentUrl = normalizedPageUrl(window.location.href);
+        const nextUrl = normalizedPageUrl(responseUrl);
+
+        if (nextUrl && nextUrl !== currentUrl) {
+            window.location.replace(responseUrl);
+
+            return true;
+        }
 
         queuePendingScrollRestore(responseUrl);
 

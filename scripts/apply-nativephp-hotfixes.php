@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 $projectRoot = dirname(__DIR__);
 
-
-
 /**
  * @param  non-empty-string  $path
  */
@@ -19,7 +17,8 @@ function project_path(string $path): string
 function replace_or_fail(string $contents, string $search, string $replace, string $label): string
 {
     if (! str_contains($contents, $search)) {
-        echo "NativePHP hotfix skipped: snippet not found for {$label}." . PHP_EOL;
+        echo "NativePHP hotfix skipped: snippet not found for {$label}.".PHP_EOL;
+
         return $contents;
     }
 
@@ -41,8 +40,6 @@ function write_if_changed(string $path, string $contents): void
 
     file_put_contents($path, $contents);
 }
-
-
 
 /**
  * @param  non-empty-string  $stub
@@ -345,6 +342,276 @@ KOTLIN;
     }
 }
 
+function patch_mobile_action_coordinator(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/java/com/nativephp/mobile/utils/NativeActionCoordinator.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/mobile/utils/NativeActionCoordinator.kt'),
+    ];
+
+    $original = <<<'KOTLIN'
+package com.nativephp.mobile.utils
+
+import android.util.Log
+import android.webkit.WebView
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentActivity
+import org.json.JSONObject
+KOTLIN;
+
+    $patched = <<<'KOTLIN'
+package com.nativephp.mobile.utils
+
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.webkit.WebView
+import androidx.annotation.MainThread
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentActivity
+import org.json.JSONObject
+KOTLIN;
+
+    $originalDispatch = <<<'KOTLIN'
+    private fun dispatch(event: String, payloadJson: String) {
+            Log.d("JSFUNC", "native:$event");
+            Log.d("JSFUNC", "$payloadJson");
+            val eventForJs = event.replace("\\", "\\\\")
+KOTLIN;
+
+    $patchedDispatch = <<<'KOTLIN'
+    private fun dispatch(event: String, payloadJson: String) {
+            if (Looper.myLooper() != Looper.getMainLooper()) {
+                Handler(Looper.getMainLooper()).post {
+                    dispatch(event, payloadJson)
+                }
+
+                return
+            }
+
+            Log.d("JSFUNC", "native:$event");
+            Log.d("JSFUNC", "$payloadJson");
+            val eventForJs = event.replace("\\", "\\\\")
+KOTLIN;
+
+    $originalInstall = <<<'KOTLIN'
+        fun install(activity: FragmentActivity): NativeActionCoordinator =
+            activity.supportFragmentManager.findFragmentByTag("NativeActionCoordinator") as? NativeActionCoordinator
+                ?: NativeActionCoordinator().also {
+                    activity.supportFragmentManager.beginTransaction()
+                        .add(it, "NativeActionCoordinator")
+                        .commitNow()
+                }
+
+        /**
+         * Dispatch an event to PHP from anywhere in the app
+         * This is a helper method for activities/fragments that need to dispatch events
+         */
+        fun dispatchEvent(activity: FragmentActivity, event: String, payloadJson: String) {
+            Log.d("NativeActionCoordinator", "📢 Static dispatch event: $event")
+            val coordinator = install(activity)
+            coordinator.dispatch(event, payloadJson)
+        }
+    }
+}
+KOTLIN;
+
+    $patchedInstall = <<<'KOTLIN'
+        private const val TAG = "NativeActionCoordinator"
+
+        @MainThread
+        fun install(activity: FragmentActivity): NativeActionCoordinator {
+            val fragmentManager = activity.supportFragmentManager
+
+            return fragmentManager.findFragmentByTag(TAG) as? NativeActionCoordinator
+                ?: NativeActionCoordinator().also {
+                    val transaction = fragmentManager.beginTransaction()
+                        .add(it, TAG)
+
+                    if (fragmentManager.isStateSaved) {
+                        transaction.commitNowAllowingStateLoss()
+                    } else {
+                        transaction.commitNow()
+                    }
+                }
+        }
+
+        /**
+         * Dispatch an event to PHP from anywhere in the app
+         * This is a helper method for activities/fragments that need to dispatch events
+         */
+        fun dispatchEvent(activity: FragmentActivity, event: String, payloadJson: String) {
+            if (Looper.myLooper() != Looper.getMainLooper()) {
+                Handler(Looper.getMainLooper()).post {
+                    dispatchEvent(activity, event, payloadJson)
+                }
+
+                return
+            }
+
+            Log.d("NativeActionCoordinator", "📢 Static dispatch event: $event")
+            val coordinator = install(activity)
+            coordinator.dispatch(event, payloadJson)
+        }
+    }
+}
+KOTLIN;
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (! str_contains($contents, 'commitNowAllowingStateLoss()')) {
+            $contents = replace_or_fail(
+                $contents,
+                $original,
+                $patched,
+                'NativeActionCoordinator imports'
+            );
+        }
+
+        if (! str_contains($contents, 'Looper.myLooper() != Looper.getMainLooper()')) {
+            $contents = replace_or_fail(
+                $contents,
+                $originalDispatch,
+                $patchedDispatch,
+                'NativeActionCoordinator dispatch main-thread guard'
+            );
+        }
+
+        if (! str_contains($contents, 'private const val TAG = "NativeActionCoordinator"')) {
+            $contents = replace_or_fail(
+                $contents,
+                $originalInstall,
+                $patchedInstall,
+                'NativeActionCoordinator install safety'
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
+function patch_mobile_security_csrf_header(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/java/com/nativephp/mobile/security/LaravelSecurity.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/mobile/security/LaravelSecurity.kt'),
+    ];
+
+    $original = <<<'KOTLIN'
+    fun applyToHeaders(headers: MutableMap<String, String>) {
+        csrfToken?.let {
+            headers["X-CSRF-TOKEN"] = it
+            Log.d(TAG, "🛡️ Applied CSRF token to headers")
+        }
+
+        // Pull XSRF-TOKEN directly from CookieManager for best sync
+        val cookieManager = android.webkit.CookieManager.getInstance()
+        val cookies = cookieManager.getCookie("http://127.0.0.1")
+        if (!cookies.isNullOrBlank()) {
+            val xsrfCookie = cookies.split(";")
+                .find { it.trim().startsWith("XSRF-TOKEN=") }
+                ?.substringAfter("=")
+                ?.trim()
+            
+            if (!xsrfCookie.isNullOrBlank()) {
+                headers["X-XSRF-TOKEN"] = Uri.decode(xsrfCookie)
+                Log.d(TAG, "🛡️ Applied XSRF token from CookieManager")
+            }
+        }
+    }
+
+    fun get(): String? = csrfToken
+
+    fun set(token: String) {
+        csrfToken = token
+        Log.d(TAG, "📥 Stored CSRF token manually: $token")
+    }
+
+    fun clear() {
+        csrfToken = null
+        Log.d(TAG, "🧹 Cleared CSRF token")
+    }
+}
+KOTLIN;
+
+    $patched = <<<'KOTLIN'
+    fun applyToHeaders(headers: MutableMap<String, String>) {
+        // Pull XSRF-TOKEN directly from CookieManager so Android always uses the
+        // current session token instead of a cached CSRF header from a previous page.
+        val cookieManager = android.webkit.CookieManager.getInstance()
+        val cookies = cookieManager.getCookie("http://127.0.0.1")
+        if (!cookies.isNullOrBlank()) {
+            val xsrfCookie = cookies.split(";")
+                .find { it.trim().startsWith("XSRF-TOKEN=") }
+                ?.substringAfter("=")
+                ?.trim()
+
+            if (!xsrfCookie.isNullOrBlank()) {
+                headers["X-XSRF-TOKEN"] = Uri.decode(xsrfCookie)
+                Log.d(TAG, "🛡️ Applied XSRF token from CookieManager")
+            }
+        }
+    }
+}
+KOTLIN;
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (str_contains($contents, 'headers["X-CSRF-TOKEN"] = it')) {
+            $contents = replace_or_fail(
+                $contents,
+                $original,
+                $patched,
+                'LaravelSecurity X-CSRF-TOKEN removal'
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
+function patch_mobile_webview_csrf_bridge(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/java/com/nativephp/mobile/network/WebViewManager.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/mobile/network/WebViewManager.kt'),
+    ];
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (str_contains($contents, 'LaravelSecurity.set(token)')) {
+            $contents = str_replace(
+                [
+                    '        LaravelSecurity.set(token)'.PHP_EOL,
+                    '                    LaravelSecurity.set(token)'.PHP_EOL,
+                    '                        LaravelSecurity.set(token)'.PHP_EOL,
+                ],
+                '',
+                $contents
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
 function patch_mobile_debug_bundle_exclusions(): void
 {
     $target = project_path('vendor/nativephp/mobile/src/Traits/PreparesBuild.php');
@@ -408,6 +675,9 @@ try {
     patch_mobile_debug_extraction_marker();
     patch_mobile_debug_bundle_exclusions();
     patch_mobile_persistent_shutdown();
+    patch_mobile_action_coordinator();
+    patch_mobile_security_csrf_header();
+    patch_mobile_webview_csrf_bridge();
 } catch (Throwable $throwable) {
     fwrite(STDERR, $throwable->getMessage().PHP_EOL);
 

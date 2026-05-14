@@ -2,61 +2,38 @@
 
 use App\Models\DeviceSetting;
 use App\Models\User;
-use Livewire\Livewire;
 
 test('device settings page is displayed', function () {
     $this->actingAs(User::factory()->create());
 
     $this->get(route('device.edit'))
         ->assertOk()
-        ->assertSee('Autoreach Bingwa')
-        ->assertSeeInOrder(['Quick Dial', 'Device', 'Hardware'])
-        ->assertDontSee('Security')
+        ->assertSee('Device Configuration')
         ->assertSee('SIM Slot Mapping')
-        ->assertSee('Android')
-        ->assertDontSee('Android Unknown')
-        ->assertDontSee('App interface mode')
-        ->assertSee('Retry & resilience rules');
+        ->assertSee('Automation Rules')
+        ->assertSee('Grant All Permissions')
+        ->assertSee('Autoreach Bingwa')
+        ->assertDontSee('wire:model');
 });
 
-test('device settings can be updated and stored in the database', function () {
+test('operator identity can be updated with a plain post form', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user);
 
-    $component = Livewire::test('pages::settings.device')
-        ->set('operator_identity', 'Bob Mwenda')
-        ->call('saveOperatorIdentity')
-        ->set('primary_transaction_sim', 'slot_2')
-        ->set('sms_auto_reply_sim', 'slot_1')
-        ->call('saveHardwareMapping')
-        ->set('auto_reschedule_rejected', true)
-        ->set('retry_tomorrow_at', '12:30 AM')
-        ->set('ussd_timeout_seconds', '45')
-        ->set('intelligent_auto_retry', true)
-        ->set('retry_interval_minutes', '3')
-        ->set('max_attempts', '4')
-        ->set('retry_network_issues', true)
-        ->call('saveTechnicalConfig');
-
-    $component->assertHasNoErrors();
+    $this->from(route('device.edit'))
+        ->post(route('device.identity.update'), [
+            'operator_identity' => 'Bob Mwenda',
+        ])
+        ->assertRedirect(route('device.edit'));
 
     $this->assertDatabaseHas('device_settings', [
         'user_id' => $user->id,
         'operator_identity' => 'Bob Mwenda',
-        'primary_transaction_sim' => 'slot_2',
-        'sms_auto_reply_sim' => 'slot_1',
-        'auto_reschedule_rejected' => true,
-        'retry_tomorrow_at' => '12:30 AM',
-        'ussd_timeout_seconds' => 45,
-        'intelligent_auto_retry' => true,
-        'retry_interval_minutes' => 3,
-        'max_attempts' => 4,
-        'retry_network_issues' => true,
     ]);
 });
 
-test('sim slot mapping can be updated independently', function () {
+test('sim slot mapping can be updated with a plain post form', function () {
     $user = User::factory()->create();
 
     DeviceSetting::query()->create([
@@ -75,44 +52,59 @@ test('sim slot mapping can be updated independently', function () {
 
     $this->actingAs($user);
 
-    Livewire::test('pages::settings.device')
-        ->set('primary_transaction_sim', 'slot_2')
-        ->set('sms_auto_reply_sim', 'slot_2')
-        ->call('saveHardwareMapping')
-        ->assertHasNoErrors();
+    $this->from(route('device.edit'))
+        ->post(route('device.hardware.update'), [
+            'primary_transaction_sim' => 'slot_2',
+            'sms_auto_reply_sim' => 'slot_1',
+        ])
+        ->assertRedirect(route('device.edit'));
 
     $this->assertDatabaseHas('device_settings', [
         'user_id' => $user->id,
         'primary_transaction_sim' => 'slot_2',
-        'sms_auto_reply_sim' => 'slot_2',
+        'sms_auto_reply_sim' => 'slot_1',
     ]);
 });
 
-test('device settings mount from the existing database record', function () {
+test('technical settings can be updated with a plain post form', function () {
     $user = User::factory()->create();
 
     DeviceSetting::query()->create([
         'user_id' => $user->id,
         'operator_identity' => 'Alice Admin',
-        'primary_transaction_sim' => 'slot_2',
+        'primary_transaction_sim' => 'slot_1',
         'sms_auto_reply_sim' => 'slot_1',
         'auto_reschedule_rejected' => false,
         'retry_tomorrow_at' => null,
         'ussd_timeout_seconds' => 30,
         'intelligent_auto_retry' => true,
-        'retry_interval_minutes' => 5,
+        'retry_interval_minutes' => 1,
         'max_attempts' => 2,
         'retry_network_issues' => false,
     ]);
 
     $this->actingAs($user);
 
-    $component = Livewire::test('pages::settings.device');
+    $this->from(route('device.edit'))
+        ->post(route('device.technical.update'), [
+            'auto_reschedule_rejected' => '1',
+            'retry_tomorrow_at' => '12:30 AM',
+            'ussd_timeout_seconds' => '45',
+            'intelligent_auto_retry' => '1',
+            'retry_interval_minutes' => '3',
+            'max_attempts' => '4',
+            'retry_network_issues' => '1',
+        ])
+        ->assertRedirect(route('device.edit'));
 
-    $component->assertSet('operator_identity', 'Alice Admin');
-    $component->assertSet('primary_transaction_sim', 'slot_2');
-    $component->assertSet('sms_auto_reply_sim', 'slot_1');
-    $component->assertSet('auto_reschedule_rejected', false);
-    $component->assertSet('retry_interval_minutes', '5');
-    $component->assertSet('retry_network_issues', false);
+    $this->assertDatabaseHas('device_settings', [
+        'user_id' => $user->id,
+        'auto_reschedule_rejected' => true,
+        'retry_tomorrow_at' => '12:30 AM',
+        'ussd_timeout_seconds' => 45,
+        'intelligent_auto_retry' => true,
+        'retry_interval_minutes' => 3,
+        'max_attempts' => 4,
+        'retry_network_issues' => true,
+    ]);
 });

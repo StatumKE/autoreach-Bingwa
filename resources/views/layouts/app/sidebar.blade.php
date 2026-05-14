@@ -23,35 +23,59 @@
     <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 overscroll-y-none">
         @php
             $navigationLinks = [
-                ['icon' => 'home', 'label' => __('Dashboard'), 'href' => route('dashboard'), 'active' => request()->routeIs('dashboard')],
-                ['icon' => 'tag', 'label' => __('Offers'), 'href' => route('offers'), 'active' => request()->routeIs('offers')],
-                ['icon' => 'arrows-right-left', 'label' => __('Transactions'), 'href' => route('transactions'), 'active' => request()->routeIs('transactions')],
-                ['icon' => 'book-open-text', 'label' => __('Subscriptions'), 'href' => route('plans'), 'active' => request()->routeIs('plans')],
-                ['icon' => 'phone', 'label' => __('Quick Dial'), 'href' => route('quick-dials'), 'active' => request()->routeIs('quick-dials')],
-                ['icon' => 'calendar-days', 'label' => __('Auto Renewals'), 'href' => route('auto-renewals'), 'active' => request()->routeIs('auto-renewals')],
-                ['icon' => 'sparkles', 'label' => __('Auto Replies'), 'href' => route('auto-replies'), 'active' => request()->routeIs('auto-replies')],
-                ['icon' => 'cog', 'label' => __('Device settings'), 'href' => route('device.edit'), 'active' => request()->routeIs('device.edit')],
+                ['label' => __('Dashboard'), 'href' => route('dashboard')],
+                ['label' => __('Offers'), 'href' => route('offers')],
+                ['label' => __('Transactions'), 'href' => route('transactions')],
+                ['label' => __('Subscriptions'), 'href' => route('plans')],
+                ['label' => __('Quick Dial'), 'href' => route('quick-dials')],
+                ['label' => __('Auto Renewals'), 'href' => route('auto-renewals')],
+                ['label' => __('Auto Replies'), 'href' => route('auto-replies')],
+                ['label' => __('Device settings'), 'href' => route('device.edit')],
             ];
         @endphp
 
         <flux:sidebar name="main" sticky class="hidden bg-app-drawer text-zinc-200 border-e border-white/5 lg:block">
             <flux:sidebar.header class="px-3 py-4">
-                <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
+                <div class="px-2">
+                    <div class="text-sm font-black uppercase tracking-[0.28em] text-white">
+                        {{ config('app.name') }}
+                    </div>
+                </div>
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
                 <flux:sidebar.group :heading="__('Workspace')" class="grid text-zinc-400">
-                    @foreach ($navigationLinks as $link)
-                        <flux:sidebar.item
-                            :icon="$link['icon']"
-                            :href="$link['href']"
-                            :current="$link['active']"
-                            wire:navigate
-                            class="app-nav-item"
-                        >
-                            {{ $link['label'] }}
-                        </flux:sidebar.item>
-                    @endforeach
+                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate class="app-nav-item">
+                        {{ __('Dashboard') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="tag" :href="route('offers')" :current="request()->routeIs('offers')" wire:navigate class="app-nav-item">
+                        {{ __('Offers') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="arrows-right-left" :href="route('transactions')" :current="request()->routeIs('transactions')" wire:navigate class="app-nav-item">
+                        {{ __('Transactions') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="book-open-text" :href="route('plans')" :current="request()->routeIs('plans')" wire:navigate class="app-nav-item">
+                        {{ __('Subscriptions') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="phone" :href="route('quick-dials')" :current="request()->routeIs('quick-dials')" wire:navigate class="app-nav-item">
+                        {{ __('Quick Dial') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="calendar-days" :href="route('auto-renewals')" :current="request()->routeIs('auto-renewals')" wire:navigate class="app-nav-item">
+                        {{ __('Auto Renewals') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="sparkles" :href="route('auto-replies')" :current="request()->routeIs('auto-replies')" wire:navigate class="app-nav-item">
+                        {{ __('Auto Replies') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="cog" :href="route('device.edit')" :current="request()->routeIs('device.edit')" wire:navigate class="app-nav-item">
+                        {{ __('Device settings') }}
+                    </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 
@@ -102,15 +126,9 @@
                         class="relative flex h-full w-[min(20rem,85vw)] flex-col overflow-y-auto bg-app-drawer text-zinc-100 shadow-2xl ring-1 ring-black/10"
                     >
                         <div class="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-4">
-                            <div class="flex min-w-0 items-center gap-3">
-                                <span class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10">
-                                    <x-app-logo-icon class="size-5 fill-current text-zinc-100" />
-                                </span>
-
-                                <div class="min-w-0">
-                                    <div class="truncate text-sm font-black leading-none tracking-tight text-white">
-                                        {{ config('app.name') }}
-                                    </div>
+                            <div class="min-w-0">
+                                <div class="truncate text-sm font-black leading-none tracking-tight text-white">
+                                    {{ config('app.name') }}
                                 </div>
                             </div>
 

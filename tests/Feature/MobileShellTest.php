@@ -112,6 +112,9 @@ test('the dashboard mobile navigation uses a plain alpine drawer instead of flux
         ->toContain('id="mobile-navigation-drawer"')
         ->toContain('Open navigation menu')
         ->toContain('Close navigation menu')
+        ->toContain('Device settings')
+        ->not->toContain('<x-app-logo')
+        ->not->toContain('app-logo-icon')
         ->not->toContain('flux:sidebar.toggle')
         ->not->toContain('data-flux-sidebar-toggle')
         ->not->toContain('data-flux-sidebar-collapsed-mobile');

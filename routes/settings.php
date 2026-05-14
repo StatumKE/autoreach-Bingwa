@@ -1,12 +1,17 @@
 <?php
 
+use App\Http\Controllers\Settings\DeviceSettingsController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
 Route::redirect('settings', 'settings/profile');
 
 Route::livewire('settings/profile', 'pages::settings.profile')->middleware(['auth'])->name('profile.edit');
-Route::livewire('settings/device', 'pages::settings.device')->middleware(['auth'])->name('device.edit');
+Route::get('settings/device', [DeviceSettingsController::class, 'edit'])->middleware(['auth'])->name('device.edit');
+Route::post('settings/device', [DeviceSettingsController::class, 'updateIdentity'])->middleware(['auth'])->name('device.identity.update');
+Route::post('settings/device/hardware', [DeviceSettingsController::class, 'updateHardware'])->middleware(['auth'])->name('device.hardware.update');
+Route::post('settings/device/technical', [DeviceSettingsController::class, 'updateTechnical'])->middleware(['auth'])->name('device.technical.update');
+Route::post('settings/device/permissions', [DeviceSettingsController::class, 'requestPermissions'])->middleware(['auth'])->name('device.permissions');
 
 Route::livewire('settings/appearance', 'pages::settings.appearance')->middleware(['auth', 'verified'])->name('appearance.edit');
 

@@ -106,6 +106,239 @@ function patch_mobile_firebase_android_service(): void
     }
 }
 
+function patch_mobile_background_tasks_scheduler_lock(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile-background-tasks/resources/android/PHPSchedulerWorker.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/mobile/background/PHPSchedulerWorker.kt'),
+    ];
+
+    $patched = <<<'KOTLIN'
+package com.nativephp.mobile.background
+
+import android.content.Context
+import android.util.Log
+import androidx.work.Worker
+import androidx.work.WorkerParameters
+import com.nativephp.mobile.bridge.BridgeFunctionRegistry
+import com.nativephp.mobile.bridge.LaravelEnvironment
+import com.nativephp.mobile.bridge.PHPBridge
+import com.nativephp.mobile.bridge.plugins.registerContextOnlyBridgeFunctions
+
+/**
+ * WorkManager Worker that executes a scheduled artisan command.
+ *
+ * Each task has its own PeriodicWorkRequest with independent intervals and
+ * constraints, but execution is serialized with PHPBridge.phpLock because
+ * the ephemeral PHP runtime must be booted, used, and shut down on the same
+ * thread without another PHP runtime user entering the session.
+ *
+ * Each execution: acquire lock -> boot ephemeral -> run command -> shutdown -> release lock.
+ * This runs in a WorkManager-managed thread, potentially in a cold process
+ * start after the app has been closed.
+ */
+class PHPSchedulerWorker(
+    context: Context,
+    params: WorkerParameters
+) : Worker(context, params) {
+
+    companion object {
+        private const val TAG = "PHPSchedulerWorker"
+        const val KEY_COMMAND = "command"
+    }
+
+    override fun doWork(): Result {
+        val command = inputData.getString(KEY_COMMAND)
+        if (command.isNullOrEmpty()) {
+            Log.e(TAG, "No command specified in work request")
+            return Result.failure()
+        }
+
+        Log.i(TAG, "Executing scheduled command: $command (waiting for PHP lock)")
+
+        return synchronized(PHPBridge.phpLock) {
+            Log.i(TAG, "PHP lock acquired for: $command")
+
+            try {
+                if (!BridgeFunctionRegistry.shared.exists("BackgroundTasks.Register")) {
+                    Log.i(TAG, "Cold boot detected - registering context-only bridge functions")
+                    registerContextOnlyBridgeFunctions(applicationContext)
+                }
+
+                val env = LaravelEnvironment(applicationContext)
+                env.initializeForBackground()
+
+                val phpBridge = PHPBridge(applicationContext)
+                val booted = phpBridge.nativeEphemeralBoot(
+                    "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
+                )
+
+                if (booted != 0) {
+                    Log.e(TAG, "Failed to boot ephemeral runtime for: $command")
+                    return@synchronized Result.retry()
+                }
+
+                try {
+                    val output = phpBridge.nativeEphemeralArtisan(command)
+                    Log.i(TAG, "Command completed: $command (output=${output.take(200)})")
+                } finally {
+                    phpBridge.nativeEphemeralShutdown()
+                }
+
+                Result.success()
+            } catch (e: Exception) {
+                Log.e(TAG, "Scheduler execution failed for: $command", e)
+                Result.retry()
+            } finally {
+                Log.i(TAG, "PHP lock released for: $command")
+            }
+        }
+    }
+}
+KOTLIN;
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (! str_contains($contents, 'return synchronized(PHPBridge.phpLock)')) {
+            write_if_changed($target, $patched);
+        }
+    }
+}
+
+function patch_mobile_firebase_ephemeral_lock(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile-firebase/resources/android/PushNotificationService.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/firebase/PushNotificationService.kt'),
+    ];
+
+    $original = <<<'KOTLIN'
+                val phpBridge = PHPBridge(applicationContext)
+                val bootstrapPath = "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
+                val booted = phpBridge.nativeEphemeralBoot(bootstrapPath)
+
+                if (booted != 0) {
+                    Log.e(TAG, "Failed to boot ephemeral runtime for data message events")
+                    pendingCommands.clear()
+                    return@Thread
+                }
+
+                try {
+                    // Process all queued commands in this single ephemeral session
+                    while (true) {
+                        val cmd = pendingCommands.poll() ?: break
+                        val output = phpBridge.nativeEphemeralArtisan(cmd)
+                        Log.d(TAG, "Data message event dispatched (output=${output.take(200)})")
+                    }
+                } finally {
+                    phpBridge.nativeEphemeralShutdown()
+                }
+KOTLIN;
+
+    $patched = <<<'KOTLIN'
+                val phpBridge = PHPBridge(applicationContext)
+                synchronized(PHPBridge.phpLock) {
+                    val bootstrapPath = "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
+                    val booted = phpBridge.nativeEphemeralBoot(bootstrapPath)
+
+                    if (booted != 0) {
+                        Log.e(TAG, "Failed to boot ephemeral runtime for data message events")
+                        pendingCommands.clear()
+                        return@Thread
+                    }
+
+                    try {
+                        // Process all queued commands in this single ephemeral session
+                        while (true) {
+                            val cmd = pendingCommands.poll() ?: break
+                            val output = phpBridge.nativeEphemeralArtisan(cmd)
+                            Log.d(TAG, "Data message event dispatched (output=${output.take(200)})")
+                        }
+                    } finally {
+                        phpBridge.nativeEphemeralShutdown()
+                    }
+                }
+KOTLIN;
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (! str_contains($contents, 'synchronized(PHPBridge.phpLock)')) {
+            $contents = replace_or_fail(
+                $contents,
+                $original,
+                $patched,
+                'PushNotificationService ephemeral PHP lock'
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
+function patch_mobile_ephemeral_native_mutex(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/cpp/php_bridge.c'),
+        project_path('nativephp/android/app/src/main/cpp/php_bridge.c'),
+    ];
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (! str_contains($contents, "JNIEXPORT jint JNICALL native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {\n    pthread_mutex_lock(&g_php_request_mutex);")) {
+            $contents = replace_or_fail(
+                $contents,
+                "JNIEXPORT jint JNICALL native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {\n    pthread_mutex_lock(&g_ephemeral_mutex);",
+                "JNIEXPORT jint JNICALL native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {\n    pthread_mutex_lock(&g_php_request_mutex);\n    pthread_mutex_lock(&g_ephemeral_mutex);",
+                'ephemeral boot request mutex'
+            );
+        }
+
+        if (! str_contains($contents, "LOGI(\"ephemeral_boot: already initialized, skipping\");\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);")) {
+            $contents = replace_or_fail(
+                $contents,
+                "LOGI(\"ephemeral_boot: already initialized, skipping\");\n        pthread_mutex_unlock(&g_ephemeral_mutex);",
+                "LOGI(\"ephemeral_boot: already initialized, skipping\");\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);",
+                'ephemeral boot already initialized unlock'
+            );
+        }
+
+        if (! str_contains($contents, "LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);")) {
+            $contents = replace_or_fail(
+                $contents,
+                "LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);",
+                "LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);",
+                'ephemeral boot failure unlock'
+            );
+        }
+
+        if (! str_contains($contents, "LOGI(\"ephemeral_shutdown: done\");\n    pthread_mutex_unlock(&g_ephemeral_mutex);\n    pthread_mutex_unlock(&g_php_request_mutex);")) {
+            $contents = replace_or_fail(
+                $contents,
+                "LOGI(\"ephemeral_shutdown: done\");\n    pthread_mutex_unlock(&g_ephemeral_mutex);",
+                "LOGI(\"ephemeral_shutdown: done\");\n    pthread_mutex_unlock(&g_ephemeral_mutex);\n    pthread_mutex_unlock(&g_php_request_mutex);",
+                'ephemeral shutdown request mutex unlock'
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
 function patch_mobile_background_initializer(): void
 {
     $targets = [
@@ -671,6 +904,9 @@ try {
 
     patch_mobile_firebase_dispatch_command();
     patch_mobile_firebase_android_service();
+    patch_mobile_background_tasks_scheduler_lock();
+    patch_mobile_firebase_ephemeral_lock();
+    patch_mobile_ephemeral_native_mutex();
     patch_mobile_background_initializer();
     patch_mobile_debug_extraction_marker();
     patch_mobile_debug_bundle_exclusions();

@@ -1,0 +1,55 @@
+--- a/resources/androidstudio/app/src/main/cpp/php_bridge.c	2026-05-09 23:16:30
++++ b/resources/androidstudio/app/src/main/cpp/php_bridge.c	2026-05-15 10:54:09
+@@ -4,6 +4,7 @@
+ #include <pthread.h>
+ #include <errno.h>
+ #include <time.h>
++#include <unistd.h>
+ #include "php_embed.h"
+ #include "PHP.h"
+ #include <zend_exceptions.h>
+@@ -26,6 +27,7 @@
+ // Global state
+ static int php_initialized = 0;    // tracks whether php_embed_init is active
+ static pthread_mutex_t g_php_request_mutex = PTHREAD_MUTEX_INITIALIZER;
++static volatile int ephemeral_session_active = 0; // tracks if the ephemeral runtime is globally locking PHP
+ static jobject g_callback_obj = NULL;
+ static jmethodID g_callback_method = NULL;
+ 
+@@ -271,6 +273,14 @@
+ char* run_php_request(const char* scriptPath, const char* method, const char* uri, const char* postData) {
+     LOGI("run_php_request: waiting for mutex (uri=%s)", uri);
+     pthread_mutex_lock(&g_php_request_mutex);
++    
++    // Wait until any active ephemeral task completely shuts down
++    while (ephemeral_session_active) {
++        pthread_mutex_unlock(&g_php_request_mutex);
++        usleep(50000); // Wait 50ms
++        pthread_mutex_lock(&g_php_request_mutex);
++    }
++    
+     LOGI("run_php_request: mutex acquired (uri=%s)", uri);
+ 
+     clear_collected_output();
+@@ -1229,6 +1239,10 @@
+ }
+ 
+ JNIEXPORT jint JNICALL native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {
++    pthread_mutex_lock(&g_php_request_mutex);
++    ephemeral_session_active = 1;
++    pthread_mutex_unlock(&g_php_request_mutex);
++
+     pthread_mutex_lock(&g_ephemeral_mutex);
+ 
+     if (ephemeral_initialized) {
+@@ -1328,6 +1342,10 @@
+ 
+     LOGI("ephemeral_shutdown: done");
+     pthread_mutex_unlock(&g_ephemeral_mutex);
++
++    pthread_mutex_lock(&g_php_request_mutex);
++    ephemeral_session_active = 0;
++    pthread_mutex_unlock(&g_php_request_mutex);
+ }
+ 
+ static JNINativeMethod gMethods[] = {

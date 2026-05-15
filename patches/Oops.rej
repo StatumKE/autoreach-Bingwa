@@ -1,0 +1,32 @@
+@@ -1169,15 +1169,10 @@
+         LOGE("ephemeral_embed_init: timed out waiting for persistent boot to settle");
+         return FAILURE;
+     }
+-
+-    // LOCK here to prevent run_php_request from concurrently calling php_embed_init
+-    pthread_mutex_lock(&g_php_request_mutex);
+ 
+     if (php_initialized) {
+         // Hot path: persistent runtime is alive, allocate a TSRM thread context
+         LOGI("ephemeral_embed_init: hot path — using existing TSRM");
+-
+-        pthread_mutex_unlock(&g_php_request_mutex);
+ 
+         ts_resource(0);
+         setup_embed_module();
+@@ -1212,15 +1207,12 @@
+     setup_embed_module();
+     if (php_embed_init(0, NULL) != SUCCESS) {
+         LOGE("ephemeral_embed_init: cold path php_embed_init() FAILED");
+-        pthread_mutex_unlock(&g_php_request_mutex);
+         return FAILURE;
+     }
+     sapi_module.header_handler = android_header_handler;
+     ephemeral_cold_booted = 1;
+-    php_initialized = 1;
+ 
+     LOGI("ephemeral_embed_init: cold path ready");
+-    pthread_mutex_unlock(&g_php_request_mutex);
+     return SUCCESS;
+ }
+ 

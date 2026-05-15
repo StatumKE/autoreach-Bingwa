@@ -92,7 +92,29 @@
             </article>
 
             <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-                <form method="POST" action="{{ route('device.hardware.update') }}" class="space-y-6">
+                <form
+                    method="POST"
+                    action="{{ route('device.hardware.update.path', [
+                        'primaryTransactionSim' => $primaryTransactionSim,
+                        'smsAutoReplySim' => $smsAutoReplySim,
+                    ]) }}"
+                    class="space-y-6"
+                    data-hardware-action-template="{{ url('/settings/device/hardware/__PRIMARY_SIM__/__SMS_SIM__') }}"
+                    onchange="
+                        const primary = this.elements.primary_transaction_sim?.value || 'slot_1';
+                        const sms = this.elements.sms_auto_reply_sim?.value || 'slot_1';
+                        this.action = this.dataset.hardwareActionTemplate
+                            .replace('__PRIMARY_SIM__', encodeURIComponent(primary))
+                            .replace('__SMS_SIM__', encodeURIComponent(sms));
+                    "
+                    onsubmit="
+                        const primary = this.elements.primary_transaction_sim?.value || 'slot_1';
+                        const sms = this.elements.sms_auto_reply_sim?.value || 'slot_1';
+                        this.action = this.dataset.hardwareActionTemplate
+                            .replace('__PRIMARY_SIM__', encodeURIComponent(primary))
+                            .replace('__SMS_SIM__', encodeURIComponent(sms));
+                    "
+                >
                     @csrf
 
                     <div class="flex items-center justify-between gap-4">
@@ -106,52 +128,46 @@
                         </button>
                     </div>
 
-                    <div class="space-y-6">
-                        <fieldset class="space-y-3">
-                            <legend class="text-xs font-bold text-zinc-700">{{ __('Primary Transaction SIM') }}</legend>
+                    <div class="space-y-5">
+                        <div class="space-y-2">
+                            <label for="primary_transaction_sim" class="text-xs font-bold text-zinc-700">{{ __('Primary Transaction SIM') }}</label>
 
-                            <div class="grid gap-3 sm:grid-cols-2">
+                            <select
+                                id="primary_transaction_sim"
+                                name="primary_transaction_sim"
+                                class="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-900 shadow-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                            >
                                 @foreach ($simSlotOptions as $value => $label)
-                                    <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:border-green-300 hover:bg-green-50">
-                                        <input
-                                            type="radio"
-                                            name="primary_transaction_sim"
-                                            value="{{ $value }}"
-                                            @checked(old('primary_transaction_sim', $primaryTransactionSim) === $value)
-                                            class="size-4 border-zinc-300 text-green-600 focus:ring-green-500"
-                                        >
-                                        <span>{{ $label }}</span>
-                                    </label>
+                                    <option value="{{ $value }}" @selected($primaryTransactionSim === $value)>
+                                        {{ $label }}
+                                    </option>
                                 @endforeach
-                            </div>
+                            </select>
 
                             @error('primary_transaction_sim')
                                 <p class="text-xs font-semibold text-rose-600">{{ $message }}</p>
                             @enderror
-                        </fieldset>
+                        </div>
 
-                        <fieldset class="space-y-3">
-                            <legend class="text-xs font-bold text-zinc-700">{{ __('SMS Auto-Reply SIM') }}</legend>
+                        <div class="space-y-2">
+                            <label for="sms_auto_reply_sim" class="text-xs font-bold text-zinc-700">{{ __('SMS Auto-Reply SIM') }}</label>
 
-                            <div class="grid gap-3 sm:grid-cols-2">
+                            <select
+                                id="sms_auto_reply_sim"
+                                name="sms_auto_reply_sim"
+                                class="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-900 shadow-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                            >
                                 @foreach ($simSlotOptions as $value => $label)
-                                    <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:border-green-300 hover:bg-green-50">
-                                        <input
-                                            type="radio"
-                                            name="sms_auto_reply_sim"
-                                            value="{{ $value }}"
-                                            @checked(old('sms_auto_reply_sim', $smsAutoReplySim) === $value)
-                                            class="size-4 border-zinc-300 text-green-600 focus:ring-green-500"
-                                        >
-                                        <span>{{ $label }}</span>
-                                    </label>
+                                    <option value="{{ $value }}" @selected($smsAutoReplySim === $value)>
+                                        {{ $label }}
+                                    </option>
                                 @endforeach
-                            </div>
+                            </select>
 
                             @error('sms_auto_reply_sim')
                                 <p class="text-xs font-semibold text-rose-600">{{ $message }}</p>
                             @enderror
-                        </fieldset>
+                        </div>
                     </div>
                 </form>
             </article>

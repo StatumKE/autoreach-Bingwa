@@ -15,7 +15,89 @@ class extends Component {
 
 <div
     class="relative min-h-screen pb-36"
-    x-data="bingwaSetup()"
+    x-data="{
+        requesting: false,
+        status: {
+            phoneGranted: false,
+            contactsGranted: false,
+            notificationsGranted: false,
+            batteryUnrestricted: false,
+            accessibilityEnabled: false,
+            overlayGranted: false,
+        },
+        get total() {
+            return 6;
+        },
+        get grantedCount() {
+            return Object.values(this.status).filter(Boolean).length;
+        },
+        get allCriticalGranted() {
+            return this.status.phoneGranted
+                && this.status.notificationsGranted
+                && this.status.batteryUnrestricted
+                && this.status.accessibilityEnabled
+                && this.status.overlayGranted;
+        },
+        async init() {
+            await this.recheckStatus();
+        },
+        async recheckStatus() {
+            const data = await this.nativeCall('CheckSetupStatus', {});
+
+            if (! data) {
+                return;
+            }
+
+            this.status.phoneGranted = data.phoneGranted ?? false;
+            this.status.contactsGranted = data.contactsGranted ?? false;
+            this.status.notificationsGranted = data.notificationsGranted ?? false;
+            this.status.batteryUnrestricted = data.batteryUnrestricted ?? false;
+            this.status.accessibilityEnabled = data.accessibilityEnabled ?? false;
+            this.status.overlayGranted = data.overlayGranted ?? false;
+        },
+        async requestRuntimePermissions() {
+            if (this.requesting) {
+                return;
+            }
+
+            this.requesting = true;
+            await this.nativeCall('RequestSetupPermissions', { force: true });
+            await new Promise(resolve => setTimeout(resolve, 600));
+            await this.recheckStatus();
+            this.requesting = false;
+        },
+        async openBatterySettings() {
+            await this.nativeCall('OpenBatterySettings', {});
+        },
+        async openAccessibilitySettings() {
+            await this.nativeCall('OpenAccessibilitySettings', {});
+        },
+        async openOverlaySettings() {
+            await this.nativeCall('OpenOverlaySettings', {});
+        },
+        async nativeCall(method, params) {
+            try {
+                const res = await fetch('/_native/api/call', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+                    },
+                    body: JSON.stringify({ method, params }),
+                });
+
+                if (! res.ok) {
+                    return null;
+                }
+
+                const envelope = await res.json();
+
+                return envelope?.data ?? null;
+            } catch {
+                return null;
+            }
+        },
+    }"
     x-init="init()"
     @visibilitychange.window="if (document.visibilityState === 'visible') recheckStatus()"
 >
@@ -82,7 +164,7 @@ class extends Component {
                         :disabled="requesting"
                         class="mt-3 inline-flex items-center px-4 py-2 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
                     >
-                        <span x-text="requesting ? 'Requesting…' : 'Grant Access'"></span>
+                        Grant Access
                     </button>
                 </div>
             </div>
@@ -116,7 +198,7 @@ class extends Component {
                         :disabled="requesting"
                         class="mt-3 inline-flex items-center px-4 py-2 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
                     >
-                        <span x-text="requesting ? 'Requesting…' : 'Grant Access'"></span>
+                        Grant Access
                     </button>
                 </div>
             </div>
@@ -150,7 +232,7 @@ class extends Component {
                         :disabled="requesting"
                         class="mt-3 inline-flex items-center px-4 py-2 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
                     >
-                        <span x-text="requesting ? 'Requesting…' : 'Grant Access'"></span>
+                        Grant Access
                     </button>
                 </div>
             </div>
@@ -282,94 +364,4 @@ class extends Component {
         </button>
     </div>
 
-    <script>
-        function bingwaSetup() {
-            return {
-                requesting: false,
-
-                status: {
-                    phoneGranted: false,
-                    contactsGranted: false,
-                    notificationsGranted: false,
-                    batteryUnrestricted: false,
-                    accessibilityEnabled: false,
-                    overlayGranted: false,
-                },
-
-                get total() {
-                    return 6;
-                },
-
-                get grantedCount() {
-                    return Object.values(this.status).filter(Boolean).length;
-                },
-
-                get allCriticalGranted() {
-                    return this.status.phoneGranted
-                        && this.status.notificationsGranted
-                        && this.status.batteryUnrestricted
-                        && this.status.accessibilityEnabled
-                        && this.status.overlayGranted;
-                },
-
-                async init() {
-                    await this.recheckStatus();
-                },
-
-                async recheckStatus() {
-                    const data = await this.nativeCall('CheckSetupStatus', {});
-                    if (data) {
-                        this.status.phoneGranted         = data.phoneGranted         ?? false;
-                        this.status.contactsGranted      = data.contactsGranted      ?? false;
-                        this.status.notificationsGranted = data.notificationsGranted ?? false;
-                        this.status.batteryUnrestricted  = data.batteryUnrestricted  ?? false;
-                        this.status.accessibilityEnabled = data.accessibilityEnabled ?? false;
-                        this.status.overlayGranted       = data.overlayGranted       ?? false;
-                    }
-                },
-
-                async requestRuntimePermissions() {
-                    if (this.requesting) return;
-                    this.requesting = true;
-                    await this.nativeCall('RequestRuntimePermissions', {});
-                    // Brief pause — the OS dialog is async, user returns to app
-                    await new Promise(r => setTimeout(r, 600));
-                    await this.recheckStatus();
-                    this.requesting = false;
-                },
-
-                async openBatterySettings() {
-                    await this.nativeCall('OpenBatterySettings', {});
-                },
-
-                async openAccessibilitySettings() {
-                    await this.nativeCall('OpenAccessibilitySettings', {});
-                },
-
-                async openOverlaySettings() {
-                    await this.nativeCall('OpenOverlaySettings', {});
-                },
-
-                async nativeCall(method, params) {
-                    try {
-                        const res = await fetch('/_native/api/call', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-                            },
-                            body: JSON.stringify({ method, params }),
-                        });
-
-                        if (!res.ok) return null;
-
-                        const envelope = await res.json();
-                        return envelope?.data ?? null;
-                    } catch {
-                        return null;
-                    }
-                },
-            };
-        }
-    </script>
 </div>

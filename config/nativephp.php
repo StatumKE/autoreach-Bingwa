@@ -26,6 +26,9 @@ return [
         '.npmrc',
         'tests',
         'packages/*/tests',
+        'database/database.sqlite',
+        'database/database.sqlite-shm',
+        'database/database.sqlite-wal',
         'database/factories',
         'database/seeders',
         'scripts',
@@ -43,7 +46,7 @@ return [
     ],
 
     'runtime' => [
-        'mode' => 'classic',
+        'mode' => 'persistent',
     ],
 
     'android' => [

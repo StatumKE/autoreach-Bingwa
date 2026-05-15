@@ -1,0 +1,17 @@
+{
+    "_hash": "ff7a66ffc06ddaebf801c8863b514afb45414f1b0112b6683bd6cfbe5d801c8f",
+    "patches": {
+        "nativephp/mobile": [
+            {
+                "package": "nativephp/mobile",
+                "description": "Fix NativePHP background thread concurrent initialization crash",
+                "url": "patches/nativephp_ephemeral_mutex_v5.patch",
+                "sha256": "3936cfde6a1e9a39d7a1a5e3a70b631713b5dfefc0e01ca96e50ba7391eca1dc",
+                "depth": 1,
+                "extra": {
+                    "provenance": "root"
+                }
+            }
+        ]
+    }
+}

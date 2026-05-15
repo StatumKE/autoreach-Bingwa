@@ -20,8 +20,8 @@ test('the native php android shell is configured for light status bar icons', fu
     expect(config('nativephp.android.status_bar_style'))->toBe('light');
 });
 
-test('the native php android shell uses classic runtime mode', function () {
-    expect(config('nativephp.runtime.mode'))->toBe('classic');
+test('the native php android shell uses persistent runtime mode', function () {
+    expect(config('nativephp.runtime.mode'))->toBe('persistent');
 });
 
 test('the native php android shell keeps database queue dispatching in app config', function () {
@@ -36,6 +36,33 @@ test('the native php android shell keeps database queue dispatching in env', fun
 
     expect($env)
         ->toContain('QUEUE_CONNECTION=database');
+});
+
+test('the native php android bundle excludes the source sqlite database', function () {
+    expect(config('nativephp.cleanup_exclude_files'))
+        ->toContain('database/database.sqlite')
+        ->toContain('database/database.sqlite-shm')
+        ->toContain('database/database.sqlite-wal');
+});
+
+test('the native php android shell does not require the unused native contacts package', function () {
+    $composerJson = File::get(base_path('composer.json'));
+    $pluginRegistration = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/bridge/plugins/PluginBridgeFunctionRegistration.kt'));
+    $phpstanConfig = File::get(base_path('phpstan.neon'));
+
+    expect($composerJson)
+        ->not->toContain('"statum/native-contacts": "1.0.0"')
+        ->not->toContain('"Statum\\\\NativeContacts\\\\": "packages/statum/native-contacts/src/"')
+        ->not->toContain('"url": "packages/statum/native-contacts"');
+
+    expect($pluginRegistration)
+        ->not->toContain('ContactsFunctions')
+        ->not->toContain('Contacts.CheckPermission')
+        ->not->toContain('Contacts.RequestPermission')
+        ->not->toContain('Contacts.Search');
+
+    expect($phpstanConfig)
+        ->not->toContain('packages/statum/native-contacts/src');
 });
 
 test('the native php android shell runs migrations during filesystem prep', function () {
@@ -84,14 +111,27 @@ test('the android queue worker initializes the background environment before usi
         ->not->toContain('nativeWorkerShutdown');
 
     expect($schedulerWorkerSource)
-        ->toContain('synchronized(PHPBridge.phpLock)')
         ->toContain('initializeForBackground()')
-        ->toContain('registerContextOnlyBridgeFunctions(applicationContext)');
+        ->toContain('registerContextOnlyBridgeFunctions(applicationContext)')
+        ->toContain('return synchronized(PHPBridge.phpLock)')
+        ->not->toContain('ReentrantLock')
+        ->not->toContain('ephemeralLock.lock()');
 
     expect($pushNotificationSource)
-        ->toContain('synchronized(PHPBridge.phpLock)')
         ->toContain('initializeForBackground()')
-        ->toContain('registerContextOnlyBridgeFunctions(applicationContext)');
+        ->toContain('synchronized(PHPBridge.phpLock)')
+        ->toContain('nativeEphemeralBoot')
+        ->toContain('nativeEphemeralShutdown');
+});
+
+test('the android native ephemeral runtime cannot be reused across background threads', function () {
+    $bridgeSource = File::get(base_path('nativephp/android/app/src/main/cpp/php_bridge.c'));
+
+    expect($bridgeSource)
+        ->toContain('pthread_mutex_lock(&g_php_request_mutex);')
+        ->toContain('pthread_mutex_unlock(&g_php_request_mutex);')
+        ->toContain('native_ephemeral_boot')
+        ->toContain('native_ephemeral_shutdown');
 });
 
 test('the android csrf helper only sends the cookie-backed xsrf header', function () {
@@ -120,6 +160,9 @@ test('the native php hotfix script preserves the coordinator crash fix', functio
 
     expect($hotfixScript)
         ->toContain('patch_mobile_action_coordinator')
+        ->toContain('patch_mobile_background_tasks_scheduler_lock')
+        ->toContain('patch_mobile_firebase_ephemeral_lock')
+        ->toContain('patch_mobile_ephemeral_native_mutex')
         ->toContain('patch_mobile_security_csrf_header')
         ->toContain('patch_mobile_webview_csrf_bridge')
         ->toContain('commitNowAllowingStateLoss()')
@@ -130,6 +173,7 @@ test('the native form bridge uses a real navigation for redirected responses', f
     $nativeFormsScript = File::get(base_path('resources/js/native-forms.js'));
 
     expect($nativeFormsScript)
+        ->toContain('const formData = new FormData(form)')
         ->toContain('window.location.replace(responseUrl)')
         ->toContain('queuePendingScrollRestore(responseUrl)')
         ->toContain('document.write(html)');
@@ -165,4 +209,17 @@ test('the dashboard mobile navigation uses a plain alpine drawer instead of flux
         ->not->toContain('data-flux-sidebar-backdrop')
         ->not->toContain('data-flux-sidebar-collapsed-mobile')
         ->not->toContain('window.__bingwaMobileSidebarFallbackInstalled');
+});
+
+test('the setup screen uses inline alpine state and visible permission button labels', function () {
+    $setupComponent = File::get(base_path('resources/views/components/⚡setup.blade.php'));
+
+    expect($setupComponent)
+        ->toContain('x-data="{')
+        ->toContain("nativeCall('RequestSetupPermissions', { force: true })")
+        ->toContain('Grant Access')
+        ->not->toContain('x-data="bingwaSetup()"')
+        ->not->toContain('function bingwaSetup()')
+        ->not->toContain('RequestRuntimePermissions')
+        ->not->toContain("x-text=\"requesting ? 'Requesting");
 });

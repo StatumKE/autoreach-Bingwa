@@ -34,6 +34,16 @@ class DeviceSettingsController extends BaseController
 
     public function updateHardware(Request $request): RedirectResponse
     {
+        $primaryTransactionSim = $request->route('primaryTransactionSim');
+        $smsAutoReplySim = $request->route('smsAutoReplySim');
+
+        if ($primaryTransactionSim !== null || $smsAutoReplySim !== null) {
+            $request->merge([
+                'primary_transaction_sim' => $primaryTransactionSim,
+                'sms_auto_reply_sim' => $smsAutoReplySim,
+            ]);
+        }
+
         $validated = $request->validate([
             'primary_transaction_sim' => ['required', Rule::in(array_keys($this->simSlotOptions()))],
             'sms_auto_reply_sim' => ['required', Rule::in(array_keys($this->simSlotOptions()))],
@@ -126,7 +136,9 @@ class DeviceSettingsController extends BaseController
     private function viewData(): array
     {
         $user = Auth::user();
-        $deviceSetting = $user?->deviceSetting;
+        $deviceSetting = DeviceSetting::query()
+            ->where('user_id', Auth::id())
+            ->first();
         $registration = $user?->bingwaDeviceRegistration;
 
         $deviceId = $registration?->hardware_id ?? $user?->autoreach_connect_id ?? 'Unknown';

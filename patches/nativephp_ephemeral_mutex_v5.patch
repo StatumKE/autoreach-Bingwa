@@ -1,0 +1,39 @@
+--- a/resources/androidstudio/app/src/main/cpp/php_bridge.c	2026-05-09 23:16:30
++++ b/resources/androidstudio/app/src/main/cpp/php_bridge.c	2026-05-15 11:03:27
+@@ -4,6 +4,7 @@
+ #include <pthread.h>
+ #include <errno.h>
+ #include <time.h>
++#include <unistd.h>
+ #include "php_embed.h"
+ #include "PHP.h"
+ #include <zend_exceptions.h>
+@@ -1229,13 +1230,16 @@
+ }
+ 
+ JNIEXPORT jint JNICALL native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {
++    pthread_mutex_lock(&g_php_request_mutex);
+     pthread_mutex_lock(&g_ephemeral_mutex);
+ 
+     if (ephemeral_initialized) {
+         LOGI("ephemeral_boot: already initialized, skipping");
+         pthread_mutex_unlock(&g_ephemeral_mutex);
++        pthread_mutex_unlock(&g_php_request_mutex);
+         return 0;
+     }
+@@ -1246,6 +1249,7 @@
+         LOGE("ephemeral_boot: ephemeral_embed_init() FAILED");
+         (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);
+         pthread_mutex_unlock(&g_ephemeral_mutex);
++        pthread_mutex_unlock(&g_php_request_mutex);
+         return -1;
+     }
+ 
+@@ -1328,6 +1332,7 @@
+ 
+     LOGI("ephemeral_shutdown: done");
+     pthread_mutex_unlock(&g_ephemeral_mutex);
++    pthread_mutex_unlock(&g_php_request_mutex);
+ }
+ 
+ static JNINativeMethod gMethods[] = {

@@ -104,57 +104,14 @@ function triggerNativeFeedback() {
     navigator.vibrate(12);
 }
 
-function isSerializableElement(element) {
-    if (!(element instanceof HTMLElement) || !('name' in element)) {
-        return false;
-    }
-
-    if (!element.name || element.disabled) {
-        return false;
-    }
-
-    if (element instanceof HTMLButtonElement || element instanceof HTMLFieldSetElement) {
-        return false;
-    }
-
-    return true;
-}
-
 function buildNativePayload(form, declaredMethod, effectiveMethod) {
-    const payload = new URLSearchParams();
-    const elements = Array.from(form.elements || []);
+    const formData = new FormData(form);
 
-    elements.forEach((element) => {
-        if (!isSerializableElement(element)) {
-            return;
-        }
+    if (effectiveMethod === declaredMethod) {
+        formData.delete('_method');
+    }
 
-        if (element instanceof HTMLInputElement) {
-            if (element.type === 'file') {
-                return;
-            }
-
-            if ((element.type === 'checkbox' || element.type === 'radio') && !element.checked) {
-                return;
-            }
-        }
-
-        if (element.name === '_method' && effectiveMethod === declaredMethod) {
-            return;
-        }
-
-        if (element instanceof HTMLSelectElement && element.multiple) {
-            Array.from(element.selectedOptions).forEach((option) => {
-                payload.append(element.name, option.value);
-            });
-
-            return;
-        }
-
-        payload.append(element.name, element.value);
-    });
-
-    return payload;
+    return new URLSearchParams(formData);
 }
 
 async function syncActiveFieldValue(form) {

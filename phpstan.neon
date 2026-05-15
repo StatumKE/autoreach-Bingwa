@@ -8,7 +8,6 @@ parameters:
         - routes
         - tests
         - packages/statum/native-scheduler/src
-        - packages/statum/native-contacts/src
     excludePaths:
         - resources/views
         - vendor

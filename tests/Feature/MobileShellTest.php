@@ -20,8 +20,22 @@ test('the native php android shell is configured for light status bar icons', fu
     expect(config('nativephp.android.status_bar_style'))->toBe('light');
 });
 
-test('the native php android shell uses persistent runtime mode', function () {
-    expect(config('nativephp.runtime.mode'))->toBe('persistent');
+test('the native php android shell uses classic runtime mode', function () {
+    expect(config('nativephp.runtime.mode'))->toBe('classic');
+});
+
+test('the native php android shell keeps database queue dispatching in app config', function () {
+    $queueConfig = File::get(base_path('config/queue.php'));
+
+    expect($queueConfig)
+        ->toContain("env('QUEUE_CONNECTION', 'database')");
+});
+
+test('the native php android shell keeps database queue dispatching in env', function () {
+    $env = File::get(base_path('.env'));
+
+    expect($env)
+        ->toContain('QUEUE_CONNECTION=database');
 });
 
 test('the native php android shell runs migrations during filesystem prep', function () {
@@ -51,6 +65,33 @@ test('the android shell keeps the splash visible until the first committed web f
         ->toContain('startupMainFrameStatusCode')
         ->toContain('hideSplash("main frame committed: $url")')
         ->not->toContain('LOAD_CACHE_ELSE_NETWORK');
+});
+
+test('the android queue worker initializes the background environment before using the ephemeral runtime', function () {
+    $queueWorkerSource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/bridge/PHPQueueWorker.kt'));
+    $schedulerWorkerSource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/background/PHPSchedulerWorker.kt'));
+    $pushNotificationSource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/firebase/PushNotificationService.kt'));
+
+    expect($queueWorkerSource)
+        ->toContain('initializeForBackground()')
+        ->toContain('registerContextOnlyBridgeFunctions(context)')
+        ->toContain('synchronized(PHPBridge.phpLock)')
+        ->toContain('nativeEphemeralBoot')
+        ->toContain('nativeEphemeralArtisan')
+        ->toContain('nativeEphemeralShutdown')
+        ->not->toContain('nativeWorkerBoot')
+        ->not->toContain('nativeWorkerArtisan')
+        ->not->toContain('nativeWorkerShutdown');
+
+    expect($schedulerWorkerSource)
+        ->toContain('synchronized(PHPBridge.phpLock)')
+        ->toContain('initializeForBackground()')
+        ->toContain('registerContextOnlyBridgeFunctions(applicationContext)');
+
+    expect($pushNotificationSource)
+        ->toContain('synchronized(PHPBridge.phpLock)')
+        ->toContain('initializeForBackground()')
+        ->toContain('registerContextOnlyBridgeFunctions(applicationContext)');
 });
 
 test('the android csrf helper only sends the cookie-backed xsrf header', function () {

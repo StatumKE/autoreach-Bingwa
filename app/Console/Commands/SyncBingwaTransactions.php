@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Actions\Autoreach\FetchNextBingwaJobs;
+use App\Console\Commands\Concerns\SkipsOnFreshBoot;
 use App\Jobs\ProcessBingwaQueuedTransactionsJob;
 use App\Models\Transaction;
 use App\Models\User;
@@ -15,11 +16,17 @@ use Illuminate\Support\Facades\Log;
 #[Description('Pull the next queued Bingwa jobs from the backend and store them locally.')]
 class SyncBingwaTransactions extends Command
 {
+    use SkipsOnFreshBoot;
+
     /**
      * Execute the console command.
      */
     public function handle(FetchNextBingwaJobs $fetchNextBingwaJobs): int
     {
+        if ($this->isInFreshBootGracePeriod()) {
+            return self::SUCCESS;
+        }
+
         Log::info('🔄 Starting Bingwa transactions sync...');
 
         $userQuery = User::query()

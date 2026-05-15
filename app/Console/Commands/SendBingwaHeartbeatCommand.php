@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Actions\Autoreach\SendBingwaHeartbeat;
+use App\Console\Commands\Concerns\SkipsOnFreshBoot;
 use App\Models\User;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -13,11 +14,17 @@ use Illuminate\Support\Facades\Log;
 #[Description('Send a heartbeat to the Bingwa backend for all registered devices.')]
 class SendBingwaHeartbeatCommand extends Command
 {
+    use SkipsOnFreshBoot;
+
     /**
      * Execute the console command.
      */
     public function handle(SendBingwaHeartbeat $sendBingwaHeartbeat): int
     {
+        if ($this->isInFreshBootGracePeriod()) {
+            return self::SUCCESS;
+        }
+
         $user = User::query()
             ->with('bingwaDeviceRegistration')
             ->whereHas('bingwaDeviceRegistration', function ($query) {

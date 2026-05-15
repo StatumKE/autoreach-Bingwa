@@ -43,7 +43,7 @@ return [
     ],
 
     'runtime' => [
-        'mode' => env('NATIVEPHP_RUNTIME_MODE', 'classic'),
+        'mode' => 'classic',
     ],
 
     'android' => [

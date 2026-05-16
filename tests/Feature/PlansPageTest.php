@@ -1,8 +1,10 @@
 <?php
 
+use App\Jobs\SyncRemoteSubscriptionPurchaseJob;
 use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Native\Mobile\Facades\Device;
 
@@ -190,4 +192,45 @@ test('plans page surfaces backend failures cleanly', function () {
     $response->assertHasNoErrors();
     $response->assertSet('plans', []);
     $response->assertSee('Device type must be hybridApp.');
+});
+
+test('successful local subscription purchase queues backend purchase sync', function () {
+    Queue::fake();
+
+    $user = User::factory()->create();
+
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'raw-device-token',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test('plans')
+        ->set('plans', [
+            [
+                'id' => 5,
+                'code' => 'token_300',
+                'name' => '300 USSD Requests',
+                'type' => 'usage_pack',
+                'price' => 50,
+                'duration_days' => null,
+                'ussd_requests_included' => 300,
+            ],
+        ])
+        ->call('saveSubscription', 5, 'MPE123456')
+        ->assertSet('selectedPlanId', null);
+
+    $plan = $user->plans()->first();
+
+    expect($plan)->not->toBeNull();
+    expect($plan?->code)->toBe('token_300');
+    expect($plan?->remote_purchase_synced_at)->toBeNull();
+
+    Queue::assertPushed(SyncRemoteSubscriptionPurchaseJob::class, function (SyncRemoteSubscriptionPurchaseJob $job) use ($plan): bool {
+        return $job->planId === $plan?->id
+            && $job->paymentReference === 'MPE123456';
+    });
 });

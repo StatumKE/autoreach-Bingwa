@@ -46,7 +46,7 @@ return [
     ],
 
     'runtime' => [
-        'mode' => 'persistent',
+        'mode' => env('NATIVEPHP_RUNTIME_MODE', 'classic'),
     ],
 
     'android' => [

@@ -3,6 +3,7 @@
 use App\Actions\Autoreach\ExecuteBingwaUssd;
 use App\Actions\Autoreach\GetNextBingwaQueuedTransaction;
 use App\Jobs\ProcessBingwaQueuedTransactionsJob;
+use App\Models\DeviceSetting;
 use App\Models\Offer;
 use App\Models\Plan;
 use App\Models\Transaction;
@@ -101,4 +102,114 @@ it('does nothing when there are no queued transactions', function (): void {
         ->handle(app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
 
     expect(Transaction::query()->count())->toBe(0);
+});
+
+it('treats carrier submitted successfully text as completed even when bridge success is false', function (): void {
+    $user = User::factory()->create();
+
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'transaction_id' => 'TX-SUCCESS-TEXT',
+        'sender_phone' => '0721553678',
+        'amount' => 19,
+        'status' => 'queued',
+        'status_desc' => 'Pulled from backend job queue.',
+    ]);
+
+    $this->mock(GetNextBingwaQueuedTransaction::class, function (MockInterface $mock) use ($transaction): void {
+        $mock->shouldReceive('next')
+            ->twice()
+            ->andReturn([
+                'id' => $transaction->id,
+                'backend_transaction_id' => 'TX-SUCCESS-TEXT',
+                'code' => '*180*5*2*0721553678*5*1#',
+                'mode' => 'express',
+                'sim_slot' => 0,
+                'timeout' => 30,
+            ], null);
+    });
+
+    $this->mock(ExecuteBingwaUssd::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('execute')
+            ->once()
+            ->andReturn([
+                'success' => false,
+                'message' => 'Recommendation for 0721553678 submitted successfully. Keep selling!! Be a Bingwa Sokoni Champion.',
+            ]);
+    });
+
+    (new ProcessBingwaQueuedTransactionsJob($user->id))
+        ->handle(app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh?->status)->toBe('completed');
+    expect($fresh?->retry_count)->toBe(0);
+    expect($fresh?->processed_at)->not->toBeNull();
+    expect($fresh?->status_desc)->toBe('Recommendation for 0721553678 submitted successfully. Keep selling!! Be a Bingwa Sokoni Champion.');
+});
+
+it('does not auto retry failed native processor attempts', function (): void {
+    $user = User::factory()->create();
+
+    DeviceSetting::factory()->create([
+        'user_id' => $user->id,
+        'intelligent_auto_retry' => true,
+        'auto_reschedule_rejected' => true,
+        'max_attempts' => 4,
+    ]);
+
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'transaction_id' => 'TX-NO-AUTO-RETRY',
+        'sender_phone' => '0721553678',
+        'amount' => 19,
+        'status' => 'queued',
+        'retry_count' => 0,
+        'status_desc' => 'Pulled from backend job queue.',
+    ]);
+
+    $this->mock(GetNextBingwaQueuedTransaction::class, function (MockInterface $mock) use ($transaction): void {
+        $mock->shouldReceive('next')
+            ->twice()
+            ->andReturn([
+                'id' => $transaction->id,
+                'backend_transaction_id' => 'TX-NO-AUTO-RETRY',
+                'code' => '*180*5*2*0721553678*5*1#',
+                'mode' => 'express',
+                'sim_slot' => 0,
+                'timeout' => 30,
+            ], null);
+    });
+
+    $this->mock(ExecuteBingwaUssd::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('execute')
+            ->once()
+            ->andReturn([
+                'success' => false,
+                'message' => 'Network returned a general failure',
+            ]);
+    });
+
+    (new ProcessBingwaQueuedTransactionsJob($user->id))
+        ->handle(app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh?->status)->toBe('failed');
+    expect($fresh?->retry_count)->toBe(0);
+    expect($fresh?->processed_at)->not->toBeNull();
+    expect($fresh?->status_desc)->toBe('Network returned a general failure');
 });

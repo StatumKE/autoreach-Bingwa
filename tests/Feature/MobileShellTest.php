@@ -20,8 +20,8 @@ test('the native php android shell is configured for light status bar icons', fu
     expect(config('nativephp.android.status_bar_style'))->toBe('light');
 });
 
-test('the native php android shell uses persistent runtime mode', function () {
-    expect(config('nativephp.runtime.mode'))->toBe('persistent');
+test('the native php android shell uses classic request runtime mode', function () {
+    expect(config('nativephp.runtime.mode'))->toBe('classic');
 });
 
 test('the native php android shell keeps database queue dispatching in app config', function () {

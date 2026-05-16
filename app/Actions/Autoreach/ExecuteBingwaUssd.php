@@ -2,6 +2,7 @@
 
 namespace App\Actions\Autoreach;
 
+use App\Support\BingwaUssdResponse;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -55,7 +56,7 @@ class ExecuteBingwaUssd
             'isSambaza' => $isSambaza,
         ]);
 
-        Log::info("📡 [BRIDGE DISPATCH] Sending USSD to Android Hardware", [
+        Log::info('📡 [BRIDGE DISPATCH] Sending USSD to Android Hardware', [
             'transaction_id' => $payload['id'] ?? null,
             'code' => $code,
             'sim_slot' => $simSlot,
@@ -106,22 +107,17 @@ class ExecuteBingwaUssd
             ];
         }
 
-        $bridgeError = $decoded['error'] ?? $decoded['message'] ?? null;
+        $parsedResponse = BingwaUssdResponse::parseDecodedNativePayload($decoded);
+        $success = $parsedResponse['success'];
+        $message = $parsedResponse['message'];
+        $bridgeError = $parsedResponse['bridge_error'];
 
-        if (is_string($bridgeError) && $bridgeError !== '' && ($decoded['data'] ?? null) === null) {
+        if ($bridgeError !== null && $bridgeError !== '' && ! $success) {
             return [
                 'success' => false,
                 'message' => $bridgeError,
                 'raw_response' => $rawResponse,
             ];
-        }
-
-        $nativeData = is_array($decoded['data'] ?? null) ? $decoded['data'] : $decoded;
-        $success = (bool) ($nativeData['success'] ?? false);
-        $message = (string) ($nativeData['message'] ?? $decoded['message'] ?? '');
-
-        if (! $success && str_contains(strtolower($message), 'success')) {
-            $success = true;
         }
 
         if ($message === '') {

@@ -2,6 +2,7 @@
 
 use App\Models\Plan;
 use App\Actions\Autoreach\FetchBingwaSubscriptionPlans;
+use App\Jobs\SyncRemoteSubscriptionPurchaseJob;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
@@ -170,7 +171,14 @@ new #[Title('Subscriptions')] class extends Component {
                                  (finalData.success === true || message.includes('transferred') || message.includes('successful'));
 
                 if(isSuccess) {
-                    \$wire.saveSubscription({$selectedPlan['id']});
+                    const paymentReference = finalData.payment_reference
+                        || finalData.paymentReference
+                        || finalData.transaction_reference
+                        || finalData.transactionReference
+                        || finalData.reference
+                        || null;
+
+                    \$wire.saveSubscription({$selectedPlan['id']}, paymentReference);
                 } else {
                     \$wire.set('errorMessage', finalData.message || res.message || 'Unknown error');
                 }
@@ -181,7 +189,7 @@ new #[Title('Subscriptions')] class extends Component {
     /**
      * Save the newly purchased subscription to the local database.
      */
-    public function saveSubscription(int $planId): void
+    public function saveSubscription(int $planId, ?string $paymentReference = null): void
     {
         $selectedPlan = collect($this->plans)->firstWhere('id', $planId);
         if (!$selectedPlan) return;
@@ -211,6 +219,11 @@ new #[Title('Subscriptions')] class extends Component {
             'expires_at' => $expiresAt,
             'is_active' => true,
         ]);
+
+        SyncRemoteSubscriptionPurchaseJob::dispatch(
+            (int) $this->activePlan->getKey(),
+            filled($paymentReference) ? $paymentReference : null,
+        );
         
         $this->selectedPlanId = null;
     }

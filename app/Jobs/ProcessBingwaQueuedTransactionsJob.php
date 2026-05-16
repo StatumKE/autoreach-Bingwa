@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Actions\Autoreach\ExecuteBingwaUssd;
 use App\Actions\Autoreach\GetNextBingwaQueuedTransaction;
 use App\Models\Transaction;
+use App\Support\BingwaUssdResponse;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -153,10 +154,15 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
         $success = (bool) ($result['success'] ?? false);
         $message = trim((string) ($result['message'] ?? ''));
 
+        if (! $success && BingwaUssdResponse::messageIndicatesSuccess($message)) {
+            $success = true;
+        }
+
         Artisan::call('bingwa:complete-transaction', [
             '--transaction-id' => $transactionId,
             '--result' => $success ? 'completed' : 'failed',
             '--message-base64' => base64_encode($message !== '' ? $message : ($success ? __('USSD call completed successfully.') : __('USSD call failed.'))),
+            '--finalize-once' => true,
         ]);
 
         Log::debug('Bingwa USSD processor completed transaction.', [

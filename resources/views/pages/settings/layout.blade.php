@@ -4,9 +4,6 @@
             <flux:navlist.item :href="route('profile.edit')" :current="request()->routeIs('profile.edit')" wire:navigate class="shrink-0 rounded-xl px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 transition-colors hover:text-zinc-900 data-current:bg-green-50! data-current:text-zinc-900! data-current:border-green-100!">
                 {{ __('Profile') }}
             </flux:navlist.item>
-            <flux:navlist.item :href="route('appearance.edit')" :current="request()->routeIs('appearance.edit')" wire:navigate class="shrink-0 rounded-xl px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 transition-colors hover:text-zinc-900 data-current:bg-green-50! data-current:text-zinc-900! data-current:border-green-100!">
-                {{ __('Appearance') }}
-            </flux:navlist.item>
         </flux:navlist>
     </div>
 

@@ -9,6 +9,8 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
+import android.telephony.SmsManager
+import android.telephony.SubscriptionManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
@@ -34,10 +36,86 @@ object BingwaFunctions {
         }
     }
 
+    class SendSms(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val destination = (parameters["destination"] as? String ?: parameters["phone"] as? String ?: "").trim()
+            val message = (parameters["message"] as? String ?: parameters["body"] as? String ?: "").trim()
+            val simSlot = (parameters["simSlot"] as? Number)?.toInt() ?: 0
+
+            if (destination.isBlank() || message.isBlank()) {
+                return mapOf(
+                    "success" to false,
+                    "message" to "Missing destination or message",
+                )
+            }
+
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                return mapOf(
+                    "success" to false,
+                    "message" to "SEND_SMS permission not granted",
+                )
+            }
+
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                return mapOf(
+                    "success" to false,
+                    "message" to "READ_PHONE_STATE permission not granted",
+                )
+            }
+
+            if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_MESSAGING)) {
+                return mapOf(
+                    "success" to false,
+                    "message" to "Device does not support telephony messaging",
+                )
+            }
+
+            val subscriptionId = resolveSubscriptionId(context, simSlot)
+
+            if (subscriptionId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                return mapOf(
+                    "success" to false,
+                    "message" to "No active SIM found for slot $simSlot",
+                )
+            }
+
+            val smsManager = SmsManager.getSmsManagerForSubscriptionId(subscriptionId)
+
+            return try {
+                if (message.length > 160) {
+                    val parts = smsManager.divideMessage(message)
+                    smsManager.sendMultipartTextMessage(destination, null, parts, null, null)
+                } else {
+                    smsManager.sendTextMessage(destination, null, message, null, null)
+                }
+
+                mapOf(
+                    "success" to true,
+                    "message" to "SMS submitted successfully.",
+                    "simSlot" to simSlot,
+                    "subscriptionId" to subscriptionId,
+                )
+            } catch (exception: Exception) {
+                Log.e(TAG, "Failed to send SMS", exception)
+                mapOf(
+                    "success" to false,
+                    "message" to (exception.message ?: "Failed to send SMS"),
+                    "simSlot" to simSlot,
+                    "subscriptionId" to subscriptionId,
+                )
+            }
+        }
+    }
+
     class CheckSetupStatus(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
             return mapOf(
                 "phoneGranted" to isPhoneGranted(context),
+                "smsGranted" to isSmsGranted(context),
                 "contactsGranted" to isContactsGranted(context),
                 "notificationsGranted" to isNotificationsGranted(context),
                 "batteryUnrestricted" to isBatteryUnrestricted(context),
@@ -49,18 +127,22 @@ object BingwaFunctions {
 
     class RequestRuntimePermissions(private val activity: FragmentActivity) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
-            val missing = buildList {
-                if (!isPhoneGranted(activity)) {
-                    add(Manifest.permission.CALL_PHONE)
-                    add(Manifest.permission.READ_PHONE_STATE)
-                }
-                if (!isContactsGranted(activity)) {
-                    add(Manifest.permission.READ_CONTACTS)
-                }
-                if (!isNotificationsGranted(activity)) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        add(Manifest.permission.POST_NOTIFICATIONS)
-                    }
+            val missing = linkedSetOf<String>()
+
+            if (!isPhoneGranted(activity)) {
+                missing.add(Manifest.permission.CALL_PHONE)
+                missing.add(Manifest.permission.READ_PHONE_STATE)
+            }
+            if (!isSmsGranted(activity)) {
+                missing.add(Manifest.permission.SEND_SMS)
+                missing.add(Manifest.permission.READ_PHONE_STATE)
+            }
+            if (!isContactsGranted(activity)) {
+                missing.add(Manifest.permission.READ_CONTACTS)
+            }
+            if (!isNotificationsGranted(activity)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    missing.add(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
 
@@ -84,6 +166,7 @@ object BingwaFunctions {
             return mapOf(
                 "requested" to true,
                 "phoneGranted" to isPhoneGranted(activity),
+                "smsGranted" to isSmsGranted(activity),
                 "contactsGranted" to isContactsGranted(activity),
                 "notificationsGranted" to isNotificationsGranted(activity),
             )
@@ -228,9 +311,9 @@ object BingwaFunctions {
             ?: throw BridgeError.InvalidParameters("Missing 'code' parameter")
 
         val simSlot = (parameters["simSlot"] as? Number)?.toInt() ?: 0
-        val mode = (parameters["mode"] as? String)?.takeIf { it == "express" || it == "advanced" } ?: defaultMode
-        val isSambaza = (parameters["isSambaza"] as? Boolean) ?: defaultIsSambaza
-        val executor = UssdExecutor(context)
+            val mode = (parameters["mode"] as? String)?.takeIf { it == "express" || it == "advanced" } ?: defaultMode
+            val isSambaza = (parameters["isSambaza"] as? Boolean) ?: defaultIsSambaza
+            val executor = UssdExecutor(context)
 
         val result = runBlocking {
             executor.execute(code, mode, simSlot, isSambaza = isSambaza)
@@ -240,6 +323,16 @@ object BingwaFunctions {
             "success" to result.success,
             "message" to result.message
         )
+    }
+
+    private fun resolveSubscriptionId(context: Context, simSlot: Int): Int {
+        val subscriptionManager = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
+            ?: return SubscriptionManager.INVALID_SUBSCRIPTION_ID
+
+        val subscriptionInfo = subscriptionManager.getActiveSubscriptionInfoForSimSlotIndex(simSlot)
+            ?: return SubscriptionManager.INVALID_SUBSCRIPTION_ID
+
+        return subscriptionInfo.subscriptionId
     }
 
     private fun missingRuntimePermissions(context: Context): List<String> {
@@ -252,6 +345,7 @@ object BingwaFunctions {
     private fun requiredRuntimePermissions(): List<String> {
         return buildList {
             add(Manifest.permission.CALL_PHONE)
+            add(Manifest.permission.SEND_SMS)
             add(Manifest.permission.READ_CONTACTS)
             add(Manifest.permission.READ_PHONE_STATE)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -262,6 +356,11 @@ object BingwaFunctions {
 
     private fun isPhoneGranted(context: Context): Boolean {
         return ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun isSmsGranted(context: Context): Boolean {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
     }
 

@@ -19,6 +19,7 @@ class extends Component {
         requesting: false,
         status: {
             phoneGranted: false,
+            smsGranted: false,
             contactsGranted: false,
             notificationsGranted: false,
             batteryUnrestricted: false,
@@ -26,13 +27,14 @@ class extends Component {
             overlayGranted: false,
         },
         get total() {
-            return 6;
+            return 7;
         },
         get grantedCount() {
             return Object.values(this.status).filter(Boolean).length;
         },
         get allCriticalGranted() {
             return this.status.phoneGranted
+                && this.status.smsGranted
                 && this.status.notificationsGranted
                 && this.status.batteryUnrestricted
                 && this.status.accessibilityEnabled
@@ -49,6 +51,7 @@ class extends Component {
             }
 
             this.status.phoneGranted = data.phoneGranted ?? false;
+            this.status.smsGranted = data.smsGranted ?? false;
             this.status.contactsGranted = data.contactsGranted ?? false;
             this.status.notificationsGranted = data.notificationsGranted ?? false;
             this.status.batteryUnrestricted = data.batteryUnrestricted ?? false;
@@ -159,6 +162,40 @@ class extends Component {
                     <p class="text-[12px] text-zinc-400 leading-relaxed">Make USSD calls to send data to customers.</p>
                     <button
                         x-show="!status.phoneGranted"
+                        x-cloak
+                        @click="requestRuntimePermissions()"
+                        :disabled="requesting"
+                        class="mt-3 inline-flex items-center px-4 py-2 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
+                    >
+                        Grant Access
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- SMS --}}
+        <div
+            class="rounded-2xl p-5 border transition-all duration-300"
+            :class="status.smsGranted ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
+        >
+            <div class="flex items-start gap-4">
+                <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-colors duration-300"
+                    :class="status.smsGranted ? 'bg-green-500/20' : 'bg-zinc-800'">
+                    <svg class="w-5 h-5 transition-colors duration-300" :class="status.smsGranted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h7.5m-7.5 3h4.5m-10.5 6a3 3 0 0 1 3-3h11.25a3 3 0 0 1 3 3v3.75l-3.75-2.25H5.25a3 3 0 0 1-3-3V6.75a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v4.5" />
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <span class="font-black text-[15px]">SMS</span>
+                        <span x-show="status.smsGranted" class="text-[10px] font-black text-green-400 uppercase tracking-widest flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                            Granted
+                        </span>
+                    </div>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed">Send auto-reply SMS messages to buyers from the selected SIM.</p>
+                    <button
+                        x-show="!status.smsGranted"
                         x-cloak
                         @click="requestRuntimePermissions()"
                         :disabled="requesting"

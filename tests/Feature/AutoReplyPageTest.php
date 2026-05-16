@@ -17,7 +17,7 @@ test('auto replies page creates default replies on first visit', function () {
     $response = $this->get(route('auto-replies'));
 
     $response->assertOk();
-    $response->assertSee('AutoReply Messages');
+    $response->assertSee('Auto Replies');
     $response->assertSee('Successful Response');
 
     $this->assertDatabaseHas('auto_replies', [
@@ -77,4 +77,31 @@ test('auto replies can be toggled from the page', function () {
         'id' => $autoReply->id,
         'is_active' => true,
     ]);
+});
+
+test('only one active auto reply per trigger remains enabled', function () {
+    $user = User::factory()->create();
+
+    $activeReply = AutoReply::factory()->for($user)->create([
+        'name' => 'Old Success Reply',
+        'trigger_condition' => 'successful_transaction',
+        'reply_message' => 'Old success reply.',
+        'is_active' => true,
+    ]);
+
+    $replacementReply = AutoReply::factory()->for($user)->create([
+        'name' => 'Replacement Success Reply',
+        'trigger_condition' => 'successful_transaction',
+        'reply_message' => 'Replacement success reply.',
+        'is_active' => false,
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test('auto-replies')
+        ->call('toggleAutoReply', $replacementReply->id)
+        ->assertHasNoErrors();
+
+    expect($activeReply->fresh()->is_active)->toBeFalse();
+    expect($replacementReply->fresh()->is_active)->toBeTrue();
 });

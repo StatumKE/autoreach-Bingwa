@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 #[Description('Requeue stuck Bingwa transactions so the Android USSD worker can pick them up again.')]
 class RequeueStuckTransactionsCommand extends Command
 {
-    private const STALE_THRESHOLD_MINUTES = 2;
+    private const STALE_THRESHOLD_MINUTES = 45;
 
     /**
      * Execute the console command.

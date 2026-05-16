@@ -1,7 +1,9 @@
 <?php
 
+use App\Models\AutoReply;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 test('transactions page can be rendered', function () {
@@ -10,7 +12,6 @@ test('transactions page can be rendered', function () {
     $this->get(route('transactions'))
         ->assertOk()
         ->assertSee('Transactions')
-        ->assertSee('wire:poll.10s')
         ->assertDontSee('Live sync')
         ->assertDontSee('Track transaction identifiers')
         ->assertDontSee('Refresh');
@@ -47,6 +48,36 @@ test('transactions load and display the requested details', function () {
     $response->assertSee('successful');
     $response->assertSee('USSD');
     $response->assertSee('Transaction completed successfully.');
+});
+
+test('transactions page only queries the transaction list once per render', function () {
+    $user = User::factory()->create();
+
+    Transaction::factory()
+        ->for($user)
+        ->count(3)
+        ->create([
+            'status' => 'completed',
+            'status_desc' => 'Transaction completed successfully.',
+        ]);
+
+    $this->actingAs($user);
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    Livewire::test('transactions')
+        ->call('loadTransactions')
+        ->assertHasNoErrors();
+
+    $transactionQueries = collect(DB::getQueryLog())
+        ->pluck('query')
+        ->filter(function (string $sql): bool {
+            return str_contains(strtolower($sql), 'from "transactions"');
+        })
+        ->values();
+
+    expect($transactionQueries)->toHaveCount(2);
 });
 
 test('failed transactions can be retried from the transactions page', function () {
@@ -107,4 +138,44 @@ test('pending transactions can be retried from the transactions page', function 
     ]);
 
     expect($transaction->fresh()->status_desc)->toBe('Retry requested from the Transactions page.');
+});
+
+test('retrying a transaction clears any previous auto reply state', function () {
+    $user = User::factory()->create();
+    $autoReply = AutoReply::factory()->for($user)->create([
+        'name' => 'Failed Reply',
+        'trigger_condition' => 'failed_transaction',
+        'reply_message' => 'Hello there',
+        'is_active' => true,
+    ]);
+
+    $transaction = Transaction::factory()->for($user)->create([
+        'transaction_id' => 'TX-RETRY-AUTO-REPLY',
+        'status' => 'failed',
+        'status_desc' => 'USSD call failed.',
+        'processed_at' => now(),
+        'auto_reply_id' => $autoReply->id,
+        'auto_reply_trigger_condition' => 'failed_transaction',
+        'auto_reply_message' => 'Hello there',
+        'auto_reply_recipient_phone' => '0712345678',
+        'auto_reply_sim_slot' => 'slot_1',
+        'auto_reply_status' => 'failed',
+        'auto_reply_attempts' => 2,
+        'auto_reply_sent_at' => now()->subMinute(),
+        'auto_reply_failed_at' => now()->subMinute(),
+        'auto_reply_failure_reason' => 'Previous failure',
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test('transactions')
+        ->call('retryTransaction', $transaction->id)
+        ->assertHasNoErrors();
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh?->status)->toBe('queued');
+    expect($fresh?->auto_reply_status)->toBeNull();
+    expect($fresh?->auto_reply_message)->toBeNull();
+    expect($fresh?->auto_reply_failure_reason)->toBeNull();
 });

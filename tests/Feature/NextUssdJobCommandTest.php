@@ -215,7 +215,7 @@ it('picks the oldest queued transaction first', function () {
     $this->assertDatabaseHas('transactions', ['id' => $newer->id, 'status' => 'queued']);
 });
 
-it('recovers stuck processing transactions older than 2 minutes', function () {
+it('recovers stuck processing transactions older than 45 minutes', function () {
     $user = User::factory()->create();
     $offer = Offer::factory()->create([
         'user_id' => $user->id,
@@ -236,10 +236,10 @@ it('recovers stuck processing transactions older than 2 minutes', function () {
         'status' => 'processing',
     ]);
 
-    // Simulate the transaction being stuck for 3 minutes (past the 2-minute threshold)
+    // Simulate the transaction being stuck for 46 minutes (past the 45-minute threshold)
     Transaction::query()
         ->whereKey($stuckTransaction->id)
-        ->update(['updated_at' => now()->subMinutes(3)]);
+        ->update(['updated_at' => now()->subMinutes(46)]);
 
     $this->artisan('bingwa:next-ussd-job')->assertExitCode(0);
 

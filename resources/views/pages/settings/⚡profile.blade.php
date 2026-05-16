@@ -16,8 +16,6 @@ new #[Title('Profile settings')] class extends Component {
     public string $name = '';
     public string $email = '';
     public string $autoreach_connect_id = '';
-    public string $appVersion = '';
-    public int $appVersionCode = 1;
 
     /**
      * Mount the component.
@@ -27,8 +25,6 @@ new #[Title('Profile settings')] class extends Component {
         $this->name = Auth::user()->name;
         $this->email = Auth::user()->email;
         $this->autoreach_connect_id = Auth::user()->autoreach_connect_id ?? '';
-        $this->appVersion = (string) config('nativephp.app_version', 'DEBUG');
-        $this->appVersionCode = (int) config('nativephp.app_version_code', 1);
     }
 
     /**
@@ -122,24 +118,6 @@ new #[Title('Profile settings')] class extends Component {
 
                     <flux:text class="mt-3 text-xs font-medium text-zinc-500">
                         {{ __('Autoreach Connect ID is tied to the registered device and cannot be edited here.') }}
-                    </flux:text>
-                </div>
-
-                <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <div class="text-[8px] font-bold uppercase tracking-widest text-zinc-500">{{ __('App version') }}</div>
-                            <div class="mt-1 text-sm font-bold text-zinc-900">{{ $this->appVersion }}</div>
-                        </div>
-
-                        <div class="text-right">
-                            <div class="text-[8px] font-bold uppercase tracking-widest text-zinc-500">{{ __('Build number') }}</div>
-                            <div class="mt-1 text-sm font-bold text-zinc-900">{{ $this->appVersionCode }}</div>
-                        </div>
-                    </div>
-
-                    <flux:text class="mt-3 text-xs text-zinc-500">
-                        {{ __('Use a higher build number for each APK release. For Play Store bundles, NativePHP can auto-increment during packaging.') }}
                     </flux:text>
                 </div>
 

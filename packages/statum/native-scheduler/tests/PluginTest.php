@@ -32,6 +32,7 @@ describe('Plugin Manifest', function () {
         $manifest = json_decode(file_get_contents($this->manifestPath), true);
 
         expect($manifest['bridge_functions'])->toBeArray();
+        expect(collect($manifest['bridge_functions'])->pluck('name'))->toContain('SendSms');
 
         foreach ($manifest['bridge_functions'] as $function) {
             expect($function)->toHaveKeys(['name']);
@@ -129,5 +130,12 @@ describe('Lifecycle Hooks', function () {
                 expect($manifest['assets']['ios'])->toBeArray();
             }
         }
+    });
+
+    it('declares the sms permission required by the bridge', function () {
+        $manifest = json_decode(file_get_contents($this->manifestPath), true);
+
+        expect($manifest['android']['permissions'] ?? [])
+            ->toContain('android.permission.SEND_SMS');
     });
 });

@@ -48,10 +48,15 @@ class AndroidRuntimeScheduler
 
             $transactionSync = $exitCode === 0;
 
+            $autoRenewalExitCode = Artisan::call('bingwa:process-auto-renewals', [
+                '--user-id' => $user->getKey(),
+            ]);
+
             Log::info('Bingwa runtime tick completed.', [
                 'user_id' => $user->getKey(),
                 'heartbeat' => $heartbeat,
                 'transaction_sync' => $transactionSync,
+                'auto_renewals' => $autoRenewalExitCode === 0,
             ]);
 
             return $this->result(ran: true, heartbeat: $heartbeat, transactionSync: $transactionSync);

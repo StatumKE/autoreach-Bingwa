@@ -3,6 +3,7 @@
 use App\Models\AutoReply;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -76,15 +77,21 @@ new #[Title('Auto Replies')] class extends Component {
             'sort_order' => $this->sortOrderFor($validated['triggerCondition']),
         ];
 
-        if ($this->editingAutoReplyId !== null) {
-            $autoReply = $this->ownedAutoReply($this->editingAutoReplyId);
-            $autoReply->update($payload);
-        } else {
-            AutoReply::query()->create($payload + [
-                'user_id' => Auth::id(),
-                'is_default' => false,
-            ]);
-        }
+        DB::transaction(function () use ($payload, $validated): void {
+            if ($this->editingAutoReplyId !== null) {
+                $autoReply = $this->ownedAutoReply($this->editingAutoReplyId);
+                $autoReply->update($payload);
+            } else {
+                $autoReply = AutoReply::query()->create($payload + [
+                    'user_id' => Auth::id(),
+                    'is_default' => false,
+                ]);
+            }
+
+            if ($autoReply->is_active) {
+                $this->deactivateOtherActiveReplies($autoReply->trigger_condition, $autoReply->id);
+            }
+        });
 
         $this->showForm = false;
         $this->resetForm();
@@ -102,9 +109,15 @@ new #[Title('Auto Replies')] class extends Component {
         $autoReply = $this->ownedAutoReply($autoReplyId);
         $newState = ! $autoReply->is_active;
 
-        $autoReply->update([
-            'is_active' => $newState,
-        ]);
+        DB::transaction(function () use ($autoReply, $newState): void {
+            $autoReply->update([
+                'is_active' => $newState,
+            ]);
+
+            if ($newState) {
+                $this->deactivateOtherActiveReplies($autoReply->trigger_condition, $autoReply->id);
+            }
+        });
 
         Flux::toast(variant: 'success', text: $newState ? __('Auto reply enabled.') : __('Auto reply disabled.'));
     }
@@ -351,6 +364,20 @@ new #[Title('Auto Replies')] class extends Component {
         return AutoReply::query()
             ->where('user_id', Auth::id())
             ->findOrFail($autoReplyId);
+    }
+
+    /**
+     * Disable all other active replies for the same trigger.
+     */
+    private function deactivateOtherActiveReplies(string $triggerCondition, int $exceptAutoReplyId): void
+    {
+        AutoReply::query()
+            ->where('user_id', Auth::id())
+            ->where('trigger_condition', $triggerCondition)
+            ->whereKeyNot($exceptAutoReplyId)
+            ->update([
+                'is_active' => false,
+            ]);
     }
 }; ?>
 

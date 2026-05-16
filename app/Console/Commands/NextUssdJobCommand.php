@@ -15,7 +15,7 @@ class NextUssdJobCommand extends Command
     /**
      * Transactions stuck in "processing" longer than this are assumed crashed and recovered.
      */
-    private const STUCK_THRESHOLD_MINUTES = 2;
+    private const STUCK_THRESHOLD_MINUTES = 45;
 
     /**
      * Execute the console command.
@@ -27,7 +27,7 @@ class NextUssdJobCommand extends Command
     {
         try {
             // Recover any transactions stuck in "processing" due to a previous crash.
-            // The USSD timeout is 30 seconds, so anything older than 2 minutes is definitively stuck.
+            // The USSD timeout is 30 seconds, so anything older than 45 minutes is definitively stuck.
             $recoveredCount = Transaction::query()
                 ->where('status', 'processing')
                 ->where('updated_at', '<=', now()->subMinutes(self::STUCK_THRESHOLD_MINUTES))

@@ -53,6 +53,16 @@ new #[Title('Transactions')] class extends Component
             'status' => 'queued',
             'status_desc' => __('Retry requested from the Transactions page.'),
             'processed_at' => null,
+            'auto_reply_id' => null,
+            'auto_reply_trigger_condition' => null,
+            'auto_reply_message' => null,
+            'auto_reply_recipient_phone' => null,
+            'auto_reply_sim_slot' => null,
+            'auto_reply_status' => null,
+            'auto_reply_attempts' => 0,
+            'auto_reply_sent_at' => null,
+            'auto_reply_failed_at' => null,
+            'auto_reply_failure_reason' => null,
         ]);
 
         ProcessBingwaQueuedTransactionsJob::dispatch(Auth::id());
@@ -142,6 +152,9 @@ new #[Title('Transactions')] class extends Component
 ?>
 
 <div class="flex flex-col gap-3 px-4 pb-24 pt-3 bg-app-bg text-zinc-900 min-h-screen" wire:init="loadTransactions">
+    @php
+        $transactions = $this->transactions();
+    @endphp
 
     <div class="flex items-center justify-between px-1">
         <div class="text-xl font-bold text-zinc-900">{{ __('Transactions') }}</div>
@@ -217,7 +230,7 @@ new #[Title('Transactions')] class extends Component
         <div class="rounded-2xl bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400 font-bold border border-rose-500/20">
             {{ $this->errorMessage }}
         </div>
-    @elseif ($this->transactions()->isEmpty())
+    @elseif ($transactions->isEmpty())
         <div class="flex flex-col items-center justify-center rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-zinc-200">
             <div class="flex size-12 items-center justify-center rounded-2xl bg-green-50 text-green-600 mb-4 shadow-inner">
                 <flux:icon.banknotes class="size-6" />
@@ -231,7 +244,7 @@ new #[Title('Transactions')] class extends Component
         </div>
     @else
         <div class="flex flex-col gap-4">
-            @foreach ($this->transactions() as $transaction)
+            @foreach ($transactions as $transaction)
                 @php
                     $status = strtolower((string) ($transaction->status ?? ''));
                     $isSuccess = in_array($status, ['completed', 'successful']);
@@ -352,7 +365,7 @@ new #[Title('Transactions')] class extends Component
             @endforeach
 
             <div class="mt-4 px-2">
-                {{ $this->transactions()->links() }}
+                {{ $transactions->links() }}
             </div>
         </div>
     @endif

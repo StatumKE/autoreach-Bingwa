@@ -27,8 +27,19 @@ use Illuminate\Support\Carbon;
  * @property string|null $status_desc
  * @property int $retry_count
  * @property Carbon|null $processed_at
+ * @property int|null $auto_reply_id
+ * @property string|null $auto_reply_trigger_condition
+ * @property string|null $auto_reply_message
+ * @property string|null $auto_reply_recipient_phone
+ * @property string|null $auto_reply_sim_slot
+ * @property string|null $auto_reply_status
+ * @property int $auto_reply_attempts
+ * @property Carbon|null $auto_reply_sent_at
+ * @property Carbon|null $auto_reply_failed_at
+ * @property string|null $auto_reply_failure_reason
  * @property-read User|null $user
  * @property-read Offer|null $offer
+ * @property-read AutoReply|null $autoReply
  */
 #[Fillable([
     'user_id',
@@ -47,6 +58,16 @@ use Illuminate\Support\Carbon;
     'status_desc',
     'retry_count',
     'processed_at',
+    'auto_reply_id',
+    'auto_reply_trigger_condition',
+    'auto_reply_message',
+    'auto_reply_recipient_phone',
+    'auto_reply_sim_slot',
+    'auto_reply_status',
+    'auto_reply_attempts',
+    'auto_reply_sent_at',
+    'auto_reply_failed_at',
+    'auto_reply_failure_reason',
 ])]
 class Transaction extends Model
 {
@@ -70,6 +91,14 @@ class Transaction extends Model
     }
 
     /**
+     * Get the auto reply template that produced the SMS.
+     */
+    public function autoReply(): BelongsTo
+    {
+        return $this->belongsTo(AutoReply::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -83,6 +112,9 @@ class Transaction extends Model
             'occurred_at' => 'datetime',
             'processed_at' => 'datetime',
             'retry_count' => 'integer',
+            'auto_reply_attempts' => 'integer',
+            'auto_reply_sent_at' => 'datetime',
+            'auto_reply_failed_at' => 'datetime',
         ];
     }
 }

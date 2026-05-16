@@ -2,12 +2,15 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\Autoreach\ResolveAutoReplyForTransaction;
+use App\Jobs\SendAutoReplySmsJob;
 use App\Jobs\UpdateRemoteTransactionStatusJob;
 use App\Models\Transaction;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 #[Signature('bingwa:complete-transaction {id? : The local transaction ID} {status? : completed or failed} {--transaction-id= : The local transaction ID} {--result= : completed or failed} {--message= : Optional status description} {--message-base64= : Optional base64-encoded status description} {--finalize-once : Finalize immediately without auto-retry or reschedule}')]
@@ -77,6 +80,16 @@ class CompleteTransactionCommand extends Command
                             'count' => $transaction->retry_count,
                             'time' => $retryAt->format('g:i A'),
                         ]),
+                        'auto_reply_id' => null,
+                        'auto_reply_trigger_condition' => null,
+                        'auto_reply_message' => null,
+                        'auto_reply_recipient_phone' => null,
+                        'auto_reply_sim_slot' => null,
+                        'auto_reply_status' => null,
+                        'auto_reply_attempts' => 0,
+                        'auto_reply_sent_at' => null,
+                        'auto_reply_failed_at' => null,
+                        'auto_reply_failure_reason' => null,
                     ]);
 
                     $this->info("Transaction #{$id} re-queued for retry.");
@@ -100,6 +113,16 @@ class CompleteTransactionCommand extends Command
                         'status' => 'queued',
                         'occurred_at' => $nextRun,
                         'status_desc' => __('Rescheduled for :time.', ['time' => $nextRun->format('g:i A')]),
+                        'auto_reply_id' => null,
+                        'auto_reply_trigger_condition' => null,
+                        'auto_reply_message' => null,
+                        'auto_reply_recipient_phone' => null,
+                        'auto_reply_sim_slot' => null,
+                        'auto_reply_status' => null,
+                        'auto_reply_attempts' => 0,
+                        'auto_reply_sent_at' => null,
+                        'auto_reply_failed_at' => null,
+                        'auto_reply_failure_reason' => null,
                     ]);
 
                     $this->info("Transaction #{$id} rescheduled for tomorrow.");
@@ -132,11 +155,16 @@ class CompleteTransactionCommand extends Command
                 }
             }
 
+            $this->queueAutoReply($transaction, $status);
+
             // Dispatch update to remote backend
             $remoteTransactionId = $transaction->transaction_id;
             $deviceToken = $transaction->user?->bingwaDeviceRegistration?->device_token;
 
-            if ($remoteTransactionId && $deviceToken) {
+            $localOnlyTransactionSources = ['quick_dial', 'auto_renewal'];
+            $isLocalOnlyTransaction = in_array($transaction->matched_offer['source'] ?? null, $localOnlyTransactionSources, true);
+
+            if (! $isLocalOnlyTransaction && $remoteTransactionId && $deviceToken) {
                 $executionTimeMs = $transaction->updated_at ? (int) abs(now()->diffInMilliseconds($transaction->updated_at)) : null;
                 $failureCode = null;
 
@@ -164,7 +192,7 @@ class CompleteTransactionCommand extends Command
                     $executionTimeMs,
                     now()->toIso8601String(),
                     $failureCode
-                );
+                )->afterCommit();
             }
 
             return self::SUCCESS;
@@ -190,5 +218,40 @@ class CompleteTransactionCommand extends Command
         $message = $this->option('message');
 
         return is_string($message) ? $message : null;
+    }
+
+    private function queueAutoReply(Transaction $transaction, string $status): void
+    {
+        if (! in_array($status, ['completed', 'failed'], true)) {
+            return;
+        }
+
+        $resolved = app(ResolveAutoReplyForTransaction::class)->resolve($transaction);
+
+        $transaction->update([
+            'auto_reply_id' => $resolved['auto_reply_id'],
+            'auto_reply_trigger_condition' => $resolved['trigger_condition'],
+            'auto_reply_message' => $resolved['reply_message'],
+            'auto_reply_recipient_phone' => $resolved['recipient_phone'],
+            'auto_reply_status' => $resolved['auto_reply_id'] !== null ? 'queued' : 'skipped',
+            'auto_reply_attempts' => 0,
+            'auto_reply_sent_at' => null,
+            'auto_reply_failed_at' => null,
+            'auto_reply_failure_reason' => $resolved['auto_reply_id'] !== null
+                ? null
+                : __('No active auto-reply matched the transaction outcome.'),
+        ]);
+
+        if ($resolved['auto_reply_id'] === null) {
+            Log::info('Auto-reply skipped because no active rule matched the transaction outcome.', [
+                'transaction_id' => $transaction->id,
+                'status' => $status,
+                'trigger_condition' => $resolved['trigger_condition'],
+            ]);
+
+            return;
+        }
+
+        SendAutoReplySmsJob::dispatch($transaction->id)->afterCommit();
     }
 }

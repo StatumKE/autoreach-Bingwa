@@ -67,7 +67,7 @@ it('only requeues stale processing transactions by default', function () {
 
     Transaction::query()
         ->whereKey($stale->id)
-        ->update(['updated_at' => now()->subMinutes(3)]);
+        ->update(['updated_at' => now()->subMinutes(46)]);
 
     Transaction::query()
         ->whereKey($fresh->id)

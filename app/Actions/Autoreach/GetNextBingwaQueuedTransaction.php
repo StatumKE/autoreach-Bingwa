@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Log;
 
 class GetNextBingwaQueuedTransaction
 {
+    private const STUCK_THRESHOLD_MINUTES = 45;
+
     /**
      * Find the next queued Bingwa transaction and prepare its USSD payload.
      *
@@ -50,6 +52,7 @@ class GetNextBingwaQueuedTransaction
 
         if ($transaction->offer === null) {
             Log::warning("Transaction #{$transaction->id} skipped: No matching offer found for amount {$transaction->amount}");
+
             return null;
         }
 
@@ -112,7 +115,7 @@ class GetNextBingwaQueuedTransaction
     {
         $recoveredCount = Transaction::query()
             ->where('status', 'processing')
-            ->where('updated_at', '<=', now()->subMinutes(2))
+            ->where('updated_at', '<=', now()->subMinutes(self::STUCK_THRESHOLD_MINUTES))
             ->update([
                 'status' => 'queued',
                 'status_desc' => __('Recovered: previous USSD attempt timed out.'),

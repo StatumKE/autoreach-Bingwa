@@ -17,6 +17,7 @@ Route::livewire('plans', 'plans')->middleware(['auth', 'verified'])->name('plans
 Route::livewire('quick-dials', 'quick-dials')->middleware(['auth', 'verified'])->name('quick-dials');
 Route::livewire('auto-renewals', 'auto-renewals')->middleware(['auth', 'verified'])->name('auto-renewals');
 Route::livewire('auto-replies', 'auto-replies')->middleware(['auth', 'verified'])->name('auto-replies');
+Route::livewire('sms', 'sms')->middleware(['auth', 'verified'])->name('sms');
 
 // Permission onboarding — auth only, no email-verification gate
 Route::livewire('setup', 'setup')->middleware(['auth'])->name('setup');

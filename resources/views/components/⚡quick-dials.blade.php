@@ -1,10 +1,9 @@
 <?php
 
-use App\Actions\QuickDial\QuickDialContacts;
+use App\Jobs\ProcessBingwaQueuedTransactionsJob;
 use App\Models\Offer;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Js;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -94,74 +93,6 @@ new #[Title('Quick Dial')] class extends Component {
         }
 
         $this->selectedOfferId = $offer->id;
-        $code = str_replace('PN', $phone, $offer->ussd_code);
-        $payload = Js::from([
-            'method' => 'ExecuteUssd',
-            'offerId' => $offer->id,
-            'code' => $code,
-            'mode' => $offer->ussd_mode,
-            'simSlot' => $this->primaryTransactionSimSlot(),
-            'phone' => $phone,
-        ]);
-
-        $this->js(<<<JS
-            (async () => {
-                const payload = {$payload};
-
-                try {
-                    const response = await fetch('/_native/api/call', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                        },
-                        body: JSON.stringify({
-                            method: payload.method,
-                            params: {
-                                code: payload.code,
-                                mode: payload.mode,
-                                simSlot: payload.simSlot,
-                                isSambaza: false
-                            }
-                        })
-                    });
-
-                    const result = await response.json();
-                    const nativeData = result.data?.data ?? result.data ?? {};
-                    const success = response.ok && result.status === 'success' && nativeData.success === true;
-                    const message = nativeData.message || result.message || 'USSD request completed.';
-
-                    @this.recordQuickDialResult(payload.offerId, success, message, payload.phone);
-                } catch (error) {
-                    @this.recordQuickDialResult(payload.offerId, false, error?.message || 'Unable to reach native USSD bridge.', payload.phone);
-                }
-            })();
-        JS);
-    }
-
-    /**
-     * Record the native USSD result locally for visibility in Transactions.
-     */
-    public function recordQuickDialResult(int $offerId, bool $success, string $message = '', ?string $customerPhone = null): void
-    {
-        $offer = $this->activeOffers->firstWhere('id', $offerId);
-
-        if (! $offer instanceof Offer) {
-            $this->selectedOfferId = null;
-            $this->awardError = __('The selected offer is not available.');
-
-            return;
-        }
-
-        $phone = $this->normalizePhone($customerPhone ?? $this->customerPhone);
-
-        if (preg_match('/^0\d{9}$/', $phone) !== 1) {
-            $this->selectedOfferId = null;
-            $this->awardError = __('Enter or select a valid customer phone number first.');
-
-            return;
-        }
-
         Transaction::query()->create([
             'user_id' => Auth::id(),
             'offer_id' => $offer->id,
@@ -180,14 +111,16 @@ new #[Title('Quick Dial')] class extends Component {
                 'source' => 'quick_dial',
             ],
             'occurred_at' => now(),
-            'status' => $success ? 'completed' : 'failed',
-            'status_desc' => $message !== '' ? $message : ($success ? __('Quick Dial award completed.') : __('Quick Dial award failed.')),
-            'processed_at' => now(),
+            'status' => 'queued',
+            'status_desc' => __('Quick Dial award queued for processing.'),
+            'processed_at' => null,
         ]);
 
+        ProcessBingwaQueuedTransactionsJob::dispatch((int) Auth::id());
+
         $this->selectedOfferId = null;
-        $this->awardMessage = $success ? __('Award sent through :offer.', ['offer' => $offer->name]) : null;
-        $this->awardError = $success ? null : ($message !== '' ? $message : __('Quick Dial award failed.'));
+        $this->awardMessage = __('Award queued through :offer.', ['offer' => $offer->name]);
+        $this->awardError = null;
     }
 
     #[Computed]

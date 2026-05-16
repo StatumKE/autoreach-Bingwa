@@ -30,6 +30,7 @@
                 ['label' => __('Quick Dial'), 'href' => route('quick-dials')],
                 ['label' => __('Auto Renewals'), 'href' => route('auto-renewals')],
                 ['label' => __('Auto Replies'), 'href' => route('auto-replies')],
+                ['label' => __('SMS History'), 'href' => route('sms')],
                 ['label' => __('Device settings'), 'href' => route('device.edit')],
             ];
         @endphp
@@ -71,6 +72,10 @@
 
                     <flux:sidebar.item icon="sparkles" :href="route('auto-replies')" :current="request()->routeIs('auto-replies')" wire:navigate class="app-nav-item">
                         {{ __('Auto Replies') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="envelope" :href="route('sms')" :current="request()->routeIs('sms')" wire:navigate class="app-nav-item">
+                        {{ __('SMS History') }}
                     </flux:sidebar.item>
 
                     <flux:sidebar.item icon="cog" :href="route('device.edit')" :current="request()->routeIs('device.edit')" wire:navigate class="app-nav-item">

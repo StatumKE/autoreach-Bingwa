@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 // Heartbeat and Transaction Sync schedules
 Schedule::command('bingwa:heartbeat')->everyMinute();
 Schedule::command('bingwa:sync-transactions')->everyMinute();
+Schedule::command('bingwa:process-auto-renewals')->everyMinute()->withoutOverlapping();

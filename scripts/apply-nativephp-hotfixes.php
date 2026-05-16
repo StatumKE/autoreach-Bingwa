@@ -285,7 +285,7 @@ KOTLIN;
     }
 }
 
-function patch_mobile_ephemeral_native_mutex(): void
+function patch_mobile_native_mutexes(): void
 {
     $targets = [
         project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/cpp/php_bridge.c'),
@@ -299,39 +299,164 @@ function patch_mobile_ephemeral_native_mutex(): void
 
         $contents = (string) file_get_contents($target);
 
-        if (! str_contains($contents, "JNIEXPORT jint JNICALL native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {\n    pthread_mutex_lock(&g_php_request_mutex);")) {
-            $contents = replace_or_fail(
-                $contents,
-                "JNIEXPORT jint JNICALL native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {\n    pthread_mutex_lock(&g_ephemeral_mutex);",
-                "JNIEXPORT jint JNICALL native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {\n    pthread_mutex_lock(&g_php_request_mutex);\n    pthread_mutex_lock(&g_ephemeral_mutex);",
-                'ephemeral boot request mutex'
+        // 1. Cleanup: Remove any existing multiple unlocks (prevents corruption from multiple runs)
+        $contents = preg_replace('/(\s+pthread_mutex_unlock\(&g_php_request_mutex\);){2,}/', "\n        pthread_mutex_unlock(&g_php_request_mutex);", $contents);
+
+        // 2. Ephemeral Boot
+        if (! str_contains($contents, "native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {\n    pthread_mutex_lock(&g_php_request_mutex);")) {
+            $contents = str_replace(
+                'native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {',
+                "native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {\n    pthread_mutex_lock(&g_php_request_mutex);",
+                $contents
+            );
+        }
+        // Ephemeral Boot Success Unlock
+        if (! str_contains($contents, 'LOGI("ephemeral_boot: ephemeral PHP interpreter ready");'.PHP_EOL.PHP_EOL.'    pthread_mutex_unlock(&g_php_request_mutex);')) {
+            $contents = str_replace(
+                'LOGI("ephemeral_boot: ephemeral PHP interpreter ready");',
+                'LOGI("ephemeral_boot: ephemeral PHP interpreter ready");'.PHP_EOL.PHP_EOL.'    pthread_mutex_unlock(&g_php_request_mutex);',
+                $contents
             );
         }
 
-        if (! str_contains($contents, "LOGI(\"ephemeral_boot: already initialized, skipping\");\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);")) {
-            $contents = replace_or_fail(
-                $contents,
+        // 3. Ephemeral Artisan
+        if (! str_contains($contents, "native_ephemeral_artisan(JNIEnv *env, jobject thiz, jstring jCommand) {\n    pthread_mutex_lock(&g_php_request_mutex);")) {
+            $contents = str_replace(
+                'native_ephemeral_artisan(JNIEnv *env, jobject thiz, jstring jCommand) {',
+                "native_ephemeral_artisan(JNIEnv *env, jobject thiz, jstring jCommand) {\n    pthread_mutex_lock(&g_php_request_mutex);",
+                $contents
+            );
+        }
+        // Ephemeral Artisan Success Unlock
+        if (! str_contains($contents, 'pthread_mutex_unlock(&g_php_request_mutex);'.PHP_EOL.'    pthread_mutex_unlock(&g_ephemeral_mutex);'.PHP_EOL.'    return result;')) {
+            $contents = str_replace(
+                'pthread_mutex_unlock(&g_ephemeral_mutex);'.PHP_EOL.'    return result;',
+                'pthread_mutex_unlock(&g_php_request_mutex);'.PHP_EOL.'    pthread_mutex_unlock(&g_ephemeral_mutex);'.PHP_EOL.'    return result;',
+                $contents
+            );
+        }
+        // Ephemeral Artisan Early Return Fix
+        if (! str_contains($contents, 'LOGE("ephemeral_artisan: ephemeral runtime not initialized!");'.PHP_EOL.'        pthread_mutex_unlock(&g_ephemeral_mutex);'.PHP_EOL.'        pthread_mutex_unlock(&g_php_request_mutex);')) {
+            $contents = str_replace(
+                'LOGE("ephemeral_artisan: ephemeral runtime not initialized!");'.PHP_EOL.'        pthread_mutex_unlock(&g_ephemeral_mutex);',
+                'LOGE("ephemeral_artisan: ephemeral runtime not initialized!");'.PHP_EOL.'        pthread_mutex_unlock(&g_ephemeral_mutex);'.PHP_EOL.'        pthread_mutex_unlock(&g_php_request_mutex);',
+                $contents
+            );
+        }
+
+        // 4. Worker Boot
+        if (! str_contains($contents, "native_worker_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {\n    pthread_mutex_lock(&g_php_request_mutex);")) {
+            $contents = str_replace(
+                'native_worker_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {',
+                "native_worker_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {\n    pthread_mutex_lock(&g_php_request_mutex);",
+                $contents
+            );
+        }
+        // Worker Boot Success Unlock
+        if (! str_contains($contents, 'LOGI("worker_boot: worker PHP interpreter ready");'.PHP_EOL.PHP_EOL.'    pthread_mutex_unlock(&g_php_request_mutex);')) {
+            $contents = str_replace(
+                'LOGI("worker_boot: worker PHP interpreter ready");',
+                'LOGI("worker_boot: worker PHP interpreter ready");'.PHP_EOL.PHP_EOL.'    pthread_mutex_unlock(&g_php_request_mutex);',
+                $contents
+            );
+        }
+        // Worker Boot Early Return Fix
+        if (! str_contains($contents, 'LOGE("worker_boot: timed out waiting for persistent boot to settle");'.PHP_EOL.'        pthread_mutex_unlock(&g_php_request_mutex);')) {
+            $contents = str_replace(
+                'LOGE("worker_boot: timed out waiting for persistent boot to settle");',
+                'LOGE("worker_boot: timed out waiting for persistent boot to settle");'.PHP_EOL.'        pthread_mutex_unlock(&g_php_request_mutex);',
+                $contents
+            );
+        }
+
+        // 5. Worker Artisan
+        if (! str_contains($contents, "native_worker_artisan(JNIEnv *env, jobject thiz, jstring jCommand) {\n    pthread_mutex_lock(&g_php_request_mutex);")) {
+            $contents = str_replace(
+                'native_worker_artisan(JNIEnv *env, jobject thiz, jstring jCommand) {',
+                "native_worker_artisan(JNIEnv *env, jobject thiz, jstring jCommand) {\n    pthread_mutex_lock(&g_php_request_mutex);",
+                $contents
+            );
+        }
+        // Worker Artisan Success Unlock
+        if (! str_contains($contents, 'pthread_mutex_unlock(&g_php_request_mutex);'.PHP_EOL.'    pthread_mutex_unlock(&g_worker_mutex);'.PHP_EOL.'    return result;')) {
+            $contents = str_replace(
+                'pthread_mutex_unlock(&g_worker_mutex);'.PHP_EOL.'    return result;',
+                'pthread_mutex_unlock(&g_php_request_mutex);'.PHP_EOL.'    pthread_mutex_unlock(&g_worker_mutex);'.PHP_EOL.'    return result;',
+                $contents
+            );
+        }
+        // Worker Artisan Early Return Fix
+        if (! str_contains($contents, 'LOGE("worker_artisan: worker not initialized!");'.PHP_EOL.'        pthread_mutex_unlock(&g_worker_mutex);'.PHP_EOL.'        pthread_mutex_unlock(&g_php_request_mutex);')) {
+            $contents = str_replace(
+                'LOGE("worker_artisan: worker not initialized!");'.PHP_EOL.'        pthread_mutex_unlock(&g_worker_mutex);',
+                'LOGE("worker_artisan: worker not initialized!");'.PHP_EOL.'        pthread_mutex_unlock(&g_worker_mutex);'.PHP_EOL.'        pthread_mutex_unlock(&g_php_request_mutex);',
+                $contents
+            );
+        }
+
+        // 6. Ephemeral Shutdown Early Return Fix
+        if (! str_contains($contents, 'LOGI("ephemeral_shutdown: not initialized, nothing to do");'.PHP_EOL.'        pthread_mutex_unlock(&g_ephemeral_mutex);'.PHP_EOL.'        pthread_mutex_unlock(&g_php_request_mutex);')) {
+            $contents = str_replace(
+                'LOGI("ephemeral_shutdown: not initialized, nothing to do");'.PHP_EOL.'        pthread_mutex_unlock(&g_ephemeral_mutex);',
+                'LOGI("ephemeral_shutdown: not initialized, nothing to do");'.PHP_EOL.'        pthread_mutex_unlock(&g_ephemeral_mutex);'.PHP_EOL.'        pthread_mutex_unlock(&g_php_request_mutex);',
+                $contents
+            );
+        }
+
+        // 7. Shared Error Unlocks
+        if (str_contains($contents, "LOGI(\"ephemeral_boot: already initialized, skipping\");\n        pthread_mutex_unlock(&g_ephemeral_mutex);")
+            && ! str_contains($contents, "LOGI(\"ephemeral_boot: already initialized, skipping\");\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);")) {
+            $contents = str_replace(
                 "LOGI(\"ephemeral_boot: already initialized, skipping\");\n        pthread_mutex_unlock(&g_ephemeral_mutex);",
                 "LOGI(\"ephemeral_boot: already initialized, skipping\");\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);",
-                'ephemeral boot already initialized unlock'
+                $contents
             );
         }
 
-        if (! str_contains($contents, "LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);")) {
-            $contents = replace_or_fail(
-                $contents,
+        if (str_contains($contents, "LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);")
+            && ! str_contains($contents, "LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);")) {
+            $contents = str_replace(
                 "LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);",
                 "LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);",
-                'ephemeral boot failure unlock'
+                $contents
             );
         }
 
-        if (! str_contains($contents, "LOGI(\"ephemeral_shutdown: done\");\n    pthread_mutex_unlock(&g_ephemeral_mutex);\n    pthread_mutex_unlock(&g_php_request_mutex);")) {
-            $contents = replace_or_fail(
-                $contents,
-                "LOGI(\"ephemeral_shutdown: done\");\n    pthread_mutex_unlock(&g_ephemeral_mutex);",
-                "LOGI(\"ephemeral_shutdown: done\");\n    pthread_mutex_unlock(&g_ephemeral_mutex);\n    pthread_mutex_unlock(&g_php_request_mutex);",
-                'ephemeral shutdown request mutex unlock'
+        // 8. Fix invalid module startup in hot paths (SIGSEGV cause)
+        $hotPathStartup = <<<'C'
+        if (php_embed_module.startup(&php_embed_module) == FAILURE) {
+            LOGE("ephemeral_embed_init: module startup failed");
+            return FAILURE;
+        }
+C;
+        $contents = str_replace($hotPathStartup, '', $contents);
+
+        $workerStartup = <<<'C'
+    // php_module_startup() is guarded by module_initialized — it won't re-init
+    // but it will call sapi_activate() for this thread's context
+    if (php_embed_module.startup(&php_embed_module) == FAILURE) {
+        LOGE("worker_embed_init: module startup failed");
+        return FAILURE;
+    }
+C;
+        $contents = str_replace($workerStartup, '', $contents);
+
+        // 9. Fix more mutex leaks in boot error paths
+        if (str_contains($contents, "if (worker_embed_init() != SUCCESS) {\n        LOGE(\"worker_boot: worker_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_worker_mutex);")
+            && ! str_contains($contents, "if (worker_embed_init() != SUCCESS) {\n        LOGE(\"worker_boot: worker_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_worker_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);")) {
+            $contents = str_replace(
+                "if (worker_embed_init() != SUCCESS) {\n        LOGE(\"worker_boot: worker_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_worker_mutex);",
+                "if (worker_embed_init() != SUCCESS) {\n        LOGE(\"worker_boot: worker_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_worker_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);",
+                $contents
+            );
+        }
+
+        if (str_contains($contents, "if (ephemeral_embed_init() != SUCCESS) {\n        LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);")
+            && ! str_contains($contents, "if (ephemeral_embed_init() != SUCCESS) {\n        LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);")) {
+            $contents = str_replace(
+                "if (ephemeral_embed_init() != SUCCESS) {\n        LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);",
+                "if (ephemeral_embed_init() != SUCCESS) {\n        LOGE(\"ephemeral_boot: ephemeral_embed_init() FAILED\");\n        (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);\n        pthread_mutex_unlock(&g_ephemeral_mutex);\n        pthread_mutex_unlock(&g_php_request_mutex);",
+                $contents
             );
         }
 
@@ -550,7 +675,7 @@ KOTLIN;
         val future = phpExecutor.submit<Unit> {
             persistentBooted = false
             persistentMode = false
-            Log.w(TAG, "Persistent runtime native shutdown skipped to avoid PHP embed teardown abort")
+            Log.w(TAG, "Persistent runtime state cleared (native shutdown skipped to avoid PHP embed teardown abort)")
         }
 KOTLIN;
 
@@ -906,7 +1031,7 @@ try {
     patch_mobile_firebase_android_service();
     patch_mobile_background_tasks_scheduler_lock();
     patch_mobile_firebase_ephemeral_lock();
-    patch_mobile_ephemeral_native_mutex();
+    patch_mobile_native_mutexes();
     patch_mobile_background_initializer();
     patch_mobile_debug_extraction_marker();
     patch_mobile_debug_bundle_exclusions();

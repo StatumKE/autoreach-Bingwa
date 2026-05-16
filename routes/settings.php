@@ -13,6 +13,7 @@ Route::get('settings/device/hardware/{primaryTransactionSim}/{smsAutoReplySim}',
 Route::post('settings/device', [DeviceSettingsController::class, 'updateIdentity'])->middleware(['auth'])->name('device.identity.update');
 Route::post('settings/device/hardware/{primaryTransactionSim}/{smsAutoReplySim}', [DeviceSettingsController::class, 'updateHardware'])->middleware(['auth'])->name('device.hardware.update.path');
 Route::post('settings/device/hardware', [DeviceSettingsController::class, 'updateHardware'])->middleware(['auth'])->name('device.hardware.update');
+Route::get('settings/device/technical', fn () => redirect()->route('device.edit'))->middleware(['auth'])->name('device.technical.fallback');
 Route::post('settings/device/technical', [DeviceSettingsController::class, 'updateTechnical'])->middleware(['auth'])->name('device.technical.update');
 Route::post('settings/device/permissions', [DeviceSettingsController::class, 'requestPermissions'])->middleware(['auth'])->name('device.permissions');
 

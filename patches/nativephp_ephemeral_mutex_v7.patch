@@ -1,0 +1,173 @@
+--- a/vendor/nativephp/mobile/resources/androidstudio/app/src/main/cpp/php_bridge.c
++++ b/vendor/nativephp/mobile/resources/androidstudio/app/src/main/cpp/php_bridge.c
+@@ -1035,6 +1035,7 @@
+         return -1;
+     }
+ 
++    pthread_mutex_lock(&g_php_request_mutex);
+     pthread_mutex_lock(&g_worker_mutex);
+ 
+     if (worker_initialized) {
+@@ -1042,6 +1043,7 @@
+         pthread_mutex_unlock(&g_worker_mutex);
+         return 0;
+     }
++    pthread_mutex_unlock(&g_php_request_mutex);
+ 
+     const char *bootstrapPath = (*env)->GetStringUTFChars(env, jBootstrapPath, NULL);
+     LOGI("worker_boot: initializing with bootstrap=%s", bootstrapPath);
+@@ -1049,15 +1051,19 @@
+     clear_collected_output();
+ 
+     // Set PHP_SELF before boot so $_SERVER['PHP_SELF'] is available during bootstrap
++    pthread_mutex_lock(&g_php_request_mutex);
+     setenv("PHP_SELF", "artisan.php", 1);
+     setenv("APP_RUNNING_IN_CONSOLE", "true", 1);
++    pthread_mutex_unlock(&g_php_request_mutex);
+ 
++    pthread_mutex_lock(&g_php_request_mutex);
+     if (worker_embed_init() != SUCCESS) {
+         LOGE("worker_boot: worker_embed_init() FAILED");
+         (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);
+-        pthread_mutex_unlock(&g_worker_mutex);
++        pthread_mutex_unlock(&g_php_request_mutex);
+         return -1;
+     }
++    pthread_mutex_unlock(&g_php_request_mutex);
+ 
+     // Execute the persistent bootstrap script to boot Laravel on worker thread
+     zend_first_try {
+@@ -1086,6 +1092,7 @@
+  * Uses the worker's own TSRM context — does not touch the main thread's mutex.
+  */
+ JNIEXPORT jstring JNICALL native_worker_artisan(JNIEnv *env, jobject thiz, jstring jCommand) {
++    pthread_mutex_lock(&g_php_request_mutex);
+     pthread_mutex_lock(&g_worker_mutex);
+ 
+     if (!worker_initialized) {
+@@ -1124,6 +1131,7 @@
+ 
+     char *worker_output = get_collected_output();
+     jstring result = (*env)->NewStringUTF(env, worker_output ? worker_output : "");
++    pthread_mutex_unlock(&g_php_request_mutex);
+     pthread_mutex_unlock(&g_worker_mutex);
+     return result;
+ }
+@@ -1133,6 +1141,7 @@
+  * Called when the queue worker thread is stopping.
+  */
+ JNIEXPORT void JNICALL native_worker_shutdown(JNIEnv *env, jobject thiz) {
++    pthread_mutex_lock(&g_php_request_mutex);
+     pthread_mutex_lock(&g_worker_mutex);
+ 
+     if (!worker_initialized) {
+@@ -1152,6 +1161,7 @@
+ 
+     LOGI("worker_shutdown: done");
+     pthread_mutex_unlock(&g_worker_mutex);
++    pthread_mutex_unlock(&g_php_request_mutex);
+ }
+ 
+ // ============================================================================
+@@ -1271,6 +1281,7 @@
+ 
+     LOGI("ephemeral_boot: ephemeral PHP interpreter ready");
+ 
++    pthread_mutex_unlock(&g_php_request_mutex);
+     (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);
+     pthread_mutex_unlock(&g_ephemeral_mutex);
+     return 0;
+@@ -1278,6 +1289,7 @@
+ }
+ 
+ JNIEXPORT jstring JNICALL native_ephemeral_artisan(JNIEnv *env, jobject thiz, jstring jCommand) {
++    pthread_mutex_lock(&g_php_request_mutex);
+     pthread_mutex_lock(&g_ephemeral_mutex);
+ 
+     if (!ephemeral_initialized) {
+@@ -1292,20 +1304,60 @@
+ 
+     setenv("APP_RUNNING_IN_CONSOLE", "true", 1);
+     setenv("PHP_SELF", "artisan.php", 1);
++    setenv("NATIVEPHP_RUNNING", "true", 1);
+ 
+     char eval_code[4096];
+     snprintf(eval_code, sizeof(eval_code),
+         "try {\n"
++        "    // Clean PHP output buffers from previous dispatch\n"
++        "    while (ob_get_level() > 0) { ob_end_clean(); }\n"
++        "\n"
++        "    // Sync $_SERVER from current env\n"
++        "    foreach (getenv() as $__k => $__v) {\n"
++        "        $_SERVER[$__k] = $__v;\n"
++        "    }\n"
+         "    $_SERVER['PHP_SELF'] = 'artisan.php';\n"
+         "    $_SERVER['APP_RUNNING_IN_CONSOLE'] = 'true';\n"
++        "    $_SERVER['HTTP_HOST'] = '127.0.0.1';\n"
++        "    $_SERVER['SERVER_NAME'] = '127.0.0.1';\n"
++        "    $_SERVER['SERVER_PORT'] = '80';\n"
++        "    $_SERVER['APP_URL'] = 'http://127.0.0.1';\n"
++        "    $_SERVER['NATIVEPHP_RUNNING'] = 'true';\n"
++        "\n"
++        "    if (!isset($_SERVER['argv'])) {\n"
++        "        $_SERVER['argv'] = ['artisan', '%s'];\n"
++        "        $_SERVER['argc'] = 2;\n"
++        "    }\n"
++        "\n"
+         "    echo \\Native\\Mobile\\Runtime::artisan('%s');\n"
+         "} catch (\\Throwable $e) {\n"
+-        "    echo 'Ephemeral artisan error: ' . $e->getMessage();\n"
++        "    echo 'Ephemeral artisan error: ' . $e->getMessage() . \"\\n\";\n"
++        "    echo $e->getTraceAsString();\n"
+         "}\n",
+-        command);
++        command, command);
+ 
+     zend_first_try {
+-        zend_eval_string(eval_code, NULL, "ephemeral_artisan");
++        // If cold booted, we need to activate modules since we did a full init
++        if (ephemeral_cold_booted) {
++            zend_activate_modules();
++        }
++        
++        // Ensure global state for Artisan is set up
++        zend_eval_string(
++            "if (!defined('STDOUT')) define('STDOUT', fopen('php://output', 'w'));\n"
++            "if (!defined('STDERR')) define('STDERR', fopen('php://output', 'w'));",
++            NULL, "std_streams"
++        );
++
++        // Repopulate autoglobals from env vars before dispatch
++        // This is necessary because getenv() in PHP might be stale relative to C setenv()
++        // if the interpreter was already initialized.
++        zend_eval_string(
++            "foreach(getenv() as $k=>$v) { $_SERVER[$k] = $v; }",
++            NULL, "sync_env"
++        );
++
++        zend_eval_string(eval_code, NULL, "ephemeral_artisan");
+     } zend_end_try();
+ 
+     setenv("APP_RUNNING_IN_CONSOLE", "false", 1);
+@@ -1314,11 +1366,13 @@
+ 
+     char *ephemeral_output = get_collected_output();
+     jstring result = (*env)->NewStringUTF(env, ephemeral_output ? ephemeral_output : "");
++    pthread_mutex_unlock(&g_php_request_mutex);
+     pthread_mutex_unlock(&g_ephemeral_mutex);
+     return result;
+ }
+ 
+ JNIEXPORT void JNICALL native_ephemeral_shutdown(JNIEnv *env, jobject thiz) {
++    pthread_mutex_lock(&g_php_request_mutex);
+     pthread_mutex_lock(&g_ephemeral_mutex);
+ 
+     if (!ephemeral_initialized) {
+@@ -1338,6 +1392,7 @@
+ 
+     LOGI("ephemeral_shutdown: done");
+     pthread_mutex_unlock(&g_ephemeral_mutex);
++    pthread_mutex_unlock(&g_php_request_mutex);
+ }
+ 
+ static JNINativeMethod gMethods[] = {

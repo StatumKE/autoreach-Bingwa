@@ -116,7 +116,7 @@
     "extra": {
         "patches": {
             "nativephp/mobile": {
-                "Fix NativePHP background thread concurrent initialization crash": "patches/nativephp_ephemeral_mutex_v5.patch"
+                "Fix NativePHP background thread concurrent initialization crash": "patches/nativephp_ephemeral_mutex_v7.patch"
             }
         }
     },

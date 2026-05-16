@@ -1,5 +1,5 @@
---- vendor/nativephp/mobile/resources/androidstudio/app/src/main/cpp/php_bridge.c	2026-05-09 23:16:30
-+++ patches/php_bridge.c	2026-05-15 12:18:25
+--- a/resources/androidstudio/app/src/main/cpp/php_bridge.c	2026-05-09 23:16:30
++++ b/resources/androidstudio/app/src/main/cpp/php_bridge.c	2026-05-15 12:18:25
 @@ -4,6 +4,7 @@
  #include <pthread.h>
  #include <errno.h>

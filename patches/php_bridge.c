@@ -1287,10 +1287,13 @@ JNIEXPORT jstring JNICALL native_ephemeral_artisan(JNIEnv *env, jobject thiz, js
     clear_collected_output();
 
     setenv("APP_RUNNING_IN_CONSOLE", "true", 1);
+    setenv("PHP_SELF", "artisan.php", 1);
 
     char eval_code[4096];
     snprintf(eval_code, sizeof(eval_code),
         "try {\n"
+        "    $_SERVER['PHP_SELF'] = 'artisan.php';\n"
+        "    $_SERVER['APP_RUNNING_IN_CONSOLE'] = 'true';\n"
         "    echo \\Native\\Mobile\\Runtime::artisan('%s');\n"
         "} catch (\\Throwable $e) {\n"
         "    echo 'Ephemeral artisan error: ' . $e->getMessage();\n"

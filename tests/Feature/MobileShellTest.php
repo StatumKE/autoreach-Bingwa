@@ -162,7 +162,7 @@ test('the native php hotfix script preserves the coordinator crash fix', functio
         ->toContain('patch_mobile_action_coordinator')
         ->toContain('patch_mobile_background_tasks_scheduler_lock')
         ->toContain('patch_mobile_firebase_ephemeral_lock')
-        ->toContain('patch_mobile_ephemeral_native_mutex')
+        ->toContain('patch_mobile_native_mutexes')
         ->toContain('patch_mobile_security_csrf_header')
         ->toContain('patch_mobile_webview_csrf_bridge')
         ->toContain('commitNowAllowingStateLoss()')

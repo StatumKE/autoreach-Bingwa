@@ -354,22 +354,23 @@ async function submitNativeForm(form, submitButton = null) {
         const currentUrl = normalizedPageUrl(window.location.href);
         const nextUrl = normalizedPageUrl(responseUrl);
 
-        if (nextUrl && nextUrl !== currentUrl) {
-            window.location.replace(responseUrl);
-
-            return true;
-        }
-
-        queuePendingScrollRestore(responseUrl);
-
         if (responseUrl) {
+            queuePendingScrollRestore(responseUrl);
+
             try {
-                window.history.replaceState(window.history.state, '', responseUrl);
+                // Update history state so the URL bar reflects the final destination
+                if (nextUrl !== currentUrl) {
+                    window.history.pushState(null, '', responseUrl);
+                } else {
+                    window.history.replaceState(window.history.state, '', responseUrl);
+                }
             } catch {
-                // Ignore history updates that are blocked by the web view.
+                // Ignore history updates blocked by the web view.
             }
         }
 
+        // Directly write the HTML to the document instead of using location.replace
+        // to avoid redundant GET requests to POST routes.
         document.open();
         document.write(html);
         document.close();

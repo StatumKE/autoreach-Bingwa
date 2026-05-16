@@ -35,7 +35,7 @@
             </div>
 
             <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-                <form method="POST" action="{{ route('device.identity.update') }}" class="space-y-6">
+                <form id="form-device-identity" method="POST" action="{{ route('device.identity.update') }}" class="space-y-6">
                     @csrf
 
                     <div class="flex items-center justify-between gap-4">
@@ -93,6 +93,7 @@
 
             <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
                 <form
+                    id="form-device-hardware"
                     method="POST"
                     action="{{ route('device.hardware.update.path', [
                         'primaryTransactionSim' => $primaryTransactionSim,
@@ -173,7 +174,7 @@
             </article>
 
             <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-                <form method="POST" action="{{ route('device.technical.update') }}" class="space-y-6">
+                <form id="form-device-technical" method="POST" action="{{ route('device.technical.update') }}" class="space-y-6">
                     @csrf
 
                     <div class="flex items-center justify-between gap-4">

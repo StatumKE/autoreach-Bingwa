@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\ProcessBingwaQueuedTransactionsJob;
+use App\Actions\Autoreach\DispatchBingwaQueuedTransactionsJob;
 use App\Models\Offer;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
@@ -10,6 +10,8 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Quick Dial')] class extends Component {
+    public bool $loaded = false;
+
     public string $customerPhone = '';
 
     public ?string $awardMessage = null;
@@ -17,6 +19,14 @@ new #[Title('Quick Dial')] class extends Component {
     public ?string $awardError = null;
 
     public ?int $selectedOfferId = null;
+
+    /**
+     * Load the available offers after the initial shell renders.
+     */
+    public function loadPage(): void
+    {
+        $this->loaded = true;
+    }
 
     /**
      * Clear the manual customer details.
@@ -116,10 +126,12 @@ new #[Title('Quick Dial')] class extends Component {
             'processed_at' => null,
         ]);
 
-        ProcessBingwaQueuedTransactionsJob::dispatch((int) Auth::id());
+        $processingStarted = app(DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) Auth::id());
 
         $this->selectedOfferId = null;
-        $this->awardMessage = __('Award queued through :offer.', ['offer' => $offer->name]);
+        $this->awardMessage = $processingStarted
+            ? __('Award queued through :offer.', ['offer' => $offer->name])
+            : __('Award queued through :offer. Processing is paused.', ['offer' => $offer->name]);
         $this->awardError = null;
     }
 
@@ -132,7 +144,7 @@ new #[Title('Quick Dial')] class extends Component {
             ->orderBy('category')
             ->orderBy('price')
             ->orderBy('name')
-            ->get();
+            ->get(['id', 'name', 'category', 'price', 'ussd_code']);
     }
 
     #[Computed]
@@ -170,7 +182,11 @@ new #[Title('Quick Dial')] class extends Component {
     }
 }; ?>
 
-<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3" wire:init="loadPage">
+    @php
+        $offers = $this->loaded ? $this->activeOffers : collect();
+    @endphp
+
     <div class="flex flex-col gap-3">
         <div class="px-1">
             <div class="text-xl font-bold text-zinc-900">{{ __('Quick Dial') }}</div>
@@ -230,7 +246,20 @@ new #[Title('Quick Dial')] class extends Component {
                 </div>
             @endif
 
-            @if ($this->activeOffers->isEmpty())
+            @if (! $this->loaded)
+                <div class="divide-y divide-zinc-200">
+                    @for ($i = 0; $i < 4; $i++)
+                        <article class="flex items-center justify-between gap-4 px-8 py-6">
+                            <div class="min-w-0 flex-1">
+                                <div class="h-4 w-40 animate-pulse rounded bg-zinc-100"></div>
+                                <div class="mt-3 h-3 w-24 animate-pulse rounded bg-zinc-100"></div>
+                            </div>
+
+                            <div class="h-12 w-24 animate-pulse rounded-[1.25rem] bg-zinc-100"></div>
+                        </article>
+                    @endfor
+                </div>
+            @elseif ($offers->isEmpty())
                 <div class="px-8 py-16 text-center">
                     <div class="text-sm font-black text-zinc-600 uppercase tracking-widest italic">
                         {{ __('No active offers found.') }}
@@ -238,7 +267,7 @@ new #[Title('Quick Dial')] class extends Component {
                 </div>
             @else
                 <div class="divide-y divide-zinc-200">
-                    @foreach ($this->activeOffers as $offer)
+                    @foreach ($offers as $offer)
                         <article class="flex items-center justify-between gap-4 px-8 py-6 transition-colors hover:bg-zinc-50/80">
                             <div class="min-w-0">
                                 <div class="truncate text-base font-black text-zinc-950 tracking-tight">{{ $offer->name }}</div>
@@ -275,7 +304,7 @@ new #[Title('Quick Dial')] class extends Component {
 
     @if ($selectedOfferId !== null)
         @php
-            $selectedOffer = $this->activeOffers->firstWhere('id', $selectedOfferId);
+            $selectedOffer = $this->loaded ? $offers->firstWhere('id', $selectedOfferId) : null;
         @endphp
 
         @if ($selectedOffer instanceof \App\Models\Offer)

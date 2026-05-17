@@ -1,10 +1,13 @@
 <?php
 
-use App\Jobs\ProcessBingwaQueuedTransactionsJob;
+use App\Actions\Autoreach\DispatchBingwaQueuedTransactionsJob;
 use App\Models\Transaction;
+use App\Models\DeviceSetting;
+use App\Support\AppTimezone;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -18,6 +21,13 @@ new #[Title('Transactions')] class extends Component
 
     public int $refreshKey = 0;
 
+    /**
+     * Selected transaction IDs for batch retry.
+     *
+     * @var array<int, int|string>
+     */
+    public array $selectedIds = [];
+
     #[Url(as: 'q')]
     public string $search = '';
 
@@ -25,6 +35,10 @@ new #[Title('Transactions')] class extends Component
     public string $filter = 'all';
 
     public ?string $errorMessage = null;
+
+    public bool $showTransactionDetails = false;
+
+    public ?int $selectedTransactionId = null;
 
     /**
      * Retry a failed or pending transaction by returning it to the queue.
@@ -49,27 +63,76 @@ new #[Title('Transactions')] class extends Component
             return;
         }
 
-        $transaction->update([
-            'status' => 'queued',
-            'status_desc' => __('Retry requested from the Transactions page.'),
-            'processed_at' => null,
-            'auto_reply_id' => null,
-            'auto_reply_trigger_condition' => null,
-            'auto_reply_message' => null,
-            'auto_reply_recipient_phone' => null,
-            'auto_reply_sim_slot' => null,
-            'auto_reply_status' => null,
-            'auto_reply_attempts' => 0,
-            'auto_reply_sent_at' => null,
-            'auto_reply_failed_at' => null,
-            'auto_reply_failure_reason' => null,
-        ]);
+        $transaction->update($this->retryPayload());
 
-        ProcessBingwaQueuedTransactionsJob::dispatch(Auth::id());
+        $processingStarted = app(DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) Auth::id());
 
+        $this->selectedIds = [];
         $this->resetPage();
 
-        Flux::toast(variant: 'success', text: __('Transaction queued and processing started.'));
+        Flux::toast(
+            variant: 'success',
+            text: $processingStarted
+                ? __('Transaction queued and processing started.')
+                : __('Transaction queued. Processing is paused.')
+        );
+    }
+
+    /**
+     * Retry the selected transactions in one batch.
+     */
+    public function retrySelectedTransactions(): void
+    {
+        $this->errorMessage = null;
+
+        $selectedIds = $this->normalizedSelectedIds();
+
+        if ($selectedIds === []) {
+            $this->errorMessage = __('Please select one or more retryable transactions.');
+
+            return;
+        }
+
+        $retryableIds = Transaction::query()
+            ->where('user_id', Auth::id())
+            ->whereIn('id', $selectedIds)
+            ->get()
+            ->filter(fn (Transaction $transaction): bool => $this->canRetryTransaction($transaction))
+            ->pluck('id')
+            ->all();
+
+        if ($retryableIds === []) {
+            $this->errorMessage = __('Only failed or pending transactions can be retried.');
+
+            return;
+        }
+
+        $updatedCount = Transaction::query()
+            ->where('user_id', Auth::id())
+            ->whereIn('id', $retryableIds)
+            ->update($this->retryPayload());
+
+        if ($updatedCount === 0) {
+            $this->errorMessage = __('Only failed or pending transactions can be retried.');
+
+            return;
+        }
+
+        $processingStarted = app(DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) Auth::id());
+
+        $this->selectedIds = [];
+        $this->resetPage();
+
+        Flux::toast(
+            variant: 'success',
+            text: $updatedCount === 1
+                ? ($processingStarted
+                    ? __('1 transaction queued and processing started.')
+                    : __('1 transaction queued. Processing is paused.'))
+                : ($processingStarted
+                    ? __(':count transactions queued and processing started.', ['count' => $updatedCount])
+                    : __(':count transactions queued. Processing is paused.', ['count' => $updatedCount]))
+        );
     }
 
     /**
@@ -82,11 +145,36 @@ new #[Title('Transactions')] class extends Component
                 '--user-id' => Auth::id(),
             ]);
 
-            Flux::toast(variant: 'success', text: __('Transactions synced and processed.'));
+            $processingEnabled = DeviceSetting::isTransactionProcessingEnabledForUser((int) Auth::id());
+
+            Flux::toast(
+                variant: 'success',
+                text: $processingEnabled
+                    ? __('Transactions synced and queued for processing.')
+                    : __('Transactions synced and queued. Processing is paused.')
+            );
         } catch (\Throwable $e) {
             Log::error('Manual sync failed: ' . $e->getMessage());
             $this->errorMessage = __('Failed to sync transactions. Please try again.');
         }
+    }
+
+    /**
+     * Open a transaction details modal for the selected transaction.
+     */
+    public function openTransactionDetails(int $transactionId): void
+    {
+        $this->selectedTransactionId = $transactionId;
+        $this->showTransactionDetails = true;
+    }
+
+    /**
+     * Close the transaction details modal and clear the selection.
+     */
+    public function closeTransactionDetails(): void
+    {
+        $this->showTransactionDetails = false;
+        $this->selectedTransactionId = null;
     }
 
     /**
@@ -95,6 +183,24 @@ new #[Title('Transactions')] class extends Component
     public function loadTransactions(): void
     {
         $this->loaded = true;
+    }
+
+    /**
+     * Reset pagination and clear selection when the search changes.
+     */
+    public function updatedSearch(): void
+    {
+        $this->selectedIds = [];
+        $this->resetPage();
+    }
+
+    /**
+     * Reset pagination and clear selection when the filter changes.
+     */
+    public function updatedFilter(): void
+    {
+        $this->selectedIds = [];
+        $this->resetPage();
     }
 
     /**
@@ -107,6 +213,7 @@ new #[Title('Transactions')] class extends Component
         }
 
         return Transaction::query()
+            ->with(['offer:id,name,ussd_code,ussd_mode'])
             ->where('user_id', Auth::id())
             ->when($this->filter !== 'all', function ($query) {
                 $status = $this->filter === 'success' ? 'completed' : $this->filter;
@@ -125,6 +232,22 @@ new #[Title('Transactions')] class extends Component
     }
 
     /**
+     * Get the selected transaction with its detailed context.
+     */
+    #[Computed]
+    public function selectedTransaction(): ?Transaction
+    {
+        if ($this->selectedTransactionId === null) {
+            return null;
+        }
+
+        return Transaction::query()
+            ->with(['offer:id,name,ussd_code,ussd_mode'])
+            ->where('user_id', Auth::id())
+            ->find($this->selectedTransactionId);
+    }
+
+    /**
      * Format matched offer details for a mobile-friendly display.
      */
     public function matchedOfferSummary(mixed $matchedOffer): string
@@ -140,6 +263,49 @@ new #[Title('Transactions')] class extends Component
     }
 
     /**
+     * Resolve the display label for the app product matched to a transaction.
+     */
+    public function transactionProductLabel(Transaction $transaction): string
+    {
+        return $transaction->offer?->name
+            ?? ($transaction->matched_offer['offer_name'] ?? $transaction->offer_name ?? '—');
+    }
+
+    /**
+     * Resolve the final USSD code sent to the device.
+     */
+    public function resolvedUssdCode(Transaction $transaction): string
+    {
+        $ussdCode = (string) ($transaction->offer?->ussd_code ?? '');
+
+        if ($ussdCode === '') {
+            return '—';
+        }
+
+        return str_replace('PN', (string) $transaction->sender_phone, $ussdCode);
+    }
+
+    /**
+     * Format a scalar or array value for the detail panel.
+     */
+    public function formatDetailValue(mixed $value): string
+    {
+        if (is_array($value)) {
+            return json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '—';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        return (string) $value;
+    }
+
+    /**
      * Determine whether the transaction can be retried from the UI.
      */
     public function canRetryTransaction(Transaction $transaction): bool
@@ -147,6 +313,43 @@ new #[Title('Transactions')] class extends Component
         $status = strtolower(trim((string) $transaction->status));
 
         return in_array($status, ['failed', 'pending', ''], true);
+    }
+
+    /**
+     * Return the payload used when queueing a transaction for retry.
+     *
+     * @return array<string, mixed>
+     */
+    private function retryPayload(): array
+    {
+        return [
+            'status' => 'queued',
+            'status_desc' => __('Retry requested from the Transactions page.'),
+            'processed_at' => null,
+            'auto_reply_id' => null,
+            'auto_reply_trigger_condition' => null,
+            'auto_reply_message' => null,
+            'auto_reply_recipient_phone' => null,
+            'auto_reply_sim_slot' => null,
+            'auto_reply_status' => null,
+            'auto_reply_attempts' => 0,
+            'auto_reply_sent_at' => null,
+            'auto_reply_failed_at' => null,
+            'auto_reply_failure_reason' => null,
+        ];
+    }
+
+    /**
+     * Normalize selected IDs to a unique integer list.
+     *
+     * @return array<int, int>
+     */
+    private function normalizedSelectedIds(): array
+    {
+        return array_values(array_unique(array_map(
+            static fn (int|string $selectedId): int => (int) $selectedId,
+            $this->selectedIds
+        )));
     }
 };
 ?>
@@ -216,6 +419,41 @@ new #[Title('Transactions')] class extends Component
         </div>
     </div>
 
+    @if ($this->loaded && ! empty($this->selectedIds))
+        <div class="flex items-center justify-between gap-3 rounded-xl bg-green-50 px-4 py-3 ring-1 ring-green-100">
+            <div class="text-sm font-bold text-green-800">
+                {{ count($this->selectedIds) === 1 ? __('1 transaction selected') : __(':count transactions selected', ['count' => count($this->selectedIds)]) }}
+            </div>
+
+            <div class="flex items-center gap-2">
+                <flux:button
+                    type="button"
+                    variant="ghost"
+                    wire:click="retrySelectedTransactions"
+                    wire:loading.attr="disabled"
+                    class="app-secondary-button !h-8 px-3 text-[10px] font-bold uppercase tracking-widest"
+                >
+                    <span wire:loading.remove wire:target="retrySelectedTransactions">
+                        {{ __('Retry Selected') }}
+                    </span>
+                    <span wire:loading wire:target="retrySelectedTransactions" class="inline-flex items-center gap-1.5">
+                        <flux:icon.loading variant="mini" class="size-3" />
+                        {{ __('Retrying…') }}
+                    </span>
+                </flux:button>
+
+                <flux:button
+                    type="button"
+                    variant="ghost"
+                    wire:click="$set('selectedIds', [])"
+                    class="app-secondary-button !h-8 px-3 text-[10px] font-bold uppercase tracking-widest"
+                >
+                    {{ __('Clear') }}
+                </flux:button>
+            </div>
+        </div>
+    @endif
+
     @if (! $this->loaded)
         <div class="flex flex-col gap-4">
             @for ($i = 0; $i < 4; $i++)
@@ -249,30 +487,43 @@ new #[Title('Transactions')] class extends Component
                     $status = strtolower((string) ($transaction->status ?? ''));
                     $isSuccess = in_array($status, ['completed', 'successful']);
                     $isFailed = $status === 'failed';
-                    $delay = ($loop->index * 60) + 100;
                 @endphp
-                <article 
+                <article
+                    wire:key="transaction-{{ $transaction->id }}"
+                    wire:click="openTransactionDetails({{ $transaction->id }})"
+                    role="button"
+                    tabindex="0"
                     @class([
-                        'group relative rounded-xl bg-white p-2 shadow-sm ring-1 transition hover:ring-green-500/30',
+                        'group relative rounded-xl bg-white p-2 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:ring-green-500/30 cursor-pointer',
                         'ring-green-500/50 bg-green-50/10' => in_array($transaction->id, $this->selectedIds ?? []),
                         'ring-zinc-200' => ! in_array($transaction->id, $this->selectedIds ?? []),
                     ])
                 >
                     <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <label
+                                x-on:click.stop
+                                @class([
+                                'relative flex items-center',
+                                'cursor-pointer' => $this->canRetryTransaction($transaction),
+                                'cursor-not-allowed opacity-40' => ! $this->canRetryTransaction($transaction),
+                            ])>
+                                <input
+                                    type="checkbox"
+                                    wire:model.live="selectedIds"
+                                    value="{{ $transaction->id }}"
+                                    @disabled(! $this->canRetryTransaction($transaction))
+                                    class="peer sr-only"
+                                >
+                                <div @class([
+                                    'flex size-4 items-center justify-center rounded border-2 bg-white transition-all',
+                                    'border-zinc-200' => ! in_array($transaction->id, $this->selectedIds ?? []),
+                                    'border-green-600 bg-green-600' => in_array($transaction->id, $this->selectedIds ?? []),
+                                ])>
+                                    <flux:icon.check variant="mini" class="size-3 text-white scale-0 transition-transform peer-checked:scale-100" />
+                                </div>
+                            </label>
                             <div class="flex items-center gap-2">
-                                <label class="relative flex items-center cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        wire:model.live="selectedIds" 
-                                        value="{{ $transaction->id }}"
-                                        class="peer sr-only"
-                                    >
-                                    <div class="size-4 rounded border-2 border-zinc-200 bg-white transition-all peer-checked:border-green-600 peer-checked:bg-green-600 flex items-center justify-center">
-                                        <flux:icon.check variant="mini" class="size-3 text-white scale-0 transition-transform peer-checked:scale-100" />
-                                    </div>
-                                </label>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs font-bold text-zinc-900">#{{ $transaction->id }}</span>
                                 <span @class([
                                     'inline-flex items-center rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest',
                                     'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400' => $isSuccess,
@@ -283,7 +534,7 @@ new #[Title('Transactions')] class extends Component
                                     {{ blank($transaction->status) ? __('Pending') : $transaction->status }}
                                 </span>
                             </div>
-                            
+
                             <div class="flex items-center gap-2 text-xs font-medium text-zinc-700">
                                 @if ($transaction->sender_name || $transaction->sender_phone)
                                     <span>{{ $transaction->sender_name ?: $transaction->sender_phone }}</span>
@@ -296,7 +547,7 @@ new #[Title('Transactions')] class extends Component
                             </div>
                         </div>
 
-                        <div class="flex flex-col items-end gap-0.5">
+                        <div class="flex min-w-0 flex-col items-end gap-0.5 text-right">
                             <div @class([
                                 'text-xs font-bold tracking-tight',
                                 'text-green-600' => $isSuccess,
@@ -304,8 +555,8 @@ new #[Title('Transactions')] class extends Component
                             ])>
                                 Ksh {{ number_format((float) ($transaction->amount ?? 0)) }}
                             </div>
-                            <span class="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">
-                                {{ $transaction->occurred_at?->format('H:i, M j') ?? '—' }}
+                            <span class="text-[9px] font-bold text-zinc-400 uppercase tracking-widest whitespace-nowrap">
+                                {{ AppTimezone::format($transaction->occurred_at, 'H:i, M j') }}
                             </span>
                         </div>
                     </div>
@@ -319,10 +570,10 @@ new #[Title('Transactions')] class extends Component
                         @endif
                         
 
-                        @if ($transaction->offer_name)
+                        @if ($this->transactionProductLabel($transaction) !== '—')
                             <span class="inline-flex items-center gap-1.5 rounded-md bg-zinc-50 px-1.5 py-0.5 text-[9px] font-bold text-zinc-600 ring-1 ring-zinc-200 dark:bg-zinc-800/50 dark:text-zinc-400 dark:ring-zinc-700/50">
                                 <span class="text-[7px] opacity-60 uppercase tracking-widest">{{ __('Product') }}</span>
-                                <span class="truncate max-w-[120px]">{{ $transaction->offer_name }}</span>
+                                <span class="truncate max-w-[120px]">{{ $this->transactionProductLabel($transaction) }}</span>
                             </span>
                         @endif
 
@@ -346,6 +597,7 @@ new #[Title('Transactions')] class extends Component
                             <flux:button
                                 type="button"
                                 variant="ghost"
+                                x-on:click.stop
                                 wire:click="retryTransaction({{ $transaction->id }})"
                                 wire:loading.attr="disabled"
                                 wire:target="retryTransaction({{ $transaction->id }})"
@@ -369,4 +621,98 @@ new #[Title('Transactions')] class extends Component
             </div>
         </div>
     @endif
+
+    <flux:modal
+        name="transaction-details"
+        wire:model.self="showTransactionDetails"
+        flyout
+        variant="floating"
+        position="right"
+        class="md:w-[38rem]"
+        @close="closeTransactionDetails"
+        scroll="body"
+    >
+        @php
+            $selectedTransaction = $this->selectedTransaction;
+        @endphp
+
+        @if ($selectedTransaction)
+            <div class="space-y-6">
+                <div class="space-y-2">
+                    <flux:heading size="lg">{{ __('Transaction #:id', ['id' => $selectedTransaction->id]) }}</flux:heading>
+                    <flux:text class="text-sm text-zinc-500">
+                        {{ $this->transactionProductLabel($selectedTransaction) }}
+                    </flux:text>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Status') }}</div>
+                        <div class="mt-1 text-sm font-bold text-zinc-900">{{ blank($selectedTransaction->status) ? __('Pending') : $selectedTransaction->status }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Amount') }}</div>
+                        <div class="mt-1 text-sm font-bold text-zinc-900">Ksh {{ number_format((float) $selectedTransaction->amount) }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Sender') }}</div>
+                        <div class="mt-1 text-sm font-bold text-zinc-900">{{ $selectedTransaction->sender_name ?: __('Unknown sender') }}</div>
+                        <div class="text-xs text-zinc-500">{{ $selectedTransaction->sender_phone }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('M-PESA Code') }}</div>
+                        <div class="mt-1 text-sm font-bold text-zinc-900">{{ $selectedTransaction->mpesa_code ?: '—' }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200 sm:col-span-2">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('USSD Code') }}</div>
+                        <div class="mt-1 font-mono text-sm font-bold text-zinc-900 break-all">{{ $this->resolvedUssdCode($selectedTransaction) }}</div>
+                        <div class="mt-1 text-xs text-zinc-500">{{ $selectedTransaction->offer?->ussd_mode ?: '—' }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200 sm:col-span-2">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Matched App Product') }}</div>
+                        <div class="mt-1 text-sm font-bold text-zinc-900">{{ $this->transactionProductLabel($selectedTransaction) }}</div>
+                        <div class="mt-1 text-xs text-zinc-500">{{ $selectedTransaction->offer_type ?: '—' }}</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div class="rounded-2xl bg-white p-4 ring-1 ring-zinc-200">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Occurred At') }}</div>
+                        <div class="mt-1 text-sm font-bold text-zinc-900">{{ AppTimezone::format($selectedTransaction->occurred_at) }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-white p-4 ring-1 ring-zinc-200">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Processed At') }}</div>
+                        <div class="mt-1 text-sm font-bold text-zinc-900">{{ AppTimezone::format($selectedTransaction->processed_at) }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-white p-4 ring-1 ring-zinc-200">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Created At') }}</div>
+                        <div class="mt-1 text-sm font-bold text-zinc-900">{{ AppTimezone::format($selectedTransaction->created_at) }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-white p-4 ring-1 ring-zinc-200">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Updated At') }}</div>
+                        <div class="mt-1 text-sm font-bold text-zinc-900">{{ AppTimezone::format($selectedTransaction->updated_at) }}</div>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('USSD Result') }}</div>
+                    <div class="rounded-2xl bg-zinc-50 p-4 text-sm leading-relaxed text-zinc-800 ring-1 ring-zinc-200">
+                        {{ $selectedTransaction->status_desc ?: __('—') }}
+                    </div>
+                </div>
+
+                @if ($selectedTransaction->balance)
+                    <div class="space-y-3">
+                        <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Balance Payload') }}</div>
+                        <pre class="overflow-x-auto rounded-2xl bg-zinc-950 p-4 text-[11px] leading-relaxed text-zinc-100 ring-1 ring-zinc-900">{{ $this->formatDetailValue($selectedTransaction->balance) }}</pre>
+                    </div>
+                @endif
+            </div>
+        @else
+            <div class="space-y-3">
+                <flux:heading size="lg">{{ __('Transaction details') }}</flux:heading>
+                <flux:text class="text-sm text-zinc-500">{{ __('Select a transaction to view the full USSD trail.') }}</flux:text>
+            </div>
+        @endif
+    </flux:modal>
 </div>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\AppTimezone;
 use App\Models\Plan;
 use App\Actions\Autoreach\FetchBingwaSubscriptionPlans;
 use App\Jobs\SyncRemoteSubscriptionPurchaseJob;
@@ -25,6 +26,8 @@ new #[Title('Subscriptions')] class extends Component {
 
     public bool $permissionRequestInFlight = false;
 
+    public bool $purchaseInFlight = false;
+
     public function mount(): void
     {
         $this->simSlot = Auth::user()->deviceSetting?->primary_transaction_sim === 'slot_2' ? 1 : 0;
@@ -33,24 +36,17 @@ new #[Title('Subscriptions')] class extends Component {
     /**
      * Load the plans after the page has rendered.
      */
-    public function loadPlans(): void
+    public function loadPlans(bool $forceRefresh = false): void
     {
         \Illuminate\Support\Facades\Log::debug('⚡ Livewire: loadPlans triggered');
-        
+
         $this->activePlan = Auth::user()->plans()->where('is_active', true)->first();
-        
-        // If we already have an active plan, we don't need to force a slow remote fetch
-        // unless the user manually clicks "Refresh".
-        if ($this->activePlan && ! $this->loaded) {
-            $this->loaded = true;
-            return;
-        }
 
         $this->loaded = true;
         $this->errorMessage = null;
 
         try {
-            $result = app(FetchBingwaSubscriptionPlans::class)->fetch(Auth::user());
+            $result = app(FetchBingwaSubscriptionPlans::class)->fetch(Auth::user(), $forceRefresh);
 
             $this->plans = $result['plans'];
             $this->sambazaLine = $result['sambaza_line'] ?? null;
@@ -64,11 +60,20 @@ new #[Title('Subscriptions')] class extends Component {
     }
 
     /**
+     * Force a fresh plans fetch and bypass the short cache window.
+     */
+    public function refreshPlans(): void
+    {
+        $this->loadPlans(true);
+    }
+
+    /**
      * Mark a plan as selected for the mobile flow.
      */
     public function selectPlan(int $planId): void
     {
         $this->selectedPlanId = $planId;
+        $this->purchaseInFlight = false;
     }
 
     /**
@@ -131,59 +136,81 @@ new #[Title('Subscriptions')] class extends Component {
             'sambazaLine' => $this->sambazaLine
         ]);
 
+        if ($this->purchaseInFlight) {
+            return;
+        }
+
         if ($this->activePlan) {
             $this->errorMessage = __('You already have an active subscription. Please wait for it to expire before purchasing another.');
             return;
         }
 
         $selectedPlan = collect($this->plans)->firstWhere('id', $this->selectedPlanId);
-        if (!$selectedPlan || !$this->sambazaLine) return;
+        if (! $selectedPlan || ! $this->sambazaLine) {
+            return;
+        }
+
+        $this->purchaseInFlight = true;
+        $this->errorMessage = null;
 
         $price = (int) ($selectedPlan['price'] ?? 0);
         $code = "*140*{$price}*{$this->sambazaLine}#";
+        $planId = (int) ($selectedPlan['id'] ?? 0);
 
         $simSlotInt = (int) $this->simSlot;
+        $codeJson = json_encode($code, JSON_UNESCAPED_SLASHES);
 
-        $this->js("
-            console.log('Initiating Sambaza:', { code: '{$code}', simSlot: {$simSlotInt} });
-            fetch('/_native/api/call', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]')?.content || ''
-                },
-                body: JSON.stringify({
-                    method: 'TriggerSambaza',
-                    params: { code: '{$code}', simSlot: {$simSlotInt} }
-                })
-            }).then(res => {
-                console.log('Sambaza response received:', res.status);
-                return res.json();
-            }).then(res => {
-                console.log('Sambaza decoded response:', res);
-                
-                // Unwrap nested data if present (BridgeRouter sometimes wraps twice)
-                let finalData = res.data || {};
-                if (finalData.data) finalData = finalData.data;
+        $script = <<<JS
+            (async () => {
+                try {
+                    const code = {$codeJson};
 
-                const message = (finalData.message || '').toLowerCase();
-                const isSuccess = (res.status === 'success' || finalData.status === 'success') && 
-                                 (finalData.success === true || message.includes('transferred') || message.includes('successful'));
+                    console.log('Initiating Sambaza:', { code, simSlot: {$simSlotInt} });
+                    const response = await fetch('/_native/api/call', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=\"csrf-token\"]')?.content || ''
+                        },
+                        body: JSON.stringify({
+                            method: 'TriggerSambaza',
+                            params: { code, simSlot: {$simSlotInt} }
+                        })
+                    });
 
-                if(isSuccess) {
-                    const paymentReference = finalData.payment_reference
-                        || finalData.paymentReference
-                        || finalData.transaction_reference
-                        || finalData.transactionReference
-                        || finalData.reference
-                        || null;
+                    console.log('Sambaza response received:', response.status);
+                    const res = await response.json();
+                    console.log('Sambaza decoded response:', res);
 
-                    \$wire.saveSubscription({$selectedPlan['id']}, paymentReference);
-                } else {
-                    \$wire.set('errorMessage', finalData.message || res.message || 'Unknown error');
+                    // Unwrap nested data if present (BridgeRouter sometimes wraps twice)
+                    let finalData = res.data || {};
+                    if (finalData.data) finalData = finalData.data;
+
+                    const message = (finalData.message || '').toLowerCase();
+                    const isSuccess = (res.status === 'success' || finalData.status === 'success') &&
+                                     (finalData.success === true || message.includes('transferred') || message.includes('successful'));
+
+                    if (isSuccess) {
+                        const paymentReference = finalData.payment_reference
+                            || finalData.paymentReference
+                            || finalData.transaction_reference
+                            || finalData.transactionReference
+                            || finalData.reference
+                            || null;
+
+                        await __WIRE__.saveSubscription({$planId}, paymentReference);
+                    } else {
+                        __WIRE__.set('errorMessage', finalData.message || res.message || 'Unknown error');
+                    }
+                } catch (e) {
+                    __WIRE__.set('errorMessage', 'Error communicating with device: ' + e.message);
+                } finally {
+                    __WIRE__.set('purchaseInFlight', false);
                 }
-            }).catch(e => \$wire.set('errorMessage', 'Error communicating with device: ' + e.message));
-        ");
+            })();
+        JS;
+
+        $this->js(str_replace('__WIRE__', '$wire', $script));
     }
 
     /**
@@ -192,7 +219,11 @@ new #[Title('Subscriptions')] class extends Component {
     public function saveSubscription(int $planId, ?string $paymentReference = null): void
     {
         $selectedPlan = collect($this->plans)->firstWhere('id', $planId);
-        if (!$selectedPlan) return;
+        if (! $selectedPlan) {
+            $this->purchaseInFlight = false;
+
+            return;
+        }
 
         $user = Auth::user();
 
@@ -226,6 +257,7 @@ new #[Title('Subscriptions')] class extends Component {
         );
         
         $this->selectedPlanId = null;
+        $this->purchaseInFlight = false;
     }
 
 };
@@ -238,16 +270,16 @@ new #[Title('Subscriptions')] class extends Component {
             <div class="text-xl font-bold text-zinc-900">{{ __('Subscriptions') }}</div>
             <button
                 type="button"
-                wire:click="loadPlans"
+                wire:click="refreshPlans"
                 wire:loading.attr="disabled"
-                wire:target="loadPlans"
+                wire:target="refreshPlans"
                 class="app-primary-button flex h-9 items-center gap-2 px-4 text-[10px] font-bold uppercase tracking-widest transition active:scale-95"
             >
-                <span wire:loading.remove wire:target="loadPlans" class="inline-flex items-center gap-2">
+                <span wire:loading.remove wire:target="refreshPlans" class="inline-flex items-center gap-2">
                     <flux:icon.arrow-path class="size-3.5" />
                     {{ __('Refresh') }}
                 </span>
-                <span wire:loading wire:target="loadPlans" class="inline-flex items-center gap-2">
+                <span wire:loading wire:target="refreshPlans" class="inline-flex items-center gap-2">
                     <flux:icon.loading variant="mini" class="size-3.5" />
                 </span>
             </button>
@@ -327,17 +359,21 @@ new #[Title('Subscriptions')] class extends Component {
                             <div class="flex-1 rounded-2xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
                                 <div class="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-500">{{ __('Started') }}</div>
                                 <div class="mt-1 text-[11px] font-black text-zinc-950">
-                                    {{ $this->activePlan->created_at?->format('d M, H:i') ?? __('N/A') }}
+                                    {{ $this->activePlan->created_at ? AppTimezone::format($this->activePlan->created_at, 'd M, H:i') : __('N/A') }}
                                 </div>
                             </div>
 
                             <div class="flex-1 rounded-2xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
                                 <div class="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-500">{{ __('Expires') }}</div>
                                 <div class="mt-1 text-[11px] font-black text-zinc-950">
-                                    {{ $this->activePlan->expires_at?->format('d M, H:i') ?? __('Never') }}
+                                    {{ $this->activePlan->expires_at ? AppTimezone::format($this->activePlan->expires_at, 'd M, H:i') : __('Never') }}
                                 </div>
                             </div>
                         </div>
+
+                        <p class="mt-4 text-[11px] font-medium leading-relaxed text-zinc-500">
+                            {{ __('The current catalog stays visible for reference, but purchasing stays locked until this plan expires.') }}
+                        </p>
                     </div>
                 @endif
 
@@ -428,6 +464,20 @@ new #[Title('Subscriptions')] class extends Component {
                         ></button>
 
                         <div class="relative z-10 w-full max-w-xl overflow-hidden rounded-[2rem] bg-white shadow-2xl ring-1 ring-zinc-200 plans-reveal">
+                            @if ($this->purchaseInFlight)
+                                <div class="absolute inset-0 z-30 flex items-center justify-center bg-white/80 px-6 backdrop-blur-sm">
+                                    <div class="flex w-full max-w-sm flex-col items-center gap-3 rounded-[1.5rem] bg-white px-6 py-5 text-center shadow-xl ring-1 ring-zinc-200">
+                                        <flux:icon.loading variant="mini" class="size-7 text-green-600" />
+                                        <div class="text-sm font-black uppercase tracking-[0.18em] text-zinc-900">
+                                            {{ __('Processing purchase') }}
+                                        </div>
+                                        <div class="text-xs font-medium leading-relaxed text-zinc-500">
+                                            {{ __('Keep the app open while your phone handles the USSD session.') }}
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
                             <div class="bg-app-shell px-6 pb-5 pt-6 text-white">
                                 <div class="flex items-start justify-between gap-4">
                                     <div class="min-w-0">
@@ -441,7 +491,8 @@ new #[Title('Subscriptions')] class extends Component {
                                     <button
                                         type="button"
                                         wire:click="$set('selectedPlanId', null)"
-                                        class="app-secondary-button flex size-11 shrink-0 items-center justify-center rounded-2xl border-0 bg-white/8 text-white ring-1 ring-white/10 hover:bg-white/14"
+                                        @disabled($this->purchaseInFlight)
+                                        class="app-secondary-button flex size-11 shrink-0 items-center justify-center rounded-2xl border-0 bg-white/8 text-white ring-1 ring-white/10 hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-50"
                                         aria-label="{{ __('Close') }}"
                                     >
                                         <flux:icon.x-mark class="size-5" />
@@ -449,7 +500,7 @@ new #[Title('Subscriptions')] class extends Component {
                                 </div>
                             </div>
 
-                            <div class="space-y-6 px-6 py-6">
+                            <div @class(['space-y-6 px-6 py-6', 'opacity-40 pointer-events-none' => $this->purchaseInFlight])>
                                 <div class="grid grid-cols-2 gap-3">
                                     <div class="rounded-2xl bg-zinc-50 px-4 py-4 ring-1 ring-zinc-200">
                                         <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Price') }}</div>
@@ -486,7 +537,8 @@ new #[Title('Subscriptions')] class extends Component {
                                     <button
                                         type="button"
                                         wire:click="$set('selectedPlanId', null)"
-                                        class="app-secondary-button flex h-12 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest sm:w-40"
+                                        @disabled($this->purchaseInFlight)
+                                        class="app-secondary-button flex h-12 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest sm:w-40 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {{ __('Cancel') }}
                                     </button>
@@ -494,12 +546,15 @@ new #[Title('Subscriptions')] class extends Component {
                                     <button
                                         type="button"
                                         wire:click="initiateSambaza"
-                                        class="app-primary-button flex h-12 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest"
+                                        @disabled($this->purchaseInFlight)
                                         wire:loading.attr="disabled"
                                         wire:target="initiateSambaza"
+                                        class="app-primary-button flex h-12 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        <span wire:loading.remove wire:target="initiateSambaza">{{ __('Purchase Now') }}</span>
-                                        <span wire:loading wire:target="initiateSambaza" class="inline-flex items-center justify-center gap-2">
+                                        <span wire:loading.remove wire:target="initiateSambaza" @class(['inline-flex items-center justify-center gap-2', 'hidden' => $this->purchaseInFlight])>
+                                            {{ __('Purchase Now') }}
+                                        </span>
+                                        <span wire:loading wire:target="initiateSambaza" @class(['inline-flex items-center justify-center gap-2', 'hidden' => ! $this->purchaseInFlight])>
                                             <flux:icon.loading variant="mini" class="size-3.5" />
                                             {{ __('Purchasing…') }}
                                         </span>

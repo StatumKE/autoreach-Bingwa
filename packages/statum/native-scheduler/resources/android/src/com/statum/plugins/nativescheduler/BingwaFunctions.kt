@@ -26,7 +26,7 @@ object BingwaFunctions {
 
     class TriggerSambaza(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
-            return executeUssd(context, parameters, defaultMode = "advanced", defaultIsSambaza = true)
+            return executeUssd(context, parameters, defaultMode = "express", defaultIsSambaza = true)
         }
     }
 
@@ -210,6 +210,25 @@ object BingwaFunctions {
             return mapOf(
                 "alreadyEnabled" to alreadyEnabled,
                 "opened" to !alreadyEnabled,
+            )
+        }
+    }
+
+    class OpenAppInfo(private val activity: FragmentActivity) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", activity.packageName, null)
+            }
+
+            activity.runOnUiThread {
+                activity.startActivity(intent)
+            }
+
+            Log.i(TAG, "Opened app details settings")
+
+            return mapOf(
+                "opened" to true,
+                "packageName" to activity.packageName,
             )
         }
     }

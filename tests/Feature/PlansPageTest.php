@@ -3,6 +3,7 @@
 use App\Jobs\SyncRemoteSubscriptionPurchaseJob;
 use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
@@ -94,6 +95,88 @@ test('plans load from the backend using the saved device token', function () {
     });
 });
 
+test('plans page caches the backend response for repeat loads', function () {
+    $user = User::factory()->create();
+
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'raw-device-token',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
+    $this->actingAs($user);
+
+    $requestCount = 0;
+
+    Http::fake(function () use (&$requestCount) {
+        $requestCount++;
+
+        return Http::response([
+            'status' => 'ok',
+            'plans' => [
+                [
+                    'id' => 5,
+                    'code' => '1_week',
+                    'name' => '1 week',
+                    'type' => 'time_unlimited',
+                    'price' => 400,
+                    'duration_days' => 7,
+                ],
+            ],
+            'sambaza_line' => '2547XXXXXXXX',
+            'sambaza_ussd_prompts' => [],
+        ], 200);
+    });
+
+    Livewire::test('plans')
+        ->call('loadPlans')
+        ->call('loadPlans');
+
+    expect($requestCount)->toBe(1);
+});
+
+test('plans refresh bypasses the cached backend response', function () {
+    $user = User::factory()->create();
+
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'raw-device-token',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
+    $this->actingAs($user);
+
+    $requestCount = 0;
+
+    Http::fake(function () use (&$requestCount) {
+        $requestCount++;
+
+        return Http::response([
+            'status' => 'ok',
+            'plans' => [
+                [
+                    'id' => 5,
+                    'code' => '1_week',
+                    'name' => '1 week',
+                    'type' => 'time_unlimited',
+                    'price' => 400,
+                    'duration_days' => 7,
+                ],
+            ],
+            'sambaza_line' => '2547XXXXXXXX',
+            'sambaza_ussd_prompts' => [],
+        ], 200);
+    });
+
+    Livewire::test('plans')
+        ->call('loadPlans')
+        ->call('refreshPlans');
+
+    expect($requestCount)->toBe(2);
+});
+
 test('a plan can be selected in the mobile ui', function () {
     $user = User::factory()->create();
 
@@ -127,7 +210,79 @@ test('a plan can be selected in the mobile ui', function () {
         ->call('selectPlan', 5);
 
     $response->assertSet('selectedPlanId', 5);
+    $response->assertSet('purchaseInFlight', false);
     $response->assertSee('SELECTED');
+});
+
+test('plans still load from the backend when a subscription is already active', function () {
+    $user = User::factory()->create();
+
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'raw-device-token',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
+    $user->plans()->create([
+        'backend_plan_id' => 5,
+        'code' => '1_week',
+        'name' => '1 week',
+        'type' => 'time_unlimited',
+        'price' => 400,
+        'duration_days' => 7,
+        'expires_at' => now()->addDays(7),
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user);
+
+    Http::fake([
+        'backend.statum.co.ke/api/v1/subscription/plans/hybrid' => Http::response([
+            'status' => 'ok',
+            'plans' => [
+                [
+                    'id' => 5,
+                    'code' => '1_week',
+                    'name' => '1 week',
+                    'type' => 'time_unlimited',
+                    'price' => 400,
+                    'duration_days' => 7,
+                ],
+                [
+                    'id' => 7,
+                    'code' => '1_month',
+                    'name' => '1 month',
+                    'type' => 'time_unlimited',
+                    'price' => 1200,
+                    'duration_days' => 30,
+                ],
+            ],
+            'sambaza_line' => '2547XXXXXXXX',
+            'sambaza_ussd_prompts' => [],
+        ], 200),
+    ]);
+
+    $response = Livewire::test('plans')
+        ->call('loadPlans');
+
+    $response->assertHasNoErrors();
+    $response->assertSet('plans.0.name', '1 week');
+    $response->assertSee('1 week');
+    $response->assertSee('1 month');
+    $response->assertSee('ACTIVE');
+    $response->assertSee('LOCKED');
+});
+
+test('the purchase button is scoped to the sambaza action only', function () {
+    $view = File::get(base_path('resources/views/components/⚡plans.blade.php'));
+
+    expect($view)
+        ->toContain('wire:click="initiateSambaza"')
+        ->toContain('wire:loading.attr="disabled"')
+        ->toContain('wire:target="initiateSambaza"')
+        ->toContain('wire:loading.remove wire:target="initiateSambaza"')
+        ->toContain('wire:loading wire:target="initiateSambaza"');
 });
 
 test('usage pack plans show ussd requests instead of duration', function () {

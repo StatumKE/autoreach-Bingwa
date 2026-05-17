@@ -174,6 +174,67 @@
             </article>
 
             <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+                <form method="POST" action="{{ route('device.processing.toggle') }}" class="space-y-6">
+                    @csrf
+
+                    <div class="space-y-1">
+                        <h2 class="text-sm font-bold text-zinc-900">{{ __('Transaction Processing') }}</h2>
+                        <p class="text-[10px] text-zinc-500">{{ __('Pause the processor without deleting queued transactions.') }}</p>
+                    </div>
+
+                    <div @class([
+                        'rounded-xl p-4 ring-1',
+                        'bg-rose-50 ring-rose-100' => $transactionProcessingEnabled,
+                        'bg-green-50 ring-green-100' => ! $transactionProcessingEnabled,
+                    ])>
+                        <div class="flex items-center justify-between gap-3">
+                            <div @class([
+                                'text-[10px] font-bold uppercase tracking-widest',
+                                'text-rose-700' => $transactionProcessingEnabled,
+                                'text-green-700' => ! $transactionProcessingEnabled,
+                            ])>
+                                {{ $transactionProcessingEnabled ? __('Processor is active') : __('Processor is paused') }}
+                            </div>
+
+                            <span @class([
+                                'rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest ring-1',
+                                'bg-rose-100 text-rose-700 ring-rose-200' => $transactionProcessingEnabled,
+                                'bg-green-100 text-green-700 ring-green-200' => ! $transactionProcessingEnabled,
+                            ])>
+                                {{ $transactionProcessingEnabled ? __('Active') : __('Paused') }}
+                            </span>
+                        </div>
+                        <p class="mt-2 text-[11px] leading-relaxed text-zinc-600">
+                            {{ $transactionProcessingEnabled
+                                ? __('New transactions will be processed as soon as they are queued.')
+                                : __('New transactions stay queued in the database until you resume processing.') }}
+                        </p>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[10px] leading-relaxed text-zinc-500">
+                                {{ $transactionProcessingEnabled
+                                    ? __('Tap to pause new transaction processing. Queued transactions remain in the database.')
+                                    : __('Tap to resume processing. The oldest queued transactions will continue first.') }}
+                            </p>
+                        </div>
+
+                        <button
+                            type="submit"
+                            @class([
+                                'shrink-0 rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider text-white transition shadow-sm',
+                                'bg-rose-600 hover:bg-rose-500' => $transactionProcessingEnabled,
+                                'bg-green-600 hover:bg-green-500' => ! $transactionProcessingEnabled,
+                            ])
+                        >
+                            {{ $transactionProcessingEnabled ? __('Disable Processing') : __('Resume Processing') }}
+                        </button>
+                    </div>
+                </form>
+            </article>
+
+            <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
                 <form id="form-device-technical" method="POST" action="{{ route('device.technical.update') }}" class="space-y-6">
                     @csrf
 

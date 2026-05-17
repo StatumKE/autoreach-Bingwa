@@ -35,6 +35,10 @@
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.OpenAccessibilitySettings"
         },
         {
+            "name": "OpenAppInfo",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.OpenAppInfo"
+        },
+        {
             "name": "OpenOverlaySettings",
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.OpenOverlaySettings"
         }

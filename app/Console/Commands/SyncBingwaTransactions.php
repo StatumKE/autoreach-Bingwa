@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\Autoreach\DispatchBingwaQueuedTransactionsJob;
 use App\Actions\Autoreach\FetchNextBingwaJobs;
-use App\Jobs\ProcessBingwaQueuedTransactionsJob;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Console\Attributes\Description;
@@ -60,7 +60,7 @@ class SyncBingwaTransactions extends Command
 
         if ($synced > 0 || Transaction::query()->where('status', 'queued')->exists()) {
             Log::info('🚀 Dispatching USSD processor for queued transactions...');
-            ProcessBingwaQueuedTransactionsJob::dispatch($user->id);
+            app(DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) $user->id);
         }
 
         return self::SUCCESS;

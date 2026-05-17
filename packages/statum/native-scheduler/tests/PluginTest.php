@@ -32,7 +32,10 @@ describe('Plugin Manifest', function () {
         $manifest = json_decode(file_get_contents($this->manifestPath), true);
 
         expect($manifest['bridge_functions'])->toBeArray();
-        expect(collect($manifest['bridge_functions'])->pluck('name'))->toContain('SendSms');
+        expect(collect($manifest['bridge_functions'])->pluck('name'))
+            ->toContain('TriggerSambaza')
+            ->toContain('ExecuteUssd')
+            ->toContain('SendSms');
 
         foreach ($manifest['bridge_functions'] as $function) {
             expect($function)->toHaveKeys(['name']);
@@ -74,6 +77,16 @@ describe('Native Code', function () {
 
             expect($kotlinContent)->toContain("class {$className}");
         }
+    });
+
+    it('routes sambaza through express mode instead of advanced mode', function () {
+        $kotlinFile = $this->pluginPath.'/resources/android/src/com/statum/plugins/nativescheduler/BingwaFunctions.kt';
+        $kotlinContent = file_get_contents($kotlinFile);
+
+        expect($kotlinContent)
+            ->toContain('class TriggerSambaza')
+            ->toContain('defaultMode = "express"')
+            ->not->toContain('defaultMode = "advanced", defaultIsSambaza = true');
     });
 });
 

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Autoreach;
 
+use App\Models\DeviceSetting;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Log;
 
@@ -19,6 +20,14 @@ class GetNextBingwaQueuedTransaction
     public function next(?int $userId = null): ?array
     {
         $this->recoverStuckTransactions();
+
+        if ($userId !== null && ! DeviceSetting::isTransactionProcessingEnabledForUser($userId)) {
+            Log::info('Bingwa USSD processor lookup skipped because processing is paused.', [
+                'user_id' => $userId,
+            ]);
+
+            return null;
+        }
 
         $transactionQuery = Transaction::query()
             ->with(['offer:id,ussd_code,ussd_mode', 'user.deviceSetting', 'user.bingwaDeviceRegistration', 'user.plans'])

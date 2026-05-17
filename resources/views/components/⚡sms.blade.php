@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\AppTimezone;
 use App\Models\Transaction;
 use App\Support\KenyanPhoneNumber;
 use Illuminate\Support\Facades\Auth;
@@ -13,11 +14,21 @@ use Livewire\WithPagination;
 new #[Title('SMS History')] class extends Component {
     use WithPagination;
 
+    public bool $loaded = false;
+
     #[Url(as: 'q')]
     public string $search = '';
 
     #[Url]
     public string $filter = 'all';
+
+    /**
+     * Load the history after the initial shell renders.
+     */
+    public function loadPage(): void
+    {
+        $this->loaded = true;
+    }
 
     /**
      * Get the outbound auto-reply SMS history for the current user.
@@ -156,9 +167,9 @@ new #[Title('SMS History')] class extends Component {
     }
 }; ?>
 
-<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3" wire:init="loadPage">
     @php
-        $messages = $this->smsMessages;
+        $messages = $this->loaded ? $this->smsMessages : collect();
     @endphp
 
     <div class="flex flex-col gap-3">
@@ -213,7 +224,17 @@ new #[Title('SMS History')] class extends Component {
             </div>
         </div>
 
-        @if ($messages->total() === 0)
+        @if (! $this->loaded)
+            <div class="grid gap-3">
+                @for ($i = 0; $i < 4; $i++)
+                    <article class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+                        <div class="h-4 w-32 animate-pulse rounded bg-zinc-100"></div>
+                        <div class="mt-3 h-3 w-24 animate-pulse rounded bg-zinc-100"></div>
+                        <div class="mt-4 h-20 w-full animate-pulse rounded bg-zinc-100/70"></div>
+                    </article>
+                @endfor
+            </div>
+        @elseif ($messages->total() === 0)
             <div class="rounded-2xl bg-white p-5 text-sm text-zinc-600 shadow-sm ring-1 ring-zinc-200">
                 <div class="text-sm font-semibold text-zinc-900">{{ __('No SMS history yet.') }}</div>
                 <div class="mt-1">
@@ -278,7 +299,7 @@ new #[Title('SMS History')] class extends Component {
                                 <div class="rounded-xl bg-zinc-50 p-3">
                                     <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Sent At') }}</div>
                                     <div class="mt-1 text-zinc-900">
-                                        {{ $message->auto_reply_sent_at?->timezone(config('app.timezone'))?->format('M j, Y g:i A') ?? '—' }}
+                                        {{ AppTimezone::format($message->auto_reply_sent_at, 'M j, Y g:i A') }}
                                     </div>
                                 </div>
                             </div>

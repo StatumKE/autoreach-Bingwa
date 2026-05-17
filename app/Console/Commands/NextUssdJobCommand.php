@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\DeviceSetting;
 use App\Models\Transaction;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -48,6 +49,15 @@ class NextUssdJobCommand extends Command
                 ->first();
 
             if ($transaction === null || $transaction->offer === null) {
+                return self::SUCCESS;
+            }
+
+            if (! DeviceSetting::isTransactionProcessingEnabledForUser((int) $transaction->user_id)) {
+                Log::info('⏸️ NextUssdJobCommand skipped because transaction processing is paused.', [
+                    'transaction_id' => $transaction->id,
+                    'user_id' => $transaction->user_id,
+                ]);
+
                 return self::SUCCESS;
             }
 

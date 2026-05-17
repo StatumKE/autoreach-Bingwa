@@ -4,18 +4,21 @@ namespace App\Actions\Autoreach;
 
 use App\Models\User;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class FetchBingwaSubscriptionPlans
 {
+    private const CACHE_TTL_MINUTES = 2;
+
     /**
      * Fetch the available Bingwa subscription plans for the authenticated user.
      *
      * @return array{plans: array<int, array<string, mixed>>, sambaza_line: ?string, sambaza_ussd_prompts: array<int, mixed>}
      */
-    public function fetch(User $user): array
+    public function fetch(User $user, bool $forceRefresh = false): array
     {
         $registration = $user->bingwaDeviceRegistration;
 
@@ -31,6 +34,21 @@ class FetchBingwaSubscriptionPlans
             ]);
         }
 
+        if ($forceRefresh) {
+            return $this->fetchFresh($registration->device_token);
+        }
+
+        $cacheKey = $this->cacheKey($user->id, $registration->device_token);
+
+        return Cache::remember(
+            $cacheKey,
+            now()->addMinutes(self::CACHE_TTL_MINUTES),
+            fn (): array => $this->fetchFresh($registration->device_token),
+        );
+    }
+
+    private function fetchFresh(string $deviceToken): array
+    {
         $baseUrl = rtrim((string) config('services.autoreach.backend_url'), '/');
         Log::debug("🌐 Fetching plans from: {$baseUrl}/api/v1/subscription/plans/hybrid");
 
@@ -38,7 +56,7 @@ class FetchBingwaSubscriptionPlans
             ->retry(3, 100)
             ->acceptJson()
             ->asJson()
-            ->withToken($registration->device_token)
+            ->withToken($deviceToken)
             ->timeout(30)
             ->get('/api/v1/subscription/plans/hybrid');
 
@@ -88,5 +106,10 @@ class FetchBingwaSubscriptionPlans
         throw ValidationException::withMessages([
             'device_token' => $response->json('message') ?? __('Unable to load subscription plans right now.'),
         ]);
+    }
+
+    private function cacheKey(int $userId, string $deviceToken): string
+    {
+        return sprintf('autoreach.subscription_plans.%d.%s', $userId, sha1($deviceToken));
     }
 }

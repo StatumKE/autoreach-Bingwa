@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Autoreach\RefreshAirtimeBalance;
+use App\Support\AppTimezone;
 use App\Models\Transaction;
 use App\Models\Plan;
 use Illuminate\Support\Facades\Auth;
@@ -129,7 +130,7 @@ new #[Title('Dashboard')] class extends Component
         ]);
 
         $this->airtimeBalance = $snapshot['balance'];
-        $this->airtimeBalanceCheckedAt = $snapshot['checked_at']?->format('d M, H:i');
+        $this->airtimeBalanceCheckedAt = AppTimezone::format($snapshot['checked_at'], 'd M, H:i');
         $this->airtimeBalanceRawResponse = $snapshot['raw_response'];
         $this->callPhonePermissionDenied = $snapshot['permission_denied'];
     }

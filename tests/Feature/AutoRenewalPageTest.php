@@ -29,6 +29,22 @@ test('authenticated users can view the auto renewals page', function () {
     $response->assertSee('Create');
 });
 
+test('auto renewals load page data after the initial shell renders', function () {
+    $user = User::factory()->create();
+    $offer = Offer::factory()->for($user)->create([
+        'name' => 'Weekend Data',
+        'price' => 250,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test('auto-renewals')
+        ->call('loadPage')
+        ->assertSet('offerId', $offer->id)
+        ->assertSee('Scheduled Awards');
+});
+
 test('auto renewals can be scheduled from the page', function () {
     $user = User::factory()->create();
     $offer = Offer::factory()->for($user)->create([

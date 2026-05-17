@@ -287,20 +287,31 @@ new #[Title('Auto Replies')] class extends Component {
      */
     private function ensureDefaultReplies(): void
     {
+        $existingTriggers = AutoReply::query()
+            ->where('user_id', Auth::id())
+            ->pluck('trigger_condition')
+            ->all();
+
+        $missingReplies = [];
+
         foreach ($this->defaultReplies() as $index => $reply) {
-            AutoReply::query()->firstOrCreate(
-                [
-                    'user_id' => Auth::id(),
-                    'trigger_condition' => $reply['trigger_condition'],
-                ],
-                [
-                    'name' => $reply['name'],
-                    'reply_message' => $reply['reply_message'],
-                    'is_active' => false,
-                    'is_default' => true,
-                    'sort_order' => $index,
-                ]
-            );
+            if (in_array($reply['trigger_condition'], $existingTriggers, true)) {
+                continue;
+            }
+
+            $missingReplies[] = [
+                'user_id' => Auth::id(),
+                'name' => $reply['name'],
+                'trigger_condition' => $reply['trigger_condition'],
+                'reply_message' => $reply['reply_message'],
+                'is_active' => false,
+                'is_default' => true,
+                'sort_order' => $index,
+            ];
+        }
+
+        if ($missingReplies !== []) {
+            AutoReply::query()->insert($missingReplies);
         }
     }
 

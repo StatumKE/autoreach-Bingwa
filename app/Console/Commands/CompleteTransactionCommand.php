@@ -6,6 +6,7 @@ use App\Actions\Autoreach\ResolveAutoReplyForTransaction;
 use App\Jobs\SendAutoReplySmsJob;
 use App\Jobs\UpdateRemoteTransactionStatusJob;
 use App\Models\Transaction;
+use App\Support\AppTimezone;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -78,7 +79,7 @@ class CompleteTransactionCommand extends Command
                         'occurred_at' => $retryAt,
                         'status_desc' => __('Auto-retry attempt :count scheduled for :time.', [
                             'count' => $transaction->retry_count,
-                            'time' => $retryAt->format('g:i A'),
+                            'time' => AppTimezone::format($retryAt, 'g:i A'),
                         ]),
                         'auto_reply_id' => null,
                         'auto_reply_trigger_condition' => null,
@@ -112,7 +113,7 @@ class CompleteTransactionCommand extends Command
                     $transaction->update([
                         'status' => 'queued',
                         'occurred_at' => $nextRun,
-                        'status_desc' => __('Rescheduled for :time.', ['time' => $nextRun->format('g:i A')]),
+                        'status_desc' => __('Rescheduled for :time.', ['time' => AppTimezone::format($nextRun, 'g:i A')]),
                         'auto_reply_id' => null,
                         'auto_reply_trigger_condition' => null,
                         'auto_reply_message' => null,

@@ -38,6 +38,17 @@ test('the native php android shell keeps database queue dispatching in env', fun
         ->toContain('QUEUE_CONNECTION=database');
 });
 
+test('the native php android release env is production ready and compact', function () {
+    $env = File::get(base_path('.env'));
+
+    expect($env)
+        ->toContain('APP_ENV=production')
+        ->toContain('APP_DEBUG=false')
+        ->toContain('NATIVEPHP_ANDROID_MINIFY_ENABLED=true')
+        ->toContain('NATIVEPHP_ANDROID_SHRINK_RESOURCES=true')
+        ->toContain('NATIVEPHP_ANDROID_DEBUG_SYMBOLS=NONE');
+});
+
 test('the native php android bundle excludes the source sqlite database', function () {
     expect(config('nativephp.cleanup_exclude_files'))
         ->toContain('database/database.sqlite')
@@ -174,7 +185,8 @@ test('the native form bridge uses a real navigation for redirected responses', f
 
     expect($nativeFormsScript)
         ->toContain('const formData = new FormData(form)')
-        ->toContain('window.location.replace(responseUrl)')
+        ->toContain('window.history.pushState(null, \'\', responseUrl)')
+        ->toContain('window.history.replaceState(window.history.state, \'\', responseUrl)')
         ->toContain('queuePendingScrollRestore(responseUrl)')
         ->toContain('document.write(html)');
 });
@@ -218,6 +230,9 @@ test('the setup screen uses inline alpine state and visible permission button la
         ->toContain('x-data="{')
         ->toContain("nativeCall('RequestSetupPermissions', { force: true })")
         ->toContain('Grant Access')
+        ->toContain('Restricted settings')
+        ->toContain('Open App Info')
+        ->toContain('Open Accessibility')
         ->not->toContain('x-data="bingwaSetup()"')
         ->not->toContain('function bingwaSetup()')
         ->not->toContain('RequestRuntimePermissions')

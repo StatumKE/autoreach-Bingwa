@@ -43,6 +43,7 @@ test('sms history page renders outbound auto reply transactions', function () {
     $this->actingAs($user);
 
     Livewire::test('sms')
+        ->call('loadPage')
         ->assertSee('TX-SMS-123')
         ->assertSee('0712345678')
         ->assertSee('Successful Response')

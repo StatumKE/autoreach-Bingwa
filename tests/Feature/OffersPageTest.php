@@ -116,6 +116,7 @@ test('offers can be filtered by category', function () {
     $this->actingAs($user);
 
     $response = Livewire::test('offers')
+        ->call('loadPage')
         ->call('setCategoryFilter', 'sms');
 
     $response->assertSee('SMS Offer');

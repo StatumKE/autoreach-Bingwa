@@ -33,6 +33,16 @@ test('auto replies page creates default replies on first visit', function () {
     ]);
 });
 
+test('auto replies page does not duplicate default replies on repeat visits', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $this->get(route('auto-replies'))->assertOk();
+    $this->get(route('auto-replies'))->assertOk();
+
+    expect(AutoReply::query()->where('user_id', $user->id)->count())->toBe(6);
+});
+
 test('auto replies can be created from the page', function () {
     $user = User::factory()->create();
     $this->actingAs($user);

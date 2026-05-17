@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Actions\Autoreach\DispatchBingwaQueuedTransactionsJob;
 use App\Models\DeviceSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -62,6 +63,7 @@ class DeviceSettingsController extends BaseController
     public function updateTechnical(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'transaction_processing_enabled' => ['sometimes', 'boolean'],
             'auto_reschedule_rejected' => ['sometimes', 'boolean'],
             'retry_tomorrow_at' => ['nullable', Rule::in(array_keys($this->retryScheduleOptions()))],
             'ussd_timeout_seconds' => ['required', 'integer', 'min:5', 'max:300'],
@@ -71,11 +73,13 @@ class DeviceSettingsController extends BaseController
             'retry_network_issues' => ['sometimes', 'boolean'],
         ]);
 
+        $transactionProcessingEnabled = $request->boolean('transaction_processing_enabled');
         $autoRescheduleRejected = $request->boolean('auto_reschedule_rejected');
         $intelligentAutoRetry = $request->boolean('intelligent_auto_retry');
         $retryNetworkIssues = $request->boolean('retry_network_issues');
 
         $this->persist([
+            'transaction_processing_enabled' => $transactionProcessingEnabled,
             'auto_reschedule_rejected' => $autoRescheduleRejected,
             'retry_tomorrow_at' => $autoRescheduleRejected ? ($validated['retry_tomorrow_at'] ?? null) : null,
             'ussd_timeout_seconds' => (int) $validated['ussd_timeout_seconds'],
@@ -88,6 +92,36 @@ class DeviceSettingsController extends BaseController
         return redirect()
             ->route('device.edit')
             ->with('status', __('Technical settings updated.'));
+    }
+
+    public function toggleProcessing(): RedirectResponse
+    {
+        $userId = Auth::id();
+
+        if (! $userId) {
+            return redirect()
+                ->route('device.edit');
+        }
+
+        $current = DeviceSetting::query()
+            ->where('user_id', $userId)
+            ->value('transaction_processing_enabled');
+
+        $next = ! (bool) ($current ?? true);
+
+        $this->persist([
+            'transaction_processing_enabled' => $next,
+        ]);
+
+        if ($next) {
+            app(DispatchBingwaQueuedTransactionsJob::class)->dispatch($userId);
+        }
+
+        return redirect()
+            ->route('device.edit')
+            ->with('status', $next
+                ? __('Transaction processing resumed. Queued transactions will continue now.')
+                : __('Transaction processing paused. New transactions stay queued until you resume.'));
     }
 
     public function requestPermissions(): RedirectResponse
@@ -129,6 +163,7 @@ class DeviceSettingsController extends BaseController
      *     retryIntervalMinutes: string,
      *     maxAttempts: string,
      *     retryNetworkIssues: bool,
+     *     transactionProcessingEnabled: bool,
      *     simSlotOptions: array<string, string>,
      *     retryScheduleOptions: array<string, string>,
      * }
@@ -182,6 +217,7 @@ class DeviceSettingsController extends BaseController
             'retryIntervalMinutes' => (string) ($deviceSetting?->retry_interval_minutes ?? 1),
             'maxAttempts' => (string) ($deviceSetting?->max_attempts ?? 2),
             'retryNetworkIssues' => (bool) ($deviceSetting?->retry_network_issues ?? false),
+            'transactionProcessingEnabled' => (bool) ($deviceSetting?->transaction_processing_enabled ?? true),
             'simSlotOptions' => $this->simSlotOptions(),
             'retryScheduleOptions' => $this->retryScheduleOptions(),
         ];

@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property int $retry_interval_minutes
  * @property int $max_attempts
  * @property bool $retry_network_issues
+ * @property bool $transaction_processing_enabled
  * @property float|null $airtime_balance
  * @property string|null $airtime_balance_raw_response
  * @property Carbon|null $airtime_balance_checked_at
@@ -40,6 +41,7 @@ use Illuminate\Support\Carbon;
     'retry_interval_minutes',
     'max_attempts',
     'retry_network_issues',
+    'transaction_processing_enabled',
     'airtime_balance',
     'airtime_balance_raw_response',
     'airtime_balance_checked_at',
@@ -71,8 +73,18 @@ class DeviceSetting extends Model
             'retry_interval_minutes' => 'integer',
             'max_attempts' => 'integer',
             'retry_network_issues' => 'boolean',
+            'transaction_processing_enabled' => 'boolean',
             'airtime_balance' => 'decimal:2',
             'airtime_balance_checked_at' => 'datetime',
         ];
+    }
+
+    public static function isTransactionProcessingEnabledForUser(int $userId): bool
+    {
+        $value = self::query()
+            ->where('user_id', $userId)
+            ->value('transaction_processing_enabled');
+
+        return $value === null ? true : (bool) $value;
     }
 }

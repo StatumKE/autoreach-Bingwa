@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\AppTimezone;
 use App\Models\AutoRenewal;
 use App\Models\Offer;
 use Flux\Flux;
@@ -14,6 +15,8 @@ use Livewire\WithPagination;
 
 new #[Title('Auto Renewals')] class extends Component {
     use WithPagination;
+
+    public bool $loaded = false;
 
     public string $customerPhone = '';
 
@@ -36,8 +39,16 @@ new #[Title('Auto Renewals')] class extends Component {
      */
     public function mount(): void
     {
-        $this->scheduledDate = now()->format('Y-m-d');
-        $this->scheduledTime = now()->addMinutes(15)->format('H:i');
+        $this->scheduledDate = AppTimezone::now()->format('Y-m-d');
+        $this->scheduledTime = AppTimezone::now()->addMinutes(15)->format('H:i');
+    }
+
+    /**
+     * Load the page data after the initial shell renders.
+     */
+    public function loadPage(): void
+    {
+        $this->loaded = true;
         $this->offerId = $this->activeOffers->first()?->id;
     }
 
@@ -59,7 +70,7 @@ new #[Title('Auto Renewals')] class extends Component {
         $scheduledFor = Carbon::createFromFormat(
             'Y-m-d H:i',
             $validated['scheduledDate'].' '.$validated['scheduledTime'],
-            config('app.timezone')
+            AppTimezone::name()
         );
 
         if ($scheduledFor === false || $scheduledFor->isPast()) {
@@ -195,8 +206,8 @@ new #[Title('Auto Renewals')] class extends Component {
     private function resetForm(): void
     {
         $this->customerPhone = '';
-        $this->scheduledDate = now()->format('Y-m-d');
-        $this->scheduledTime = now()->addMinutes(15)->format('H:i');
+        $this->scheduledDate = AppTimezone::now()->format('Y-m-d');
+        $this->scheduledTime = AppTimezone::now()->addMinutes(15)->format('H:i');
         $this->autoRenew = true;
         $this->renewDays = '1';
         $this->offerId = $this->activeOffers->first()?->id;
@@ -263,10 +274,10 @@ new #[Title('Auto Renewals')] class extends Component {
     }
 }; ?>
 
-<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3" wire:init="loadPage">
     @php
-        $activeOffers = $this->activeOffers;
-        $renewals = $this->autoRenewals;
+        $activeOffers = $this->loaded ? $this->activeOffers : collect();
+        $renewals = $this->loaded ? $this->autoRenewals : collect();
     @endphp
 
     <div class="flex flex-col gap-3">
@@ -309,12 +320,26 @@ new #[Title('Auto Renewals')] class extends Component {
         <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
             <div class="flex items-center justify-between gap-4 border-b border-zinc-200 px-4 py-3">
                 <div class="text-sm font-bold text-zinc-900">{{ __('Scheduled Awards') }}</div>
-                <div class="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-green-100">
-                    {{ $renewals->total() }}
-                </div>
+                @if ($this->loaded)
+                    <div class="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-green-100">
+                        {{ $renewals->total() }}
+                    </div>
+                @else
+                    <div class="h-6 w-12 animate-pulse rounded-full bg-zinc-100"></div>
+                @endif
             </div>
 
-            @if ($renewals->isEmpty())
+            @if (! $this->loaded)
+                <div class="space-y-4 px-4 py-6">
+                    @for ($i = 0; $i < 3; $i++)
+                        <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
+                            <div class="h-4 w-28 animate-pulse rounded bg-zinc-100"></div>
+                            <div class="mt-3 h-4 w-40 animate-pulse rounded bg-zinc-100"></div>
+                            <div class="mt-3 h-12 w-full animate-pulse rounded bg-zinc-100/70"></div>
+                        </div>
+                    @endfor
+                </div>
+            @elseif ($renewals->isEmpty())
                 <div class="px-4 py-10 text-center">
                     <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-green-50 text-green-600 ring-1 ring-green-100 shadow-inner">
                         <flux:icon.calendar-days class="size-6" />
@@ -355,7 +380,7 @@ new #[Title('Auto Renewals')] class extends Component {
                                     </td>
                                     <td class="px-5 py-4 align-top">
                                         <div class="text-sm font-black text-zinc-950">
-                                            {{ $renewal->scheduled_for?->format('D d/m/Y') ?? '—' }} {{ __('at') }} {{ $renewal->scheduled_for?->format('H:i') ?? '—' }} Hrs
+                                        {{ AppTimezone::format($renewal->scheduled_for, 'D d/m/Y') }} {{ __('at') }} {{ AppTimezone::format($renewal->scheduled_for, 'H:i') }} Hrs
                                         </div>
                                     </td>
                                     <td class="px-5 py-4 align-top">
@@ -408,9 +433,9 @@ new #[Title('Auto Renewals')] class extends Component {
                                 <div class="rounded-2xl bg-zinc-50 px-4 py-3 ring-1 ring-zinc-200">
                                     <div class="text-[8px] font-black uppercase tracking-[0.24em] text-zinc-400">{{ __('Scheduled For') }}</div>
                                     <div class="mt-1 text-sm font-black text-zinc-950">
-                                        {{ $renewal->scheduled_for?->format('D d/m/Y') ?? '—' }}
+                                        {{ AppTimezone::format($renewal->scheduled_for, 'D d/m/Y') }}
                                         <span class="block text-[10px] font-medium text-zinc-500">
-                                            {{ __('at') }} {{ $renewal->scheduled_for?->format('H:i') ?? '—' }} Hrs
+                                            {{ __('at') }} {{ AppTimezone::format($renewal->scheduled_for, 'H:i') }} Hrs
                                         </span>
                                     </div>
                                 </div>
@@ -442,7 +467,7 @@ new #[Title('Auto Renewals')] class extends Component {
                 </div>
             @endif
 
-            @if ($renewals->hasPages())
+            @if ($this->loaded && $renewals->hasPages())
                 <div class="border-t border-zinc-200 px-5 py-4">
                     {{ $renewals->links() }}
                 </div>

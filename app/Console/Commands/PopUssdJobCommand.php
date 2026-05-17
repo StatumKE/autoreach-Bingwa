@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\DeviceSetting;
 use App\Models\Transaction;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -44,6 +45,15 @@ class PopUssdJobCommand extends Command
 
                 if (! $transaction) {
                     return null;
+                }
+
+                if (! DeviceSetting::isTransactionProcessingEnabledForUser((int) $transaction->user_id)) {
+                    Log::info('⏸️ PopUssdJobCommand skipped because transaction processing is paused.', [
+                        'transaction_id' => $transaction->id,
+                        'user_id' => $transaction->user_id,
+                    ]);
+
+                    return ['skip' => true, 'id' => $transaction->id];
                 }
 
                 // 3. Subscription Validation (Business Logic Preservation)

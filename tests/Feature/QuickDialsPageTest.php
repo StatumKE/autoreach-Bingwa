@@ -43,6 +43,7 @@ test('quick dial page opens a confirmation modal for a valid award', function ()
     $this->actingAs($user);
 
     Livewire::test('quick-dials')
+        ->call('loadPage')
         ->set('customerPhone', '0712345678')
         ->call('prepareAwardOffer', $offer->id)
         ->assertSet('selectedOfferId', $offer->id)

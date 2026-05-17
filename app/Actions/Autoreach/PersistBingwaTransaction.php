@@ -5,6 +5,7 @@ namespace App\Actions\Autoreach;
 use App\Models\Plan;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Support\AppTimezone;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -119,7 +120,7 @@ class PersistBingwaTransaction
                     'matched_offer' => $payload['matched_offer'] ?? null,
                     'balance' => null,
                     'occurred_at' => Carbon::parse($payload['occurred_at'] ?? now())
-                        ->setTimezone((string) config('app.timezone')),
+                        ->setTimezone(AppTimezone::name()),
                     'status' => $status,
                     'status_desc' => $statusDesc,
                 ],

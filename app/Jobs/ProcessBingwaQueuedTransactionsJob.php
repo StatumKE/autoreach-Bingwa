@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Actions\Autoreach\ExecuteBingwaUssd;
 use App\Actions\Autoreach\GetNextBingwaQueuedTransaction;
+use App\Models\DeviceSetting;
 use App\Models\Transaction;
 use App\Support\BingwaUssdResponse;
 use Illuminate\Bus\Queueable;
@@ -56,10 +57,29 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
             'tries' => $this->tries,
         ]);
 
+        if (! DeviceSetting::isTransactionProcessingEnabledForUser($this->userId)) {
+            Log::info('Bingwa USSD processor paused by device setting.', [
+                'user_id' => $this->userId,
+                'flow_id' => $flowId,
+            ]);
+
+            return;
+        }
+
         $processed = 0;
         $deadline = now()->addSeconds(45);
 
         while (now()->lessThan($deadline)) {
+            if (! DeviceSetting::isTransactionProcessingEnabledForUser($this->userId)) {
+                Log::info('Bingwa USSD processor stopped because device processing was paused mid-run.', [
+                    'user_id' => $this->userId,
+                    'flow_id' => $flowId,
+                    'processed' => $processed,
+                ]);
+
+                break;
+            }
+
             $queuedJob = $getNextBingwaQueuedTransaction->next($this->userId);
 
             if ($queuedJob === null) {

@@ -213,3 +213,42 @@ it('does not auto retry failed native processor attempts', function (): void {
     expect($fresh?->processed_at)->not->toBeNull();
     expect($fresh?->status_desc)->toBe('Network returned a general failure');
 });
+
+it('stops processing immediately when transaction processing is paused', function (): void {
+    $user = User::factory()->create();
+
+    DeviceSetting::factory()->create([
+        'user_id' => $user->id,
+        'transaction_processing_enabled' => false,
+    ]);
+
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'transaction_id' => 'TX-PAUSED',
+        'sender_phone' => '0712345678',
+        'amount' => 15,
+        'offer_name' => 'Data',
+        'offer_type' => 'data_bundles',
+        'status' => 'queued',
+        'status_desc' => 'Pulled from backend job queue.',
+    ]);
+
+    $this->mock(GetNextBingwaQueuedTransaction::class, function (MockInterface $mock): void {
+        $mock->shouldNotReceive('next');
+    });
+
+    $this->mock(ExecuteBingwaUssd::class, function (MockInterface $mock): void {
+        $mock->shouldNotReceive('execute');
+    });
+
+    (new ProcessBingwaQueuedTransactionsJob($user->id))
+        ->handle(app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
+
+    expect($transaction->fresh()?->status)->toBe('queued');
+});

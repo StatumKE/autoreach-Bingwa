@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\Autoreach\DispatchBingwaQueuedTransactionsJob;
 use App\Actions\Autoreach\ProcessDueAutoRenewals;
-use App\Jobs\ProcessBingwaQueuedTransactionsJob;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -23,7 +23,7 @@ class ProcessDueAutoRenewalsCommand extends Command
         );
 
         foreach ($result['users'] as $userId) {
-            ProcessBingwaQueuedTransactionsJob::dispatch($userId);
+            app(DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) $userId);
         }
 
         Log::info('Auto-renewal processing command finished.', $result);

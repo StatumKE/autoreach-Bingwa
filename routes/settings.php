@@ -15,6 +15,7 @@ Route::post('settings/device/hardware/{primaryTransactionSim}/{smsAutoReplySim}'
 Route::post('settings/device/hardware', [DeviceSettingsController::class, 'updateHardware'])->middleware(['auth'])->name('device.hardware.update');
 Route::get('settings/device/technical', fn () => redirect()->route('device.edit'))->middleware(['auth'])->name('device.technical.fallback');
 Route::post('settings/device/technical', [DeviceSettingsController::class, 'updateTechnical'])->middleware(['auth'])->name('device.technical.update');
+Route::post('settings/device/processing', [DeviceSettingsController::class, 'toggleProcessing'])->middleware(['auth'])->name('device.processing.toggle');
 Route::post('settings/device/permissions', [DeviceSettingsController::class, 'requestPermissions'])->middleware(['auth'])->name('device.permissions');
 
 Route::livewire('settings/appearance', 'pages::settings.appearance')->middleware(['auth', 'verified'])->name('appearance.edit');

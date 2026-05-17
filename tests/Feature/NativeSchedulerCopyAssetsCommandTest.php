@@ -46,5 +46,18 @@ test('native android manifest does not register the removed workmanager schedule
 
     expect($manifest)
         ->not->toContain('BingwaSchedulerService')
-        ->not->toContain('SchedulerBootReceiver');
+        ->not->toContain('SchedulerBootReceiver')
+        ->not->toContain('android:debuggable="true"');
+});
+
+test('native scheduler exposes app info settings for restricted accessibility setup', function () {
+    $manifest = File::get(base_path('packages/statum/native-scheduler/nativephp.json'));
+    $bridge = File::get(base_path('packages/statum/native-scheduler/resources/android/src/com/statum/plugins/nativescheduler/BingwaFunctions.kt'));
+
+    expect($manifest)
+        ->toContain('OpenAppInfo');
+
+    expect($bridge)
+        ->toContain('Settings.ACTION_APPLICATION_DETAILS_SETTINGS')
+        ->toContain('OpenAppInfo');
 });

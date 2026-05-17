@@ -30,9 +30,11 @@ test('plans page shows loading feedback for refresh and purchase actions', funct
             ],
         ])
         ->set('selectedPlanId', 1)
+        ->set('purchaseInFlight', true)
         ->set('sambazaLine', '254700000000')
         ->assertSee('Refresh')
-        ->assertSee('Purchasing…');
+        ->assertSee('Processing purchase')
+        ->assertSee('Keep the app open while your phone handles the USSD session.');
 });
 
 test('quick dial page shows loading feedback for contacts and award actions', function () {

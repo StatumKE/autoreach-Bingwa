@@ -13,6 +13,8 @@ use Livewire\WithPagination;
 new #[Title('My Offers')] class extends Component {
     use WithPagination;
 
+    public bool $loaded = false;
+
     public bool $showForm = false;
 
     public ?int $editingOfferId = null;
@@ -32,6 +34,14 @@ new #[Title('My Offers')] class extends Component {
     public string $ussd_mode = 'express';
 
     public bool $is_active = true;
+
+    /**
+     * Load the offer list after the shell has rendered.
+     */
+    public function loadPage(): void
+    {
+        $this->loaded = true;
+    }
 
     /**
      * Open the create offer form.
@@ -272,7 +282,11 @@ new #[Title('My Offers')] class extends Component {
     }
 }; ?>
 
-<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3" wire:init="loadPage">
+    @php
+        $offers = $this->loaded ? $this->offers : collect();
+    @endphp
+
     <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between px-1">
             <div class="text-xl font-bold text-zinc-900">{{ __('My Offers') }}</div>
@@ -306,7 +320,17 @@ new #[Title('My Offers')] class extends Component {
         </div>
 
 
-        @if ($this->offers->isEmpty())
+        @if (! $this->loaded)
+            <div class="grid gap-3">
+                @for ($i = 0; $i < 4; $i++)
+                    <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+                        <div class="h-4 w-28 animate-pulse rounded bg-zinc-100"></div>
+                        <div class="mt-4 h-4 w-40 animate-pulse rounded bg-zinc-100"></div>
+                        <div class="mt-3 h-16 w-full animate-pulse rounded bg-zinc-100/70"></div>
+                    </div>
+                @endfor
+            </div>
+        @elseif ($offers->isEmpty())
             <div class="rounded-xl bg-white px-6 py-12 text-center shadow-sm ring-1 ring-zinc-200">
                 <div class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-green-50 text-green-600 shadow-inner mb-4">
                     <flux:icon.sparkles class="size-6" />
@@ -328,7 +352,7 @@ new #[Title('My Offers')] class extends Component {
             </div>
         @else
             <div class="flex flex-col gap-3">
-                @foreach ($this->offers as $offer)
+                @foreach ($offers as $offer)
                     <article @class([
                         'group relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 transition hover:ring-green-500/30',
                         'ring-green-500/20' => $offer->is_active,
@@ -392,9 +416,11 @@ new #[Title('My Offers')] class extends Component {
                     </article>
 @endforeach
 
-                <div class="mt-4">
-                    {{ $this->offers->links() }}
-                </div>
+                @if ($this->loaded)
+                    <div class="mt-4">
+                        {{ $offers->links() }}
+                    </div>
+                @endif
             </div>
         @endif
     </div>

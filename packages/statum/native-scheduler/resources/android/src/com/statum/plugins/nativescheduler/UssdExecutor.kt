@@ -36,14 +36,14 @@ internal fun isPurchaseSuccessMessage(message: String): Boolean {
  *   Silent, no UI, callback-driven. Verified approach for Android 8.0+.
  *
  * - **advanced**: Interactive USSD session driven by [UssdAccessibilityService].
- *   The accessibility service detects the system USSD dialog and dismisses the
- *   confirmation prompt programmatically.
+ *   The accessibility service detects the system USSD dialog and submits each
+ *   parsed reply step programmatically.
  */
 class UssdExecutor(private val context: Context) {
 
     companion object {
         private const val TAG = "UssdExecutor"
-        private const val DIALOG_RENDER_DELAY_MS = 1_500L // wait for dialer to render the dialog
+        private const val FIRST_DIALOG_TIMEOUT_MS = 10_000L
         private const val FOLLOW_UP_DIALOG_TIMEOUT_MS = 10_000L
     }
 
@@ -77,7 +77,7 @@ class UssdExecutor(private val context: Context) {
         val timeoutMs = timeoutSeconds * 1000L
         return withTimeoutOrNull(timeoutMs) {
             when (mode) {
-                "advanced" -> runAdvanced(code, subId, isSambaza)
+                "advanced" -> runAdvanced(code, subId)
                 else -> runExpress(code, subId)
             }
         } ?: UssdResult(success = false, message = "USSD timed out after ${timeoutSeconds}s")
@@ -185,14 +185,16 @@ class UssdExecutor(private val context: Context) {
     // -------------------------------------------------------------------------
 
     /**
-     * Handles USSD codes that require a carrier confirmation step (e.g. "Confirm sambaza?").
+     * Handles USSD codes that require a carrier confirmation step or a parsed sequence of
+     * interactive replies.
      *
      * Flow:
      * 1. Fail-fast if accessibility service is not enabled — avoids a 30s hang.
      * 2. Drain stale data from the response channel (leftover from a previous session).
-     * 3. Dial the full USSD code via ACTION_CALL Intent (keeps the session interactive).
-     * 4. Wait for [UssdAccessibilityService] to detect the dialog and forward the response text.
-     * 5. Inject an empty confirmation (clicks OK/Send) via the accessibility service directly.
+     * 3. Dial only the parsed base USSD code via ACTION_CALL Intent (keeps the session interactive).
+     * 4. Wait for [UssdAccessibilityService] to detect the first dialog and forward the text.
+     * 5. Parse the code into a base dial string plus ordered reply steps, then submit each
+     *    reply sequentially through the accessibility service.
      * 6. Reset accessibility session state.
      *
      * Research:
@@ -203,7 +205,7 @@ class UssdExecutor(private val context: Context) {
      * - The injectInput() call goes to the main handler inside UssdAccessibilityService,
      *   so it is safe to call it from a coroutine running on Dispatchers.IO.
      */
-    private suspend fun runAdvanced(code: String, subId: Int, isSambaza: Boolean): UssdResult {
+    private suspend fun runAdvanced(code: String, subId: Int): UssdResult {
         val service = awaitAccessibilityService()
         if (service == null) {
             Log.w(TAG, "Accessibility service not active — redirecting user to Settings")
@@ -224,54 +226,41 @@ class UssdExecutor(private val context: Context) {
         // Drain any stale responses left over from a previous session
         while (UssdAccessibilityService.responseChannel.tryReceive().isSuccess) { /* drain */ }
 
-        // Dial the USSD code — keeps the carrier session open for interactive steps
-        dialUssd(code, subId)
+        val parsedFlow = parseAdvancedUssdFlow(code)
+        Log.i(
+            TAG,
+            "Advanced USSD flow parsed: base=${parsedFlow.baseDialCode}, replies=${parsedFlow.replies}"
+        )
 
-        // Allow the dialer to load and the USSD dialog to render
-        delay(DIALOG_RENDER_DELAY_MS)
+        // Dial only the base USSD code — replies are submitted step-by-step after the dialog opens.
+        dialUssd(parsedFlow.baseDialCode, subId)
 
-        // Block until the accessibility service detects and forwards the dialog text
-        val dialogText = UssdAccessibilityService.responseChannel.receiveCatching().getOrNull()
+        val dialogText = awaitDialogText(timeoutMs = FIRST_DIALOG_TIMEOUT_MS)
             ?: return UssdResult(success = false, message = "No USSD dialog detected by accessibility service")
 
         Log.d(TAG, "Advanced USSD dialog text: $dialogText")
 
-        if (isSambaza) {
-            // Sambaza Validation specific check
-            val isSambazaSuccess = dialogText.contains("You have transferred", ignoreCase = true) &&
-                dialogText.contains("KSH", ignoreCase = true)
+        var resolvedDialogText = dialogText
 
-            // Clean up: inject empty input to click 'OK' and clear the pop-up
-            service.injectInput("")
-            delay(DIALOG_RENDER_DELAY_MS)
+        for ((index, reply) in parsedFlow.replies.withIndex()) {
+            Log.d(
+                TAG,
+                "Advanced USSD reply step ${index + 1}/${parsedFlow.replies.size}: $reply"
+            )
 
-            UssdAccessibilityService.responseChannel.tryReceive()
-            service.dismiss()
+            service.injectInput(reply)
 
-            return if (isSambazaSuccess) {
-                UssdResult(success = true, message = dialogText)
-            } else {
-                UssdResult(success = false, message = dialogText)
+            val nextDialogText = awaitFollowUpDialog(resolvedDialogText)
+            if (nextDialogText.isNullOrBlank()) {
+                Log.w(
+                    TAG,
+                    "No follow-up USSD dialog detected after reply step ${index + 1}: $reply"
+                )
+                break
             }
-        }
 
-        // --- Standard Background Worker Flow ---
-
-        // Inject confirmation — for Kenyan telco flows the confirmation step just needs
-        // the OK/Send button pressed (no text input required). injectInput("") triggers
-        // the findSendButton() logic in UssdAccessibilityService.
-        service.injectInput("")
-
-        // Allow the click to process and the final carrier response to appear.
-        delay(DIALOG_RENDER_DELAY_MS)
-
-        val finalDialogText = awaitFollowUpDialog(dialogText)
-        val resolvedDialogText = finalDialogText ?: dialogText
-
-        if (finalDialogText != null) {
-            Log.d(TAG, "Advanced USSD final dialog text: $finalDialogText")
-            service.injectInput("")
-            delay(DIALOG_RENDER_DELAY_MS)
+            resolvedDialogText = nextDialogText
+            Log.d(TAG, "Advanced USSD dialog after reply step ${index + 1}: $resolvedDialogText")
         }
 
         UssdAccessibilityService.responseChannel.tryReceive()
@@ -312,6 +301,23 @@ class UssdExecutor(private val context: Context) {
                     ?: break
 
                 if (nextDialogText.isNotBlank() && nextDialogText != initialDialogText) {
+                    return@withTimeoutOrNull nextDialogText
+                }
+            }
+
+            null
+        }
+    }
+
+    private suspend fun awaitDialogText(timeoutMs: Long): String? {
+        return withTimeoutOrNull(timeoutMs) {
+            while (true) {
+                val nextDialogText = UssdAccessibilityService.responseChannel
+                    .receiveCatching()
+                    .getOrNull()
+                    ?: break
+
+                if (nextDialogText.isNotBlank()) {
                     return@withTimeoutOrNull nextDialogText
                 }
             }

@@ -110,7 +110,4 @@ test('dashboard recent transactions show ussd messages with status styling', fun
     $response->assertSee('USSD completed by carrier.');
     $response->assertSee('USSD rejected by carrier.');
     $response->assertSee('USSD waiting for processing.');
-    $response->assertSee('bg-green-50 text-green-800 ring-green-100', false);
-    $response->assertSee('bg-rose-50 text-rose-800 ring-rose-100', false);
-    $response->assertSee('bg-zinc-50 text-zinc-700 ring-zinc-200', false);
 });

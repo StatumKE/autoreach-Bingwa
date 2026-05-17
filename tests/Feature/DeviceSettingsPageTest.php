@@ -1,7 +1,9 @@
 <?php
 
+use App\Jobs\ProcessBingwaQueuedTransactionsJob;
 use App\Models\DeviceSetting;
 use App\Models\User;
+use Illuminate\Support\Facades\Bus;
 
 test('device settings page is displayed', function () {
     $this->actingAs(User::factory()->create());
@@ -9,8 +11,11 @@ test('device settings page is displayed', function () {
     $this->get(route('device.edit'))
         ->assertOk()
         ->assertSee('Device Configuration')
+        ->assertSee('Transaction Processing')
         ->assertSee('SIM Slot Mapping')
         ->assertSee('Automation Rules')
+        ->assertSee('Disable Processing')
+        ->assertSee('Active')
         ->assertSee('Grant All Permissions')
         ->assertSee('Autoreach Bingwa')
         ->assertSee('name="primary_transaction_sim"', false)
@@ -19,6 +24,145 @@ test('device settings page is displayed', function () {
         ->assertSee('/settings/device/hardware/__PRIMARY_SIM__/__SMS_SIM__', false)
         ->assertSee('<select', false)
         ->assertDontSee('wire:model');
+});
+
+test('transaction processing can be paused and resumed without losing queued transactions', function () {
+    $user = User::factory()->create();
+
+    DeviceSetting::query()->create([
+        'user_id' => $user->id,
+        'operator_identity' => 'Alice Admin',
+        'primary_transaction_sim' => 'slot_1',
+        'sms_auto_reply_sim' => 'slot_1',
+        'app_interface_mode' => 'express',
+        'auto_reschedule_rejected' => false,
+        'retry_tomorrow_at' => null,
+        'ussd_timeout_seconds' => 30,
+        'intelligent_auto_retry' => true,
+        'retry_interval_minutes' => 1,
+        'max_attempts' => 2,
+        'retry_network_issues' => false,
+        'transaction_processing_enabled' => true,
+    ]);
+
+    $this->actingAs($user);
+
+    $this->from(route('device.edit'))
+        ->post(route('device.processing.toggle'))
+        ->assertRedirect(route('device.edit'));
+
+    $this->assertDatabaseHas('device_settings', [
+        'user_id' => $user->id,
+        'transaction_processing_enabled' => false,
+    ]);
+
+    $this->from(route('device.edit'))
+        ->post(route('device.processing.toggle'))
+        ->assertRedirect(route('device.edit'));
+
+    $this->assertDatabaseHas('device_settings', [
+        'user_id' => $user->id,
+        'transaction_processing_enabled' => true,
+    ]);
+});
+
+test('device settings page shows a paused badge when processing is disabled', function () {
+    $user = User::factory()->create();
+
+    DeviceSetting::query()->create([
+        'user_id' => $user->id,
+        'operator_identity' => 'Alice Admin',
+        'primary_transaction_sim' => 'slot_1',
+        'sms_auto_reply_sim' => 'slot_1',
+        'app_interface_mode' => 'express',
+        'auto_reschedule_rejected' => false,
+        'retry_tomorrow_at' => null,
+        'ussd_timeout_seconds' => 30,
+        'intelligent_auto_retry' => true,
+        'retry_interval_minutes' => 1,
+        'max_attempts' => 2,
+        'retry_network_issues' => false,
+        'transaction_processing_enabled' => false,
+    ]);
+
+    $this->actingAs($user);
+
+    $this->get(route('device.edit'))
+        ->assertOk()
+        ->assertSee('Processor is paused')
+        ->assertSee('Paused');
+});
+
+test('pausing transaction processing does not dispatch the queued processor', function () {
+    Bus::fake();
+
+    $user = User::factory()->create();
+
+    DeviceSetting::query()->create([
+        'user_id' => $user->id,
+        'operator_identity' => 'Alice Admin',
+        'primary_transaction_sim' => 'slot_1',
+        'sms_auto_reply_sim' => 'slot_1',
+        'app_interface_mode' => 'express',
+        'auto_reschedule_rejected' => false,
+        'retry_tomorrow_at' => null,
+        'ussd_timeout_seconds' => 30,
+        'intelligent_auto_retry' => true,
+        'retry_interval_minutes' => 1,
+        'max_attempts' => 2,
+        'retry_network_issues' => false,
+        'transaction_processing_enabled' => true,
+    ]);
+
+    $this->actingAs($user);
+
+    $this->from(route('device.edit'))
+        ->post(route('device.processing.toggle'))
+        ->assertRedirect(route('device.edit'));
+
+    $this->assertDatabaseHas('device_settings', [
+        'user_id' => $user->id,
+        'transaction_processing_enabled' => false,
+    ]);
+
+    Bus::assertNothingDispatched();
+});
+
+test('resuming transaction processing dispatches the queued processor', function () {
+    Bus::fake();
+
+    $user = User::factory()->create();
+
+    DeviceSetting::query()->create([
+        'user_id' => $user->id,
+        'operator_identity' => 'Alice Admin',
+        'primary_transaction_sim' => 'slot_1',
+        'sms_auto_reply_sim' => 'slot_1',
+        'app_interface_mode' => 'express',
+        'auto_reschedule_rejected' => false,
+        'retry_tomorrow_at' => null,
+        'ussd_timeout_seconds' => 30,
+        'intelligent_auto_retry' => true,
+        'retry_interval_minutes' => 1,
+        'max_attempts' => 2,
+        'retry_network_issues' => false,
+        'transaction_processing_enabled' => false,
+    ]);
+
+    $this->actingAs($user);
+
+    $this->from(route('device.edit'))
+        ->post(route('device.processing.toggle'))
+        ->assertRedirect(route('device.edit'));
+
+    $this->assertDatabaseHas('device_settings', [
+        'user_id' => $user->id,
+        'transaction_processing_enabled' => true,
+    ]);
+
+    Bus::assertDispatched(ProcessBingwaQueuedTransactionsJob::class, function (ProcessBingwaQueuedTransactionsJob $job) use ($user): bool {
+        return $job->userId === $user->id;
+    });
 });
 
 test('operator identity can be updated with a plain post form', function () {

@@ -154,6 +154,23 @@ new #[Title('Auto Renewals')] class extends Component {
     {
         return AutoRenewal::query()
             ->with(['offer:id,name,price'])
+            ->select([
+                'id',
+                'user_id',
+                'offer_id',
+                'customer_phone',
+                'scheduled_for',
+                'status',
+                'auto_renew',
+                'renew_days',
+                'notes',
+                'cancelled_at',
+                'processing_started_at',
+                'completed_at',
+                'failed_at',
+                'created_at',
+                'updated_at',
+            ])
             ->where('user_id', Auth::id())
             ->orderByDesc('scheduled_for')
             ->orderByDesc('id')

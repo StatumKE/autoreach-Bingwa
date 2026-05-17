@@ -214,6 +214,26 @@ new #[Title('Transactions')] class extends Component
 
         return Transaction::query()
             ->with(['offer:id,name,ussd_code,ussd_mode'])
+            ->select([
+                'id',
+                'user_id',
+                'offer_id',
+                'transaction_id',
+                'mpesa_code',
+                'sender_phone',
+                'sender_name',
+                'amount',
+                'offer_name',
+                'offer_type',
+                'matched_offer',
+                'balance',
+                'occurred_at',
+                'status',
+                'status_desc',
+                'processed_at',
+                'created_at',
+                'updated_at',
+            ])
             ->where('user_id', Auth::id())
             ->when($this->filter !== 'all', function ($query) {
                 $status = $this->filter === 'success' ? 'completed' : $this->filter;

@@ -6,6 +6,7 @@ use App\Models\Plan;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Support\AppTimezone;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -119,8 +120,7 @@ class PersistBingwaTransaction
                     'offer_type' => $payload['offer_type'] ?? $fallbackOfferType ?? $payload['service'] ?? 'broadcast',
                     'matched_offer' => $payload['matched_offer'] ?? null,
                     'balance' => null,
-                    'occurred_at' => Carbon::parse($payload['occurred_at'] ?? now())
-                        ->setTimezone(AppTimezone::name()),
+                    'occurred_at' => $this->normalizeOccurredAt($payload['occurred_at'] ?? null),
                     'status' => $status,
                     'status_desc' => $statusDesc,
                 ],
@@ -131,5 +131,30 @@ class PersistBingwaTransaction
             'transaction' => $transaction,
             'skipped' => false,
         ];
+    }
+
+    /**
+     * Normalize a backend timestamp into the application timezone.
+     *
+     * Backend payloads may omit a timezone. When that happens we treat the
+     * incoming value as UTC and convert it to Africa/Nairobi for storage.
+     */
+    private function normalizeOccurredAt(DateTimeInterface|Carbon|string|null $value): Carbon
+    {
+        if ($value === null || $value === '') {
+            return AppTimezone::now();
+        }
+
+        if ($value instanceof DateTimeInterface) {
+            return Carbon::instance($value)->timezone(AppTimezone::name());
+        }
+
+        $hasExplicitTimezone = preg_match('/(Z|[+-]\d{2}:?\d{2})$/i', trim($value)) === 1;
+
+        $timestamp = $hasExplicitTimezone
+            ? Carbon::parse($value)
+            : Carbon::parse($value, 'UTC');
+
+        return $timestamp->timezone(AppTimezone::name());
     }
 }

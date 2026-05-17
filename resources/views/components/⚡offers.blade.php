@@ -157,6 +157,18 @@ new #[Title('My Offers')] class extends Component {
     public function offers()
     {
         return Offer::query()
+            ->select([
+                'id',
+                'user_id',
+                'name',
+                'category',
+                'price',
+                'ussd_code',
+                'ussd_mode',
+                'is_active',
+                'created_at',
+                'updated_at',
+            ])
             ->where('user_id', Auth::id())
             ->when($this->activeCategory !== 'all', function ($query): void {
                 $query->where('category', $this->activeCategory);

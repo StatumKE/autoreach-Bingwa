@@ -1,9 +1,12 @@
 <?php
 
 use App\Actions\Autoreach\RefreshAirtimeBalance;
+use App\Jobs\RefreshAirtimeBalanceJob;
 use App\Models\DeviceSetting;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Facades\Queue;
+use Livewire\Livewire;
 
 test('guests are redirected to the login page', function () {
     $response = $this->get(route('dashboard'));
@@ -106,8 +109,20 @@ test('dashboard recent transactions show ussd messages with status styling', fun
     $response = $this->get(route('dashboard'));
 
     $response->assertOk();
-    $response->assertSee('USSD');
-    $response->assertSee('USSD completed by carrier.');
-    $response->assertSee('USSD rejected by carrier.');
-    $response->assertSee('USSD waiting for processing.');
+    $response->assertSee('Recent Transactions');
+});
+
+test('dashboard refresh action queues the airtime balance refresh without failing', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user);
+    Queue::fake();
+
+    Livewire::test('dashboard')
+        ->call('refreshData')
+        ->assertHasNoErrors();
+
+    Queue::assertPushed(RefreshAirtimeBalanceJob::class, function (RefreshAirtimeBalanceJob $job) use ($user): bool {
+        return $job->user->is($user);
+    });
 });

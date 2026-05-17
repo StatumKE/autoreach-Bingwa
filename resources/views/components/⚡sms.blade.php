@@ -38,6 +38,21 @@ new #[Title('SMS History')] class extends Component {
     {
         return Transaction::query()
             ->with(['autoReply:id,name,trigger_condition'])
+            ->select([
+                'id',
+                'user_id',
+                'transaction_id',
+                'sender_phone',
+                'sender_name',
+                'auto_reply_message',
+                'auto_reply_failure_reason',
+                'auto_reply_status',
+                'auto_reply_trigger_condition',
+                'auto_reply_sim_slot',
+                'auto_reply_attempts',
+                'auto_reply_sent_at',
+                'processed_at',
+            ])
             ->where('user_id', Auth::id())
             ->whereNotNull('auto_reply_status')
             ->when($this->filter !== 'all', function ($query): void {

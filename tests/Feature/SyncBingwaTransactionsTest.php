@@ -108,6 +108,45 @@ test('bingwa transaction sync clamps low limits to one and stores single-job res
     expect($transaction?->balance)->toBeNull();
 });
 
+test('bingwa transaction sync normalizes naive backend timestamps to africa nairobi', function () {
+    Http::fake([
+        'backend.statum.co.ke/api/v1/jobs/next/data_bundles*' => Http::response([
+            'transaction_id' => 73,
+            'mpesa_code' => 'UDH9Z12J5H',
+            'sender_phone' => '0719704754',
+            'sender_name' => 'naive time user',
+            'amount' => 20,
+            'offer_name' => 'Test 1 day',
+            'offer_type' => 'data_bundles',
+            'matched_offer' => [
+                'offer_local_id' => '9',
+                'offer_key' => 'test_1_day',
+                'offer_name' => 'Test 1 day',
+                'offer_type' => 'data_bundles',
+                'offer_amount' => 20,
+                'canonical_offer_id' => 9,
+            ],
+            'occurred_at' => '2026-04-17 17:34:15',
+        ], 200),
+        'backend.statum.co.ke/api/v1/jobs/next/sms*' => Http::response('', 204),
+        'backend.statum.co.ke/api/v1/jobs/next/airtime*' => Http::response('', 204),
+    ]);
+
+    $result = $this->action->sync($this->user, 1);
+
+    expect($result)->toMatchArray([
+        'synced' => 1,
+        'skipped' => 0,
+        'failed' => 0,
+    ]);
+
+    $transaction = Transaction::query()->where('transaction_id', '73')->first();
+
+    expect($transaction)->not->toBeNull();
+    expect($transaction?->occurred_at?->timezoneName)->toBe('Africa/Nairobi');
+    expect($transaction?->occurred_at?->format('Y-m-d H:i:s'))->toBe('2026-04-17 20:34:15');
+});
+
 test('bingwa transaction sync stores batch responses without balance', function () {
     Http::fake([
         'backend.statum.co.ke/api/v1/jobs/next/data_bundles*' => Http::response('', 204),

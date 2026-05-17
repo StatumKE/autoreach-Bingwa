@@ -4,6 +4,7 @@ use App\Actions\Autoreach\RefreshAirtimeBalance;
 use App\Support\AppTimezone;
 use App\Models\Transaction;
 use App\Models\Plan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -66,11 +67,7 @@ new #[Title('Dashboard')] class extends Component
      */
     public function getStatsProperty(): array
     {
-        $user = Auth::user();
-        return [
-            'successful' => Transaction::where('user_id', $user->id)->where('status', 'completed')->count(),
-            'failed' => Transaction::where('user_id', $user->id)->where('status', 'failed')->count(),
-        ];
+        return $this->dashboardMetrics()['stats'];
     }
 
     /**
@@ -108,15 +105,7 @@ new #[Title('Dashboard')] class extends Component
      */
     public function getAirtimeProperty(): array
     {
-        $user = Auth::user();
-        $today = Transaction::where('user_id', $user->id)
-            ->where('status', 'completed')
-            ->whereDate('occurred_at', Carbon::today())
-            ->sum('amount');
-
-        return [
-            'used_today' => $today,
-        ];
+        return $this->dashboardMetrics()['airtime'];
     }
 
     public function hydrateAirtimeBalance(): void
@@ -140,34 +129,7 @@ new #[Title('Dashboard')] class extends Component
      */
     public function getCommissionDataProperty(): array
     {
-        $user = Auth::user();
-        $startOfWeek = now()->startOfWeek();
-        $endOfWeek = now()->endOfWeek();
-
-        $dailyTotals = Transaction::where('user_id', $user->id)
-            ->where('status', 'completed')
-            ->whereBetween('occurred_at', [$startOfWeek, $endOfWeek])
-            ->select(DB::raw('DATE(occurred_at) as date'), DB::raw('SUM(amount) as total'))
-            ->groupBy('date')
-            ->get()
-            ->pluck('total', 'date')
-            ->toArray();
-
-        $dataPoints = [];
-        $totalCommission = 0;
-        
-        for ($i = 0; $i < 7; $i++) {
-            $date = $startOfWeek->copy()->addDays($i)->format('Y-m-d');
-            $val = $dailyTotals[$date] ?? 0;
-            $dataPoints[] = (float) $val;
-            $totalCommission += $val;
-        }
-
-        return [
-            'total' => $totalCommission,
-            'points' => $dataPoints,
-            'max' => max($dataPoints) ?: 100, // Avoid division by zero
-        ];
+        return $this->dashboardMetrics()['commission'];
     }
 
 
@@ -212,8 +174,7 @@ new #[Title('Dashboard')] class extends Component
 
             \App\Jobs\RefreshAirtimeBalanceJob::dispatch(Auth::user());
         } finally {
-            // We keep it true for a few seconds to let the poll catch it
-            $this->js('setTimeout(() => $wire.set("isRefreshingBalance", false), 10000)');
+            $this->isRefreshingBalance = false;
         }
     }
 
@@ -240,11 +201,87 @@ new #[Title('Dashboard')] class extends Component
             \Illuminate\Support\Facades\Artisan::call('bingwa:sync-transactions', [
                 '--user-id' => Auth::id(),
             ]);
-            
+
+            Cache::forget($this->dashboardMetricsCacheKey());
             $this->refreshTransactions();
         } catch (\Throwable $e) {
             Log::error('Dashboard background sync failed: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Get the cached dashboard metrics snapshot.
+     *
+     * @return array{
+     *     stats: array{successful: int, failed: int},
+     *     airtime: array{used_today: float|int},
+     *     commission: array{total: float|int, points: array<int, float>, max: float|int}
+     * }
+     */
+    private function dashboardMetrics(): array
+    {
+        return Cache::remember($this->dashboardMetricsCacheKey(), now()->addSeconds(15), function (): array {
+            $userId = (int) Auth::id();
+            $startOfWeek = now()->startOfWeek();
+            $endOfWeek = now()->endOfWeek();
+
+            $successful = Transaction::query()
+                ->where('user_id', $userId)
+                ->where('status', 'completed')
+                ->count();
+
+            $failed = Transaction::query()
+                ->where('user_id', $userId)
+                ->where('status', 'failed')
+                ->count();
+
+            $usedToday = Transaction::query()
+                ->where('user_id', $userId)
+                ->where('status', 'completed')
+                ->whereDate('occurred_at', Carbon::today())
+                ->sum('amount');
+
+            $dailyTotals = Transaction::query()
+                ->where('user_id', $userId)
+                ->where('status', 'completed')
+                ->whereBetween('occurred_at', [$startOfWeek, $endOfWeek])
+                ->select(DB::raw('DATE(occurred_at) as date'), DB::raw('SUM(amount) as total'))
+                ->groupBy('date')
+                ->get()
+                ->pluck('total', 'date')
+                ->toArray();
+
+            $dataPoints = [];
+            $totalCommission = 0;
+
+            for ($i = 0; $i < 7; $i++) {
+                $date = $startOfWeek->copy()->addDays($i)->format('Y-m-d');
+                $value = (float) ($dailyTotals[$date] ?? 0);
+
+                $dataPoints[] = $value;
+                $totalCommission += $value;
+            }
+
+            return [
+                'stats' => [
+                    'successful' => $successful,
+                    'failed' => $failed,
+                ],
+                'airtime' => [
+                    'used_today' => $usedToday,
+                ],
+                'commission' => [
+                    'total' => $totalCommission,
+                    'points' => $dataPoints,
+                    'max' => max($dataPoints) ?: 100,
+                ],
+            ];
+        });
+    }
+
+    private function dashboardMetricsCacheKey(): string
+    {
+        return 'dashboard:metrics:'.Auth::id();
     }
 
 }; ?>

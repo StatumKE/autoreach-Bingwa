@@ -1,4 +1,4 @@
-<div class="divide-y divide-zinc-100 text-center">
+<div wire:poll.visible.10s class="divide-y divide-zinc-100 text-center">
     @forelse($this->transactions() as $tx)
         @php
             $status = strtolower((string) ($tx->status ?? ''));

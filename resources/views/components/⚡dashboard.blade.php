@@ -153,23 +153,26 @@ new #[Title('Dashboard')] class extends Component
      */
     public function getRecentTransactionsProperty(): Collection
     {
-        return Cache::remember($this->recentTransactionsCacheKey(), now()->addSeconds(10), function (): Collection {
-            return Transaction::query()
-                ->where('user_id', Auth::id())
-                ->orderByDesc('occurred_at')
-                ->orderByDesc('id')
-                ->limit(10)
-                ->get([
-                    'id',
-                    'sender_name',
-                    'sender_phone',
-                    'offer_name',
-                    'amount',
-                    'status',
-                    'status_desc',
-                    'occurred_at',
-                ]);
-        });
+        // NOTE: Do NOT use Cache::remember() here. Caching an Eloquent Collection
+        // across ephemeral NativePHP PHP process boots causes __PHP_Incomplete_Class
+        // deserialization failures — Transaction model isn't loaded when the cached
+        // bytes are unpacked in a fresh process, resulting in a 500 error on the
+        // dashboard island. The island polls every 10s so caching is unnecessary.
+        return Transaction::query()
+            ->where('user_id', Auth::id())
+            ->orderByDesc('occurred_at')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get([
+                'id',
+                'sender_name',
+                'sender_phone',
+                'offer_name',
+                'amount',
+                'status',
+                'status_desc',
+                'occurred_at',
+            ]);
     }
 
     public function toggleBalance(): void

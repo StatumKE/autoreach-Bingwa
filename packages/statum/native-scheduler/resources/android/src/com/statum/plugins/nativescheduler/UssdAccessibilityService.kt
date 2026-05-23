@@ -44,13 +44,7 @@ class UssdAccessibilityService : AccessibilityService() {
          */
         val responseChannel = Channel<String>(Channel.UNLIMITED)
 
-        /** Dialer packages monitored across OEMs (AOSP, Samsung, Google, generic). */
-        private val DIALER_PACKAGES = setOf(
-            "com.android.phone",
-            "com.samsung.android.dialer",
-            "com.google.android.dialer",
-            "com.android.dialer",
-        )
+        private val CONFIRM_LABELS = setOf("send", "ok", "okay", "reply", "tuma", "confirm", "yes")
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -75,7 +69,7 @@ class UssdAccessibilityService : AccessibilityService() {
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             notificationTimeout = 100
-            packageNames = DIALER_PACKAGES.toTypedArray()
+            packageNames = null
         }
         Log.i(TAG, "Accessibility service connected")
     }
@@ -95,14 +89,13 @@ class UssdAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
-        if (event.packageName?.toString() !in DIALER_PACKAGES) return
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
         ) return
+        val eventPackage = event.packageName?.toString() ?: return
+        if (eventPackage == packageName || !isTelephonyWindow(eventPackage, event.className?.toString())) return
 
-        // Get the root of the window that triggered the event
-        var node = event.source ?: rootInActiveWindow ?: return
-        var root = node
+        var root = event.source ?: rootInActiveWindow ?: return
         while (root.parent != null) {
             root = root.parent
         }
@@ -113,19 +106,11 @@ class UssdAccessibilityService : AccessibilityService() {
         }
 
         // A USSD dialog is identifiable by the presence of a Send/OK button.
-        val sendButton = findSendButton(root)
-        if (sendButton == null) {
+        if (findSendButton(root) == null) {
             return
         }
 
-        // Extract the dialog message text
-        // Extract the dialog message text, strictly filtering by the dialer package
-        val textNodes = findNodesByClass(root, "android.widget.TextView")
-        val dialogText = textNodes
-            .filter { n -> n.packageName?.toString() in DIALER_PACKAGES }
-            .mapNotNull { n -> n.text?.toString()?.trim()?.takeIf { it.isNotBlank() } }
-            .joinToString("\n")
-            .trim()
+        val dialogText = collectDialogText(root)
 
         if (dialogText.isBlank()) return
 
@@ -155,7 +140,7 @@ class UssdAccessibilityService : AccessibilityService() {
 
             // If the dialog has an input field, populate it
             if (input.isNotEmpty()) {
-                findNodesByClass(root, "android.widget.EditText").firstOrNull()?.let { editNode ->
+                findFirstNodeByClass(root, "android.widget.EditText")?.let { editNode ->
                     val args = Bundle()
                     args.putCharSequence(
                         AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
@@ -167,7 +152,6 @@ class UssdAccessibilityService : AccessibilityService() {
 
             // Click the Send/OK button to submit
             findSendButton(root)?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            root.recycle()
 
             Log.d(TAG, "injectInput: submitted '$input'")
         }
@@ -184,27 +168,53 @@ class UssdAccessibilityService : AccessibilityService() {
     // Node traversal helpers
     // -------------------------------------------------------------------------
 
-    /**
-     * BFS traversal to find all nodes matching a given [className].
-     * Avoids hardcoded resource IDs which differ across OEMs and Android versions.
-     */
-    private fun findNodesByClass(
+    internal fun isTelephonyWindow(eventPackage: String, className: String?): Boolean {
+        val lowerPackage = eventPackage.lowercase()
+        val lowerClassName = className?.lowercase().orEmpty()
+
+        return lowerPackage.contains("phone")
+            || lowerPackage.contains("dialer")
+            || lowerPackage.contains("telecom")
+            || lowerPackage.contains("telephony")
+            || lowerClassName.contains("ussd")
+            || lowerClassName.contains("mmi")
+    }
+
+    private fun findFirstNodeByClass(
         root: AccessibilityNodeInfo,
         className: String,
-    ): List<AccessibilityNodeInfo> {
-        val result = mutableListOf<AccessibilityNodeInfo>()
+    ): AccessibilityNodeInfo? {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         while (queue.isNotEmpty()) {
             val node = queue.removeFirst()
             if (node.className?.toString() == className) {
-                result.add(node)
+                return node
             }
             for (i in 0 until node.childCount) {
                 node.getChild(i)?.let { queue.add(it) }
             }
         }
-        return result
+        return null
+    }
+
+    private fun collectDialogText(root: AccessibilityNodeInfo): String {
+        val textParts = mutableListOf<String>()
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+
+        while (queue.isNotEmpty()) {
+            val node = queue.removeFirst()
+            if (node.className?.toString() == "android.widget.TextView") {
+                node.text?.toString()?.trim()?.takeIf { it.isNotBlank() }?.let(textParts::add)
+            }
+
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { queue.add(it) }
+            }
+        }
+
+        return textParts.joinToString("\n").trim()
     }
 
     /**
@@ -214,10 +224,24 @@ class UssdAccessibilityService : AccessibilityService() {
      * tree (which is typically the "confirm" button by dialog layout convention).
      */
     private fun findSendButton(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        val buttons = findNodesByClass(root, "android.widget.Button")
-        val confirmLabels = setOf("send", "ok", "okay", "reply", "tuma", "confirm", "yes")
-        return buttons.firstOrNull { node ->
-            node.text?.toString()?.lowercase()?.trim() in confirmLabels
-        } ?: buttons.lastOrNull()
+        var fallbackButton: AccessibilityNodeInfo? = null
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+
+        while (queue.isNotEmpty()) {
+            val node = queue.removeFirst()
+            if (node.className?.toString() == "android.widget.Button") {
+                fallbackButton = node
+                if (node.text?.toString()?.lowercase()?.trim() in CONFIRM_LABELS) {
+                    return node
+                }
+            }
+
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { queue.add(it) }
+            }
+        }
+
+        return fallbackButton
     }
 }

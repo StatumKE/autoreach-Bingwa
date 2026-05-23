@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * @property int $user_id
@@ -60,6 +61,16 @@ class DeviceSetting extends Model
     }
 
     /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (DeviceSetting $setting) {
+            Cache::forget("user_{$setting->user_id}_transaction_processing_enabled");
+        });
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -81,10 +92,16 @@ class DeviceSetting extends Model
 
     public static function isTransactionProcessingEnabledForUser(int $userId): bool
     {
-        $value = self::query()
-            ->where('user_id', $userId)
-            ->value('transaction_processing_enabled');
+        return Cache::remember(
+            "user_{$userId}_transaction_processing_enabled",
+            300,
+            function () use ($userId) {
+                $value = self::query()
+                    ->where('user_id', $userId)
+                    ->value('transaction_processing_enabled');
 
-        return $value === null ? true : (bool) $value;
+                return $value === null ? true : (bool) $value;
+            }
+        );
     }
 }

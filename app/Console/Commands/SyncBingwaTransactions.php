@@ -39,8 +39,16 @@ class SyncBingwaTransactions extends Command
         if (! $user) {
             $this->warn('No user found with a Bingwa device registration. Skipping sync.');
 
+            Log::debug('Bingwa transactions sync skipped because no user was found.', [
+                'user_id' => $this->option('user-id') ? (int) $this->option('user-id') : null,
+            ]);
+
             return self::SUCCESS;
         }
+
+        Log::debug('Bingwa transactions sync fetching backend jobs.', [
+            'user_id' => $user->id,
+        ]);
 
         $result = $fetchNextBingwaJobs->sync($user);
 
@@ -58,9 +66,20 @@ class SyncBingwaTransactions extends Command
         Log::info($data['message']);
         $this->output->write(json_encode($data));
 
+        Log::debug('Bingwa transactions sync backend fetch finished.', [
+            'user_id' => $user->id,
+            'synced' => $synced,
+            'skipped' => $skipped,
+            'failed' => $failed,
+        ]);
+
         if ($synced > 0 || Transaction::query()->where('status', 'queued')->exists()) {
             Log::info('🚀 Dispatching USSD processor for queued transactions...');
             app(DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) $user->id);
+
+            Log::debug('Bingwa transactions sync dispatched queued processor.', [
+                'user_id' => $user->id,
+            ]);
         }
 
         return self::SUCCESS;

@@ -5,16 +5,40 @@ namespace App\Http\Controllers\Api;
 use App\Services\AndroidRuntimeScheduler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class NativeRuntimeTickController
 {
     public function __invoke(Request $request, AndroidRuntimeScheduler $scheduler): JsonResponse
     {
-        if (! $this->isLoopbackRequest($request) || $request->header('X-Bingwa-Runtime') !== 'android') {
+        $runtimeHeader = $request->header('X-Bingwa-Runtime');
+        $isLoopbackRequest = $this->isLoopbackRequest($request);
+
+        Log::debug('Bingwa runtime tick request received.', [
+            'ip' => $request->ip(),
+            'host' => $request->getHost(),
+            'loopback' => $isLoopbackRequest,
+            'runtime_header' => $runtimeHeader,
+        ]);
+
+        if (! $isLoopbackRequest || $runtimeHeader !== 'android') {
+            Log::debug('Bingwa runtime tick request rejected.', [
+                'ip' => $request->ip(),
+                'host' => $request->getHost(),
+                'loopback' => $isLoopbackRequest,
+                'runtime_header' => $runtimeHeader,
+            ]);
+
             return response()->json([
                 'status' => 'forbidden',
             ], 403);
         }
+
+        Log::debug('Bingwa runtime tick request accepted.', [
+            'ip' => $request->ip(),
+            'host' => $request->getHost(),
+            'runtime_header' => $runtimeHeader,
+        ]);
 
         return response()->json([
             'status' => 'ok',

@@ -267,6 +267,60 @@ it('finalizes a failed transaction once when finalize-once is requested', functi
     expect($fresh->status_desc)->toBe('Request rejected by carrier');
 });
 
+it('does not retry non retryable carrier messages', function () {
+    $user = User::factory()->create();
+    DeviceSetting::factory()->create([
+        'user_id' => $user->id,
+        'intelligent_auto_retry' => true,
+        'auto_reschedule_rejected' => true,
+        'max_attempts' => 4,
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'processing',
+        'retry_count' => 0,
+    ]);
+
+    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --message='The customer has already been recommended.'")
+        ->assertExitCode(0);
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh?->status)->toBe('failed');
+    expect($fresh?->retry_count)->toBe(0);
+    expect($fresh?->processed_at)->not->toBeNull();
+});
+
+it('reschedules rejected carrier messages when intelligent retry is disabled', function () {
+    $user = User::factory()->create();
+    DeviceSetting::factory()->create([
+        'user_id' => $user->id,
+        'intelligent_auto_retry' => false,
+        'auto_reschedule_rejected' => true,
+        'retry_tomorrow_at' => '12:30 AM',
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'processing',
+        'occurred_at' => now()->subHour(),
+        'processed_at' => null,
+    ]);
+    $occurredAt = $transaction->occurred_at;
+
+    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --message='Request rejected by carrier'")
+        ->assertExitCode(0);
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh?->status)->toBe('queued');
+    expect($fresh?->processed_at)->toBeNull();
+    expect($fresh?->status_desc)->toContain('Rescheduled');
+    expect($fresh?->occurred_at?->equalTo($occurredAt))->toBeTrue();
+    expect($fresh?->next_attempt_at)->not->toBeNull();
+});
+
 it('does not dispatch a backend status update for quick dial transactions', function () {
     Queue::fake();
 
@@ -326,4 +380,88 @@ it('does not dispatch a backend status update for auto renewal transactions', fu
     expect($transaction->fresh()?->status)->toBe('completed');
 
     Queue::assertNotPushed(UpdateRemoteTransactionStatusJob::class);
+});
+
+it('reverts transaction status to queued without incrementing retry count on lock contention', function () {
+    $user = User::factory()->create();
+    DeviceSetting::factory()->create([
+        'user_id' => $user->id,
+        'intelligent_auto_retry' => true,
+        'max_attempts' => 4,
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'processing',
+        'retry_count' => 1,
+        'auto_reply_status' => 'queued',
+        'auto_reply_message' => 'hello',
+    ]);
+
+    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --message='Another USSD session is already in progress'")
+        ->assertExitCode(0);
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh?->status)->toBe('queued');
+    expect($fresh?->retry_count)->toBe(1);
+    expect($fresh?->auto_reply_status)->toBeNull();
+    expect($fresh?->auto_reply_message)->toBeNull();
+    expect($fresh?->status_desc)->toBe('Another USSD session is already in progress.');
+});
+
+it('finalizes failed transaction immediately on network timeout when retry_network_issues is disabled', function () {
+    $user = User::factory()->create();
+    DeviceSetting::factory()->create([
+        'user_id' => $user->id,
+        'intelligent_auto_retry' => true,
+        'retry_network_issues' => false,
+        'max_attempts' => 4,
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'processing',
+        'retry_count' => 0,
+        'processed_at' => null,
+    ]);
+
+    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --message='USSD timeout occurred'")
+        ->assertExitCode(0);
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh?->status)->toBe('failed');
+    expect($fresh?->retry_count)->toBe(0);
+    expect($fresh?->processed_at)->not->toBeNull();
+});
+
+it('retries failed transaction on network timeout when retry_network_issues is enabled', function () {
+    $user = User::factory()->create();
+    DeviceSetting::factory()->create([
+        'user_id' => $user->id,
+        'intelligent_auto_retry' => true,
+        'retry_network_issues' => true,
+        'max_attempts' => 4,
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'processing',
+        'occurred_at' => now()->subHour(),
+        'retry_count' => 0,
+        'processed_at' => null,
+    ]);
+    $occurredAt = $transaction->occurred_at;
+
+    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --message='USSD timeout occurred'")
+        ->assertExitCode(0);
+
+    $fresh = $transaction->fresh();
+
+    expect($fresh?->status)->toBe('queued');
+    expect($fresh?->retry_count)->toBe(1);
+    expect($fresh?->processed_at)->toBeNull();
+    expect($fresh?->occurred_at?->equalTo($occurredAt))->toBeTrue();
+    expect($fresh?->next_attempt_at)->not->toBeNull();
 });

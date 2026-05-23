@@ -115,6 +115,7 @@ class ProcessDueAutoRenewals
                             'auto_renewal_id' => $renewal->id,
                         ],
                         'occurred_at' => now(),
+                        'next_attempt_at' => now(),
                         'status' => 'queued',
                         'status_desc' => __('Auto-renewal award queued for processing.'),
                         'processed_at' => null,

@@ -2,12 +2,15 @@
 
 namespace App\Actions\Autoreach;
 
+use App\Exceptions\UssdModemBusyException;
 use App\Support\BingwaUssdResponse;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class ExecuteBingwaUssd
 {
+    public function __construct(private UssdModemLock $ussdModemLock) {}
+
     /**
      * Execute a queued Bingwa transaction through the native USSD bridge.
      *
@@ -20,6 +23,7 @@ class ExecuteBingwaUssd
         $mode = (string) ($payload['mode'] ?? 'express');
         $simSlot = (int) ($payload['sim_slot'] ?? $payload['simSlot'] ?? 0);
         $isSambaza = (bool) ($payload['is_sambaza'] ?? $payload['isSambaza'] ?? false);
+        $timeoutSeconds = max(1, (int) ($payload['timeout'] ?? $payload['timeoutSeconds'] ?? 30));
 
         if ($code === '') {
             Log::warning('Bingwa USSD execution skipped because the code was empty.', [
@@ -54,6 +58,7 @@ class ExecuteBingwaUssd
             'mode' => $mode,
             'simSlot' => $simSlot,
             'isSambaza' => $isSambaza,
+            'timeoutSeconds' => $timeoutSeconds,
         ]);
 
         Log::info('📡 [BRIDGE DISPATCH] Sending USSD to Android Hardware', [
@@ -61,10 +66,37 @@ class ExecuteBingwaUssd
             'code' => $code,
             'sim_slot' => $simSlot,
             'mode' => $mode,
+            'timeout_seconds' => $timeoutSeconds,
         ]);
 
         try {
-            $rawResponse = nativephp_call('ExecuteUssd', $bridgePayload);
+            $rawResponse = $this->ussdModemLock->run(
+                callback: fn (): mixed => nativephp_call('ExecuteUssd', $bridgePayload),
+                operation: 'queued-transaction',
+                waitSeconds: 2,
+                leaseSeconds: $timeoutSeconds + 15,
+                context: [
+                    'flow_id' => $flowId,
+                    'transaction_id' => $payload['backend_transaction_id'] ?? null,
+                    'id' => $payload['id'] ?? null,
+                    'mode' => $mode,
+                    'sim_slot' => $simSlot,
+                ],
+            );
+        } catch (UssdModemBusyException $exception) {
+            Log::info('Bingwa USSD execution skipped because the modem is busy.', [
+                'flow_id' => $flowId,
+                'transaction_id' => $payload['backend_transaction_id'] ?? null,
+                'id' => $payload['id'] ?? null,
+                'mode' => $mode,
+                'sim_slot' => $simSlot,
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $exception->getMessage(),
+                'raw_response' => null,
+            ];
         } catch (Throwable $throwable) {
             Log::warning('Bingwa USSD execution threw an exception.', [
                 'flow_id' => $flowId,

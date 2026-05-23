@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $matched_offer
  * @property array<string, mixed>|null $balance
  * @property Carbon|null $occurred_at
+ * @property Carbon|null $next_attempt_at
  * @property string $status
  * @property string|null $status_desc
  * @property int $retry_count
@@ -54,6 +55,7 @@ use Illuminate\Support\Carbon;
     'matched_offer',
     'balance',
     'occurred_at',
+    'next_attempt_at',
     'status',
     'status_desc',
     'retry_count',
@@ -110,6 +112,7 @@ class Transaction extends Model
             'matched_offer' => 'array',
             'balance' => 'array',
             'occurred_at' => 'datetime',
+            'next_attempt_at' => 'datetime',
             'processed_at' => 'datetime',
             'retry_count' => 'integer',
             'auto_reply_attempts' => 'integer',

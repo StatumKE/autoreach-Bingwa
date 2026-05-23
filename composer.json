@@ -81,8 +81,7 @@
             "@php scripts/apply-nativephp-hotfixes.php"
         ],
         "post-update-cmd": [
-            "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
-            "@php artisan boost:update --ansi"
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
@@ -99,6 +98,11 @@
     "extra": {
         "laravel": {
             "dont-discover": []
+        },
+        "patches": {
+            "nativephp/mobile": {
+                "Fix NativePHP background thread concurrent initialization crash": "patches/nativephp_ephemeral_mutex_v7.patch"
+            }
         }
     },
     "config": {
@@ -113,13 +117,6 @@
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
-    "extra": {
-        "patches": {
-            "nativephp/mobile": {
-                "Fix NativePHP background thread concurrent initialization crash": "patches/nativephp_ephemeral_mutex_v7.patch"
-            }
-        }
-    },
     "repositories": [
         {
             "name": "nativephp-plugins",

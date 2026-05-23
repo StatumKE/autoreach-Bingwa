@@ -3,10 +3,13 @@
 namespace App\Actions\Autoreach;
 
 use App\Models\User;
-use GuzzleHttp\Promise\Utils;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Throwable;
 
 class FetchNextBingwaJobs
 {
@@ -41,91 +44,162 @@ class FetchNextBingwaJobs
             'airtime' => '/api/v1/jobs/next/airtime',
         ];
 
-        $promises = [];
         $allJobs = [];
 
         foreach ($endpoints as $type => $endpoint) {
-            $promises[$type] = Http::async()
-                ->retry(3, 100)
-                ->timeout(30)
-                ->acceptJson()
-                ->withToken($token)
-                ->get("{$baseUrl}{$endpoint}", ['limit' => $limit])
-                ->then(function (mixed $response) use ($type, $user, &$allJobs, &$failed): void {
-                    if ($response instanceof \Throwable) {
-                        $failed++;
-                        report(new \RuntimeException("Failed to fetch {$type} jobs due to network error: ".$response->getMessage(), 0, $response));
+            $url = "{$baseUrl}{$endpoint}";
 
-                        return;
+            try {
+                $response = $this->executeJobRequest($baseUrl, $endpoint, $token, $limit);
+            } catch (Throwable $e) {
+                $failed++;
+                $this->logRequestFailure(
+                    user: $user,
+                    endpoint: $type,
+                    url: $url,
+                    reason: 'network_error',
+                    context: [
+                        'exception_class' => get_class($e),
+                        'exception_message' => $e->getMessage(),
+                    ],
+                );
+                report(new \RuntimeException("Failed to fetch {$type} jobs due to network error: ".$e->getMessage(), 0, $e));
+
+                continue;
+            }
+
+            if ($response->noContent()) {
+                continue;
+            }
+
+            if ($response->status() === 403) {
+                $failed++;
+
+                $this->logRequestFailure(
+                    user: $user,
+                    endpoint: $type,
+                    url: $url,
+                    reason: 'backend_stopped',
+                    context: $this->responseContext($response),
+                );
+                report(new \RuntimeException("Autoreach backend reported the device as stopped while fetching {$type} jobs."));
+
+                continue;
+            }
+
+            $recoveryContext = [];
+
+            if ($response->status() === 401) {
+                try {
+                    $recoveredRegistration = app(RecoverBingwaDeviceToken::class)->recover($user);
+                    $recoveredToken = $recoveredRegistration->device_token;
+
+                    if (! is_string($recoveredToken) || $recoveredToken === '') {
+                        throw new \RuntimeException('The recovered device token was empty.');
                     }
 
-                    if ($response->noContent()) {
-                        return;
-                    }
+                    $recoveryContext['token_recovery'] = 'attempted';
+                    $recoveryContext['token_recovery_status'] = 'recovered';
+                    $token = $recoveredToken;
+                    $response = $this->executeJobRequest($baseUrl, $endpoint, $recoveredToken, $limit);
+                } catch (Throwable $e) {
+                    $recoveryContext['token_recovery'] = 'failed';
+                    $recoveryContext['token_recovery_exception'] = get_class($e);
+                    $recoveryContext['token_recovery_error'] = $e->getMessage();
 
-                    if ($response->status() === 403) {
-                        $failed++;
+                    $this->logRequestFailure(
+                        user: $user,
+                        endpoint: $type,
+                        url: $url,
+                        reason: 'token_recovery_failed',
+                        context: array_merge(
+                            $this->responseContext($response),
+                            $recoveryContext,
+                        ),
+                    );
+                    report(new \RuntimeException('Failed to recover token during sync: '.$e->getMessage(), 0, $e));
 
-                        Log::warning('Autoreach backend stopped job polling for a device.', [
-                            'user_id' => $user->id,
-                            'endpoint' => $type,
-                            'status' => $response->status(),
-                        ]);
-                        report(new \RuntimeException("Autoreach backend reported the device as stopped while fetching {$type} jobs."));
+                    continue;
+                }
+            }
 
-                        return;
-                    }
+            if ($response->status() === 403) {
+                $failed++;
 
-                    if (! $response->successful()) {
-                        if ($response->status() === 401) {
-                            try {
-                                app(RecoverBingwaDeviceToken::class)->recover($user);
-                            } catch (\Throwable $e) {
-                                report(new \RuntimeException('Failed to recover token during sync: '.$e->getMessage(), 0, $e));
-                            }
-                        }
+                $this->logRequestFailure(
+                    user: $user,
+                    endpoint: $type,
+                    url: $url,
+                    reason: 'backend_stopped',
+                    context: array_merge(
+                        $this->responseContext($response),
+                        $recoveryContext,
+                    ),
+                );
+                report(new \RuntimeException("Autoreach backend reported the device as stopped while fetching {$type} jobs."));
 
-                        $failed++;
-                        report(new \RuntimeException("Unable to fetch {$type} jobs from the Autoreach backend."));
+                continue;
+            }
 
-                        return;
-                    }
+            if (! $response->successful()) {
+                $failed++;
+                $this->logRequestFailure(
+                    user: $user,
+                    endpoint: $type,
+                    url: $url,
+                    reason: 'backend_rejected',
+                    context: array_merge(
+                        $this->responseContext($response),
+                        $recoveryContext,
+                    ),
+                );
+                report(new \RuntimeException("Unable to fetch {$type} jobs from the Autoreach backend."));
 
-                    $payload = $response->json();
+                continue;
+            }
 
-                    if (! is_array($payload)) {
-                        $failed++;
-                        report(new \RuntimeException("Autoreach backend returned an invalid {$type} jobs payload."));
+            $payload = $response->json();
 
-                        return;
-                    }
+            if (! is_array($payload)) {
+                $failed++;
+                $this->logRequestFailure(
+                    user: $user,
+                    endpoint: $type,
+                    url: $url,
+                    reason: 'invalid_payload',
+                    context: $this->responseContext($response),
+                );
+                report(new \RuntimeException("Autoreach backend returned an invalid {$type} jobs payload."));
 
-                    $jobs = $this->extractJobs($payload);
+                continue;
+            }
 
-                    if ($jobs === null) {
-                        $failed++;
-                        report(new \RuntimeException("Autoreach backend returned an unexpected {$type} jobs payload shape."));
+            $jobs = $this->extractJobs($payload);
 
-                        return;
-                    }
+            if ($jobs === null) {
+                $failed++;
+                $this->logRequestFailure(
+                    user: $user,
+                    endpoint: $type,
+                    url: $url,
+                    reason: 'unexpected_payload_shape',
+                    context: $this->responseContext($response),
+                );
+                report(new \RuntimeException("Autoreach backend returned an unexpected {$type} jobs payload shape."));
 
-                    if ($jobs !== []) {
-                        $allJobs[] = [
-                            'type' => $type,
-                            'jobs' => $jobs,
-                        ];
-                    }
-                })->otherwise(function (\Throwable $e) use ($type, &$failed): void {
-                    $failed++;
-                    report(new \RuntimeException("Failed to fetch {$type} jobs due to exception: ".$e->getMessage(), 0, $e));
-                });
+                continue;
+            }
+
+            if ($jobs !== []) {
+                $allJobs[] = [
+                    'type' => $type,
+                    'jobs' => $jobs,
+                ];
+            }
         }
 
-        // Wait for all HTTP requests to complete
-        Utils::settle($promises)->wait();
-
         // Process all gathered jobs in a single database transaction for performance
-        DB::transaction(function () use ($allJobs, $user, &$synced, &$skipped): void {
+        DB::transaction(function () use ($allJobs, $user, &$synced, &$skipped, &$failed): void {
             foreach ($allJobs as $jobGroup) {
                 $type = $jobGroup['type'];
                 $jobs = $jobGroup['jobs'];
@@ -140,6 +214,12 @@ class FetchNextBingwaJobs
                     }
 
                     if ($result['transaction'] !== null) {
+                        if ($result['transaction']->status === 'failed') {
+                            $failed++;
+
+                            continue;
+                        }
+
                         $synced++;
                     }
                 }
@@ -151,6 +231,21 @@ class FetchNextBingwaJobs
             'skipped' => $skipped,
             'failed' => $failed,
         ];
+    }
+
+    /**
+     * Execute a queued jobs request using the given device token.
+     */
+    private function executeJobRequest(string $baseUrl, string $endpoint, string $token, int $limit): Response
+    {
+        return Http::baseUrl($baseUrl)
+            ->retry(3, 100, function (Throwable $exception): bool {
+                return $exception instanceof ConnectionException;
+            }, throw: false)
+            ->timeout(30)
+            ->acceptJson()
+            ->withToken($token)
+            ->get($endpoint, ['limit' => $limit]);
     }
 
     /**
@@ -173,5 +268,38 @@ class FetchNextBingwaJobs
     private function normalizeLimit(int $limit): int
     {
         return max(1, min($limit, 10));
+    }
+
+    /**
+     * @return array{status:int, response_body:string, response_json:array<string, mixed>|null}
+     */
+    private function responseContext(Response $response): array
+    {
+        $body = trim($response->body());
+        $decoded = json_decode($body, true);
+
+        return [
+            'status' => $response->status(),
+            'response_body' => Str::limit($body, 1000, ''),
+            'response_json' => is_array($decoded) ? $decoded : null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function logRequestFailure(
+        User $user,
+        string $endpoint,
+        string $url,
+        string $reason,
+        array $context = [],
+    ): void {
+        Log::warning('Bingwa transaction sync request failed.', array_merge([
+            'user_id' => $user->getKey(),
+            'endpoint' => $endpoint,
+            'url' => $url,
+            'reason' => $reason,
+        ], $context));
     }
 }

@@ -44,6 +44,10 @@ class NextUssdJobCommand extends Command
             $transaction = Transaction::query()
                 ->with(['offer:id,ussd_code,ussd_mode', 'user.deviceSetting', 'user.bingwaDeviceRegistration', 'user.plans'])
                 ->where('status', 'queued')
+                ->where(function ($query): void {
+                    $query->whereNull('next_attempt_at')
+                        ->orWhere('next_attempt_at', '<=', now());
+                })
                 ->whereNotNull('offer_id')
                 ->oldest('occurred_at')
                 ->first();
@@ -102,7 +106,7 @@ class NextUssdJobCommand extends Command
 
             $settings = $transaction->user?->deviceSetting;
             $simSlot = ($settings?->primary_transaction_sim === 'slot_2') ? 1 : 0;
-            $timeout = $settings->ussd_timeout_seconds ?? 30;
+            $timeout = $settings?->ussd_timeout_seconds ?? 30;
 
             $payload = [
                 'id' => $transaction->id,

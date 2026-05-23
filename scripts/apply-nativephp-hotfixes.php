@@ -700,6 +700,35 @@ KOTLIN;
     }
 }
 
+function patch_mobile_queue_worker_timeout(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/java/com/nativephp/mobile/bridge/PHPQueueWorker.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/mobile/bridge/PHPQueueWorker.kt'),
+    ];
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+        $contents = str_replace(
+            [
+                '"queue:work --once --quiet"',
+                '"queue:work --once"',
+            ],
+            [
+                '"queue:work --once --quiet --timeout=360"',
+                '"queue:work --once --timeout=360"',
+            ],
+            $contents
+        );
+
+        write_if_changed($target, $contents);
+    }
+}
+
 function patch_mobile_action_coordinator(): void
 {
     $targets = [
@@ -1036,6 +1065,7 @@ try {
     patch_mobile_debug_extraction_marker();
     patch_mobile_debug_bundle_exclusions();
     patch_mobile_persistent_shutdown();
+    patch_mobile_queue_worker_timeout();
     patch_mobile_action_coordinator();
     patch_mobile_security_csrf_header();
     patch_mobile_webview_csrf_bridge();

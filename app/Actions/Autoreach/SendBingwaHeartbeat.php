@@ -3,6 +3,7 @@
 namespace App\Actions\Autoreach;
 
 use App\Models\User;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -113,7 +114,9 @@ class SendBingwaHeartbeat
      */
     private function executeHeartbeat(string $baseUrl, string $token): Response
     {
-        return Http::retry(3, 100)
+        return Http::retry(3, 100, function (\Throwable $exception): bool {
+            return $exception instanceof ConnectionException;
+        }, throw: false)
             ->timeout(30)
             ->acceptJson()
             ->withToken($token)

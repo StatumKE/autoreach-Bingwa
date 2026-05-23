@@ -8,8 +8,8 @@ test('authenticated mobile header renders a real flux sidebar toggle', function 
     $this->actingAs($user)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertSee('data-flux-sidebar-toggle', false)
-        ->assertSee('aria-label="Toggle sidebar"', false)
+        ->assertSee('app-mobile-menu-toggle', false)
+        ->assertSee('aria-label="Open navigation menu"', false)
         ->assertDontSee('alert(\'clicked\')', false)
         ->assertDontSee('pointer-events-none" style="height: calc(112px + var(--inset-top, 0px)); padding-top: var(--inset-top, 0px);"', false);
 });

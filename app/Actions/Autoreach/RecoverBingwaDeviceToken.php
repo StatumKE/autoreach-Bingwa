@@ -4,6 +4,7 @@ namespace App\Actions\Autoreach;
 
 use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
@@ -30,7 +31,9 @@ class RecoverBingwaDeviceToken
         }
 
         $response = Http::baseUrl(rtrim((string) config('services.autoreach.backend_url'), '/'))
-            ->retry(3, 100, throw: false)
+            ->retry(3, 100, function (\Throwable $exception): bool {
+                return $exception instanceof ConnectionException;
+            }, throw: false)
             ->acceptJson()
             ->asJson()
             ->timeout(30)

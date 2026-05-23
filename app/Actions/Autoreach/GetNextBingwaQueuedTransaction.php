@@ -4,6 +4,7 @@ namespace App\Actions\Autoreach;
 
 use App\Models\DeviceSetting;
 use App\Models\Transaction;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class GetNextBingwaQueuedTransaction
@@ -30,8 +31,17 @@ class GetNextBingwaQueuedTransaction
         }
 
         $transactionQuery = Transaction::query()
-            ->with(['offer:id,ussd_code,ussd_mode', 'user.deviceSetting', 'user.bingwaDeviceRegistration', 'user.plans'])
-            ->where('status', 'queued');
+            ->with([
+                'offer:id,ussd_code,ussd_mode',
+                'user:id',
+                'user.deviceSetting',
+                'user.bingwaDeviceRegistration',
+            ])
+            ->where('status', 'queued')
+            ->where(function ($query): void {
+                $query->whereNull('next_attempt_at')
+                    ->orWhere('next_attempt_at', '<=', now());
+            });
 
         if ($userId !== null) {
             $transactionQuery->where('user_id', $userId);
@@ -60,9 +70,22 @@ class GetNextBingwaQueuedTransaction
         }
 
         if ($transaction->offer === null) {
-            Log::warning("Transaction #{$transaction->id} skipped: No matching offer found for amount {$transaction->amount}");
+            $transaction->update([
+                'status' => 'failed',
+                'status_desc' => __('No matching offer found for the transaction amount.'),
+                'processed_at' => now(),
+            ]);
 
-            return null;
+            app(QueueRemoteTransactionStatusUpdate::class)->queue(
+                $transaction,
+                'failed',
+                $transaction->status_desc,
+                executedAt: now()->toIso8601String(),
+            );
+
+            Log::warning("Transaction #{$transaction->id} failed: No matching offer found for amount {$transaction->amount}");
+
+            return ['skip' => true, 'id' => $transaction->id];
         }
 
         $activePlan = $transaction->user?->plans()
@@ -77,7 +100,15 @@ class GetNextBingwaQueuedTransaction
             $transaction->update([
                 'status' => 'failed',
                 'status_desc' => __('Subscription expired or deactivated while waiting in queue.'),
+                'processed_at' => now(),
             ]);
+
+            app(QueueRemoteTransactionStatusUpdate::class)->queue(
+                $transaction,
+                'failed',
+                $transaction->status_desc,
+                executedAt: now()->toIso8601String(),
+            );
 
             Log::warning("🚫 Dispatch blocked for job #{$transaction->id}: No active plan found.");
 
@@ -90,7 +121,15 @@ class GetNextBingwaQueuedTransaction
                 $transaction->update([
                     'status' => 'failed',
                     'status_desc' => __('Subscription usage limit reached.'),
+                    'processed_at' => now(),
                 ]);
+
+                app(QueueRemoteTransactionStatusUpdate::class)->queue(
+                    $transaction,
+                    'failed',
+                    $transaction->status_desc,
+                    executedAt: now()->toIso8601String(),
+                );
 
                 Log::warning("🚫 Dispatch blocked for job #{$transaction->id}: Plan usage limit reached.");
 
@@ -122,6 +161,13 @@ class GetNextBingwaQueuedTransaction
 
     private function recoverStuckTransactions(): int
     {
+        $lastRun = Cache::get('last_stuck_recovery_run_at');
+        if ($lastRun && now()->diffInSeconds($lastRun) < 300) {
+            return 0;
+        }
+
+        Cache::put('last_stuck_recovery_run_at', now(), 300);
+
         $recoveredCount = Transaction::query()
             ->where('status', 'processing')
             ->where('updated_at', '<=', now()->subMinutes(self::STUCK_THRESHOLD_MINUTES))

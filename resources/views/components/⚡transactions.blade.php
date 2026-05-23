@@ -345,6 +345,7 @@ new #[Title('Transactions')] class extends Component
         return [
             'status' => 'queued',
             'status_desc' => __('Retry requested from the Transactions page.'),
+            'next_attempt_at' => now(),
             'processed_at' => null,
             'auto_reply_id' => null,
             'auto_reply_trigger_condition' => null,

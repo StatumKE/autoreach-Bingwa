@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Actions\Autoreach\CompleteBingwaTransaction;
 use App\Actions\Autoreach\ExecuteBingwaUssd;
 use App\Actions\Autoreach\GetNextBingwaQueuedTransaction;
 use App\Models\DeviceSetting;
@@ -13,7 +14,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -31,6 +31,8 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
 
     public int $tries = 3;
 
+    public int $timeout = 360;
+
     /**
      * @return array<int, int>
      */
@@ -45,6 +47,7 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
     }
 
     public function handle(
+        CompleteBingwaTransaction $completeBingwaTransaction,
         ExecuteBingwaUssd $executeBingwaUssd,
         GetNextBingwaQueuedTransaction $getNextBingwaQueuedTransaction,
     ): void {
@@ -135,8 +138,23 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
                 ];
             }
 
-            $this->completeQueuedTransaction($transactionId, $result, $flowId);
+            $this->completeQueuedTransaction($completeBingwaTransaction, $transactionId, $result, $flowId);
             $processed++;
+
+            $isModemBusy = isset($result['message']) && (
+                str_contains(strtolower($result['message']), 'another ussd session is already in progress')
+                || str_contains(strtolower($result['message']), 'modem is busy')
+            );
+
+            if ($isModemBusy) {
+                Log::info('Bingwa USSD processor loop aborted due to modem lock contention.', [
+                    'user_id' => $this->userId,
+                    'flow_id' => $flowId,
+                    'transaction_id' => $transactionId,
+                ]);
+
+                break;
+            }
         }
 
         Log::debug('Bingwa USSD processor job finished.', [
@@ -169,8 +187,12 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
     /**
      * @param  array{success?: bool, message?: string}  $result
      */
-    private function completeQueuedTransaction(int $transactionId, array $result, string $flowId): void
-    {
+    private function completeQueuedTransaction(
+        CompleteBingwaTransaction $completeBingwaTransaction,
+        int $transactionId,
+        array $result,
+        string $flowId,
+    ): void {
         $success = (bool) ($result['success'] ?? false);
         $message = trim((string) ($result['message'] ?? ''));
 
@@ -178,20 +200,22 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
             $success = true;
         }
 
-        Artisan::call('bingwa:complete-transaction', [
-            '--transaction-id' => $transactionId,
-            '--result' => $success ? 'completed' : 'failed',
-            '--message-base64' => base64_encode($message !== '' ? $message : ($success ? __('USSD call completed successfully.') : __('USSD call failed.'))),
-            '--finalize-once' => true,
-        ]);
+        $statusMessage = $message !== ''
+            ? $message
+            : ($success ? __('USSD call completed successfully.') : __('USSD call failed.'));
+
+        $completeBingwaTransaction->complete(
+            transactionId: $transactionId,
+            status: $success ? 'completed' : 'failed',
+            message: $statusMessage,
+        );
 
         Log::debug('Bingwa USSD processor completed transaction.', [
             'user_id' => $this->userId,
             'flow_id' => $flowId,
             'transaction_id' => $transactionId,
             'success' => $success,
-            'message' => $message,
-            'artisan_output' => Artisan::output(),
+            'message' => $statusMessage,
         ]);
     }
 }

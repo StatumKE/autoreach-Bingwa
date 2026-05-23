@@ -9,7 +9,7 @@ test('login form shows submission feedback', function () {
     $this->get(route('login'))
         ->assertOk()
         ->assertSee('x-on:submit="submitting = true"', false)
-        ->assertSee('Logging in…');
+        ->assertSee('Signing in…');
 });
 
 test('register form shows submission feedback', function () {
@@ -67,9 +67,10 @@ test('settings forms show loading feedback', function () {
     $this->actingAs($user)
         ->get(route('device.edit'))
         ->assertOk()
-        ->assertSee('wire:target="saveOperatorIdentity"', false)
-        ->assertSee('wire:target="saveHardwareMapping"', false)
-        ->assertSee('wire:target="saveTechnicalConfig"', false)
-        ->assertSee('Saving…')
-        ->assertSee('Applying…');
+        ->assertSee('id="form-device-identity"', false)
+        ->assertSee('id="form-device-hardware"', false)
+        ->assertSee('id="form-device-technical"', false)
+        ->assertSee('Save')
+        ->assertSee('Save Mapping')
+        ->assertSee('Save Rules');
 });

@@ -2,8 +2,12 @@
 
 namespace App\Jobs;
 
+use App\Actions\Autoreach\RecoverBingwaDeviceToken;
+use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -20,6 +24,7 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
+        public readonly int $userId,
         public readonly string $remoteTransactionId,
         public readonly string $deviceToken,
         public readonly string $status,
@@ -36,6 +41,17 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
     public function handle(): void
     {
         $baseUrl = rtrim((string) config('services.autoreach.backend_url'), '/');
+
+        $user = User::query()
+            ->with('bingwaDeviceRegistration')
+            ->find($this->userId);
+
+        if (! $user instanceof User) {
+            throw new RuntimeException("Unable to update remote transaction status {$this->remoteTransactionId}: user {$this->userId} was not found.");
+        }
+
+        $deviceToken = $this->deviceToken;
+        $registration = $user->bingwaDeviceRegistration;
 
         $payload = [
             'status' => $this->status,
@@ -58,10 +74,22 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
             $payload['failure_code'] = $this->failureCode;
         }
 
-        $response = Http::timeout(30)
-            ->acceptJson()
-            ->withToken($this->deviceToken)
-            ->patch("{$baseUrl}/api/v1/transactions/{$this->remoteTransactionId}/status", $payload);
+        $response = $this->sendRemoteStatusUpdate($baseUrl, $deviceToken, $payload);
+
+        if ($response->status() === 401) {
+            Log::warning("Autoreach backend returned 401 Unauthorized for transaction {$this->remoteTransactionId}; attempting token recovery and retry.");
+
+            $recoveredRegistration = app(RecoverBingwaDeviceToken::class)->recover($user);
+            $recoveredToken = $recoveredRegistration->device_token;
+
+            if (! is_string($recoveredToken) || $recoveredToken === '') {
+                throw new RuntimeException("Failed to recover device token for transaction {$this->remoteTransactionId}: recovered token was empty.");
+            }
+
+            $deviceToken = $recoveredToken;
+            $registration = $recoveredRegistration;
+            $response = $this->sendRemoteStatusUpdate($baseUrl, $deviceToken, $payload);
+        }
 
         if ($response->status() === 409) {
             Log::warning("Autoreach backend returned 409 Conflict for transaction {$this->remoteTransactionId}. Transaction might not be in dispatched/executing state.");
@@ -80,5 +108,19 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
         }
 
         Log::info("Successfully updated remote status for transaction {$this->remoteTransactionId} to {$this->status}");
+    }
+
+    /**
+     * Send the remote transaction status update request.
+     */
+    private function sendRemoteStatusUpdate(string $baseUrl, string $deviceToken, array $payload): Response
+    {
+        return Http::timeout(30)
+            ->acceptJson()
+            ->retry(3, 100, function (\Throwable $exception): bool {
+                return $exception instanceof ConnectionException;
+            }, throw: false)
+            ->withToken($deviceToken)
+            ->patch("{$baseUrl}/api/v1/transactions/{$this->remoteTransactionId}/status", $payload);
     }
 }

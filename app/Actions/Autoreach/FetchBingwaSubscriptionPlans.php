@@ -3,6 +3,7 @@
 namespace App\Actions\Autoreach;
 
 use App\Models\User;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -35,30 +36,51 @@ class FetchBingwaSubscriptionPlans
         }
 
         if ($forceRefresh) {
-            return $this->fetchFresh($registration->device_token);
+            return $this->fetchFresh($user, $registration->device_token);
         }
 
         $cacheKey = $this->cacheKey($user->id, $registration->device_token);
+        $cachedPlans = Cache::get($cacheKey);
 
-        return Cache::remember(
-            $cacheKey,
+        if (is_array($cachedPlans)) {
+            return $cachedPlans;
+        }
+
+        $plans = $this->fetchFresh($user, $registration->device_token);
+
+        Cache::put(
+            $this->cacheKey($user->id, $user->refresh()->bingwaDeviceRegistration?->device_token ?? $registration->device_token),
+            $plans,
             now()->addMinutes(self::CACHE_TTL_MINUTES),
-            fn (): array => $this->fetchFresh($registration->device_token),
         );
+
+        return $plans;
     }
 
-    private function fetchFresh(string $deviceToken): array
+    private function fetchFresh(User $user, string $deviceToken): array
     {
-        $baseUrl = rtrim((string) config('services.autoreach.backend_url'), '/');
-        Log::debug("🌐 Fetching plans from: {$baseUrl}/api/v1/subscription/plans/hybrid");
+        $response = $this->requestPlans($deviceToken);
 
-        $response = Http::baseUrl($baseUrl)
-            ->retry(3, 100)
-            ->acceptJson()
-            ->asJson()
-            ->withToken($deviceToken)
-            ->timeout(30)
-            ->get('/api/v1/subscription/plans/hybrid');
+        if ($response->status() === 401) {
+            Log::warning('🔐 Plans fetch returned unauthorized; attempting token recovery and retry.', [
+                'user_id' => $user->getKey(),
+            ]);
+
+            $recoveredRegistration = app(RecoverBingwaDeviceToken::class)->recover($user);
+            $recoveredToken = $recoveredRegistration->device_token;
+
+            if (! is_string($recoveredToken) || $recoveredToken === '') {
+                throw ValidationException::withMessages([
+                    'device_token' => __('The backend returned an invalid recovered device token.'),
+                ]);
+            }
+
+            if ($recoveredToken !== $deviceToken) {
+                Cache::forget($this->cacheKey($user->id, $deviceToken));
+            }
+
+            $response = $this->requestPlans($recoveredToken);
+        }
 
         if ($response->successful()) {
             Log::debug('📦 Plans response received', ['plans_count' => count($response->json('plans') ?? $response->json('data') ?? [])]);
@@ -106,6 +128,22 @@ class FetchBingwaSubscriptionPlans
         throw ValidationException::withMessages([
             'device_token' => $response->json('message') ?? __('Unable to load subscription plans right now.'),
         ]);
+    }
+
+    private function requestPlans(string $deviceToken): Response
+    {
+        $baseUrl = rtrim((string) config('services.autoreach.backend_url'), '/');
+        Log::debug("🌐 Fetching plans from: {$baseUrl}/api/v1/subscription/plans/hybrid");
+
+        return Http::baseUrl($baseUrl)
+            ->retry(3, 100, function (\Throwable $exception): bool {
+                return $exception instanceof ConnectionException;
+            }, throw: false)
+            ->acceptJson()
+            ->asJson()
+            ->withToken($deviceToken)
+            ->timeout(30)
+            ->get('/api/v1/subscription/plans/hybrid');
     }
 
     private function cacheKey(int $userId, string $deviceToken): string

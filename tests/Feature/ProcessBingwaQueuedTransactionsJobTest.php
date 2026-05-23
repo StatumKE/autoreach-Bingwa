@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Autoreach\CompleteBingwaTransaction;
 use App\Actions\Autoreach\ExecuteBingwaUssd;
 use App\Actions\Autoreach\GetNextBingwaQueuedTransaction;
 use App\Jobs\ProcessBingwaQueuedTransactionsJob;
@@ -74,7 +75,7 @@ it('claims queued transactions, executes ussd, and finalizes them', function ():
     });
 
     (new ProcessBingwaQueuedTransactionsJob($user->id))
-        ->handle(app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
+        ->handle(app(CompleteBingwaTransaction::class), app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
 
     $fresh = $transaction->fresh();
     $plan = $user->plans()->first();
@@ -99,7 +100,7 @@ it('does nothing when there are no queued transactions', function (): void {
     });
 
     (new ProcessBingwaQueuedTransactionsJob($user->id))
-        ->handle(app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
+        ->handle(app(CompleteBingwaTransaction::class), app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
 
     expect(Transaction::query()->count())->toBe(0);
 });
@@ -145,7 +146,7 @@ it('treats carrier submitted successfully text as completed even when bridge suc
     });
 
     (new ProcessBingwaQueuedTransactionsJob($user->id))
-        ->handle(app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
+        ->handle(app(CompleteBingwaTransaction::class), app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
 
     $fresh = $transaction->fresh();
 
@@ -155,7 +156,7 @@ it('treats carrier submitted successfully text as completed even when bridge suc
     expect($fresh?->status_desc)->toBe('Recommendation for 0721553678 submitted successfully. Keep selling!! Be a Bingwa Sokoni Champion.');
 });
 
-it('does not auto retry failed native processor attempts', function (): void {
+it('honors auto retry settings for failed native processor attempts', function (): void {
     $user = User::factory()->create();
 
     DeviceSetting::factory()->create([
@@ -204,14 +205,14 @@ it('does not auto retry failed native processor attempts', function (): void {
     });
 
     (new ProcessBingwaQueuedTransactionsJob($user->id))
-        ->handle(app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
+        ->handle(app(CompleteBingwaTransaction::class), app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
 
     $fresh = $transaction->fresh();
 
-    expect($fresh?->status)->toBe('failed');
-    expect($fresh?->retry_count)->toBe(0);
-    expect($fresh?->processed_at)->not->toBeNull();
-    expect($fresh?->status_desc)->toBe('Network returned a general failure');
+    expect($fresh?->status)->toBe('queued');
+    expect($fresh?->retry_count)->toBe(1);
+    expect($fresh?->processed_at)->toBeNull();
+    expect($fresh?->status_desc)->toContain('Auto-retry attempt');
 });
 
 it('stops processing immediately when transaction processing is paused', function (): void {
@@ -248,7 +249,52 @@ it('stops processing immediately when transaction processing is paused', functio
     });
 
     (new ProcessBingwaQueuedTransactionsJob($user->id))
-        ->handle(app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
+        ->handle(app(CompleteBingwaTransaction::class), app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
 
     expect($transaction->fresh()?->status)->toBe('queued');
+});
+
+it('aborts the processor loop on lock contention/modem busy', function (): void {
+    $user = User::factory()->create();
+
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'transaction_id' => 'TX-LOCK-ABORT',
+        'status' => 'queued',
+    ]);
+
+    $this->mock(GetNextBingwaQueuedTransaction::class, function (MockInterface $mock) use ($transaction): void {
+        $mock->shouldReceive('next')
+            ->once()
+            ->andReturn([
+                'id' => $transaction->id,
+                'backend_transaction_id' => 'TX-LOCK-ABORT',
+                'code' => '*180#',
+                'mode' => 'express',
+                'sim_slot' => 0,
+                'timeout' => 30,
+            ]);
+    });
+
+    $this->mock(ExecuteBingwaUssd::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('execute')
+            ->once()
+            ->andReturn([
+                'success' => false,
+                'message' => 'Another USSD session is already in progress',
+            ]);
+    });
+
+    (new ProcessBingwaQueuedTransactionsJob($user->id))
+        ->handle(app(CompleteBingwaTransaction::class), app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
+
+    $fresh = $transaction->fresh();
+    expect($fresh?->status)->toBe('queued');
+    expect($fresh?->retry_count)->toBe(0);
 });

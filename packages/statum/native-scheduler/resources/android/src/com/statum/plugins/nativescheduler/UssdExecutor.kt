@@ -5,9 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.telecom.PhoneAccountHandle
+import android.telecom.TelecomManager
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import android.util.Log
@@ -43,8 +46,8 @@ class UssdExecutor(private val context: Context) {
 
     companion object {
         private const val TAG = "UssdExecutor"
-        private const val FIRST_DIALOG_TIMEOUT_MS = 10_000L
-        private const val FOLLOW_UP_DIALOG_TIMEOUT_MS = 10_000L
+        private const val MIN_DIALOG_TIMEOUT_MS = 10_000L
+        private const val MAX_DIALOG_TIMEOUT_MS = 25_000L
     }
 
     /**
@@ -72,12 +75,15 @@ class UssdExecutor(private val context: Context) {
 
         val subId = resolveSubscriptionId(simSlot)
 
-        Log.i(TAG, "Executing USSD [$mode] on subId=$subId (timeout ${timeoutSeconds}s): $code")
+        Log.i(
+            TAG,
+            "Executing USSD: mode=$mode simSlot=$simSlot subId=$subId isSambaza=$isSambaza timeoutSeconds=$timeoutSeconds code=$code"
+        )
 
-        val timeoutMs = timeoutSeconds * 1000L
+        val timeoutMs = timeoutSeconds.coerceAtLeast(1) * 1000L
         return withTimeoutOrNull(timeoutMs) {
             when (mode) {
-                "advanced" -> runAdvanced(code, subId)
+                "advanced" -> runAdvanced(code, subId, timeoutMs)
                 else -> runExpress(code, subId)
             }
         } ?: UssdResult(success = false, message = "USSD timed out after ${timeoutSeconds}s")
@@ -205,7 +211,7 @@ class UssdExecutor(private val context: Context) {
      * - The injectInput() call goes to the main handler inside UssdAccessibilityService,
      *   so it is safe to call it from a coroutine running on Dispatchers.IO.
      */
-    private suspend fun runAdvanced(code: String, subId: Int): UssdResult {
+    private suspend fun runAdvanced(code: String, subId: Int, timeoutMs: Long): UssdResult {
         val service = awaitAccessibilityService()
         if (service == null) {
             Log.w(TAG, "Accessibility service not active — redirecting user to Settings")
@@ -235,8 +241,12 @@ class UssdExecutor(private val context: Context) {
         // Dial only the base USSD code — replies are submitted step-by-step after the dialog opens.
         dialUssd(parsedFlow.baseDialCode, subId)
 
-        val dialogText = awaitDialogText(timeoutMs = FIRST_DIALOG_TIMEOUT_MS)
-            ?: return UssdResult(success = false, message = "No USSD dialog detected by accessibility service")
+        val dialogTimeoutMs = dialogTimeoutMs(timeoutMs)
+        val dialogText = awaitDialogText(timeoutMs = dialogTimeoutMs)
+            ?: run {
+                Log.w(TAG, "Advanced USSD first dialog timeout after ${dialogTimeoutMs}ms")
+                return UssdResult(success = false, message = "No USSD dialog detected by accessibility service")
+            }
 
         Log.d(TAG, "Advanced USSD dialog text: $dialogText")
 
@@ -250,7 +260,7 @@ class UssdExecutor(private val context: Context) {
 
             service.injectInput(reply)
 
-            val nextDialogText = awaitFollowUpDialog(resolvedDialogText)
+            val nextDialogText = awaitFollowUpDialog(resolvedDialogText, dialogTimeoutMs)
             if (nextDialogText.isNullOrBlank()) {
                 Log.w(
                     TAG,
@@ -289,9 +299,15 @@ class UssdExecutor(private val context: Context) {
         return UssdAccessibilityService.instance
     }
 
+    private fun dialogTimeoutMs(totalTimeoutMs: Long): Long {
+        return (totalTimeoutMs / 2)
+            .coerceAtLeast(MIN_DIALOG_TIMEOUT_MS)
+            .coerceAtMost(MAX_DIALOG_TIMEOUT_MS)
+    }
+
     private suspend fun awaitFollowUpDialog(
         initialDialogText: String,
-        timeoutMs: Long = FOLLOW_UP_DIALOG_TIMEOUT_MS,
+        timeoutMs: Long,
     ): String? {
         return withTimeoutOrNull(timeoutMs) {
             while (true) {
@@ -337,15 +353,57 @@ class UssdExecutor(private val context: Context) {
         val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$encodedCode")).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                putExtra("android.telecom.extra.PHONE_ACCOUNT_HANDLE", subId)
+                resolvePhoneAccountHandle(subId)?.let { handle ->
+                    putExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, handle)
+                    Log.i(TAG, "Advanced USSD routing resolved PhoneAccountHandle for subId=$subId")
+                } ?: Log.w(
+                    TAG,
+                    "Advanced USSD routing has no verified PhoneAccountHandle for subId=$subId; using subscription extras fallback"
+                )
                 putExtra("android.telephony.extra.SUBSCRIPTION_INDEX", subId)
-                putExtra("subscription", subId) // legacy support
+                putExtra("subscription", subId)
             }
         }
         try {
             context.startActivity(intent)
         } catch (exception: Exception) {
             Log.e(TAG, "dialUssd: failed to start dialer activity", exception)
+        }
+    }
+
+    private fun resolvePhoneAccountHandle(subId: Int): PhoneAccountHandle? {
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID
+            || Build.VERSION.SDK_INT < Build.VERSION_CODES.R
+            || ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.i(
+                TAG,
+                "Advanced USSD PhoneAccountHandle lookup unavailable: subId=$subId sdk=${Build.VERSION.SDK_INT}"
+            )
+
+            return null
+        }
+
+        val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+        val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+
+        if (telecomManager == null || telephonyManager == null) {
+            Log.w(TAG, "Advanced USSD PhoneAccountHandle lookup skipped because telecom services are unavailable")
+
+            return null
+        }
+
+        return try {
+            telecomManager.callCapablePhoneAccounts.firstOrNull { handle ->
+                telephonyManager.getSubscriptionId(handle) == subId
+            }
+        } catch (exception: SecurityException) {
+            Log.w(TAG, "Advanced USSD PhoneAccountHandle lookup denied by Android", exception)
+            null
+        } catch (exception: Exception) {
+            Log.w(TAG, "Advanced USSD PhoneAccountHandle lookup failed", exception)
+            null
         }
     }
 

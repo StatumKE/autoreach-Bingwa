@@ -95,6 +95,71 @@ test('plans load from the backend using the saved device token', function () {
     });
 });
 
+test('plans recover the device token on unauthorized responses and retry successfully', function () {
+    $user = User::factory()->create();
+
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'old-device-token-401',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
+    $this->actingAs($user);
+
+    Http::fake(function ($request) {
+        if ($request->url() === 'https://backend.statum.co.ke/api/v1/auth/device/token/recover') {
+            return Http::response([
+                'status' => 'success',
+                'message' => 'Device token recovered.',
+                'device_token' => 'new-device-token-401',
+                'device_id' => 42,
+                'bhc_code' => 'BHC-ZXCVB',
+            ], 200);
+        }
+
+        if ($request->url() === 'https://backend.statum.co.ke/api/v1/subscription/plans/hybrid'
+            && $request->hasHeader('Authorization', 'Bearer old-device-token-401')) {
+            return Http::response([
+                'status' => 'failed',
+                'message' => 'Unauthorized device token',
+            ], 401);
+        }
+
+        if ($request->url() === 'https://backend.statum.co.ke/api/v1/subscription/plans/hybrid'
+            && $request->hasHeader('Authorization', 'Bearer new-device-token-401')) {
+            return Http::response([
+                'status' => 'ok',
+                'plans' => [
+                    [
+                        'id' => 5,
+                        'code' => '1_week',
+                        'name' => '1 week',
+                        'type' => 'time_unlimited',
+                        'price' => 400,
+                        'duration_days' => 7,
+                    ],
+                ],
+                'sambaza_line' => '2547XXXXXXXX',
+                'sambaza_ussd_prompts' => [],
+            ], 200);
+        }
+
+        return Http::response([], 404);
+    });
+
+    $response = Livewire::test('plans')
+        ->call('loadPlans');
+
+    $response->assertHasNoErrors();
+    $response->assertSet('plans.0.name', '1 week');
+    $response->assertSee('KES 400');
+
+    expect($user->refresh()->bingwaDeviceRegistration?->device_token)->toBe('new-device-token-401');
+
+    Http::assertSentCount(3);
+});
+
 test('plans page caches the backend response for repeat loads', function () {
     $user = User::factory()->create();
 

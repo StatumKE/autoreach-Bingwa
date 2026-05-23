@@ -121,6 +121,7 @@ new #[Title('Quick Dial')] class extends Component {
                 'source' => 'quick_dial',
             ],
             'occurred_at' => now(),
+            'next_attempt_at' => now(),
             'status' => 'queued',
             'status_desc' => __('Quick Dial award queued for processing.'),
             'processed_at' => null,

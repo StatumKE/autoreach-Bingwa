@@ -2,16 +2,10 @@
 
 namespace App\Console\Commands;
 
-use App\Actions\Autoreach\ResolveAutoReplyForTransaction;
-use App\Jobs\SendAutoReplySmsJob;
-use App\Jobs\UpdateRemoteTransactionStatusJob;
-use App\Models\Transaction;
-use App\Support\AppTimezone;
+use App\Actions\Autoreach\CompleteBingwaTransaction;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 #[Signature('bingwa:complete-transaction {id? : The local transaction ID} {status? : completed or failed} {--transaction-id= : The local transaction ID} {--result= : completed or failed} {--message= : Optional status description} {--message-base64= : Optional base64-encoded status description} {--finalize-once : Finalize immediately without auto-retry or reschedule}')]
@@ -38,14 +32,6 @@ class CompleteTransactionCommand extends Command
             return self::FAILURE;
         }
 
-        $transaction = Transaction::query()->with('user.deviceSetting')->find($id);
-
-        if (! $transaction) {
-            $this->warn("Transaction #{$id} not found.");
-
-            return self::SUCCESS;
-        }
-
         try {
             $message = $this->resolveMessageOption();
         } catch (InvalidArgumentException $e) {
@@ -54,150 +40,16 @@ class CompleteTransactionCommand extends Command
             return self::FAILURE;
         }
 
-        $statusDesc = match ($status) {
-            'completed' => $message ?? __('USSD call completed successfully.'),
-            'failed' => $message ?? __('USSD call failed.'),
-        };
+        $completed = app(CompleteBingwaTransaction::class)->complete(
+            transactionId: $id,
+            status: $status,
+            message: $message,
+            finalizeOnce: (bool) $this->option('finalize-once'),
+        );
 
-        $settings = $transaction->user?->deviceSetting;
-        $finalizeOnce = (bool) $this->option('finalize-once');
-
-        return DB::transaction(function () use ($transaction, $id, $status, $statusDesc, $message, $settings, $finalizeOnce) {
-            // Intelligent Auto-Retry Logic
-            $isNonRetryable = str_contains(strtolower($message ?? ''), 'already been recommended')
-                           || str_contains(strtolower($message ?? ''), 'dashboard')
-                           || str_contains(strtolower($message ?? ''), 'workspace');
-
-            if (! $finalizeOnce && $status === 'failed' && $settings?->intelligent_auto_retry && ! $isNonRetryable) {
-                if ($transaction->retry_count < ($settings->max_attempts - 1)) {
-                    $transaction->increment('retry_count');
-
-                    $retryAt = now()->addMinutes($settings->retry_interval_minutes ?? 1);
-
-                    $transaction->update([
-                        'status' => 'queued',
-                        'occurred_at' => $retryAt,
-                        'status_desc' => __('Auto-retry attempt :count scheduled for :time.', [
-                            'count' => $transaction->retry_count,
-                            'time' => AppTimezone::format($retryAt, 'g:i A'),
-                        ]),
-                        'auto_reply_id' => null,
-                        'auto_reply_trigger_condition' => null,
-                        'auto_reply_message' => null,
-                        'auto_reply_recipient_phone' => null,
-                        'auto_reply_sim_slot' => null,
-                        'auto_reply_status' => null,
-                        'auto_reply_attempts' => 0,
-                        'auto_reply_sent_at' => null,
-                        'auto_reply_failed_at' => null,
-                        'auto_reply_failure_reason' => null,
-                    ]);
-
-                    $this->info("Transaction #{$id} re-queued for retry.");
-
-                    return self::SUCCESS;
-                }
-            }
-
-            // Auto Reschedule Rejected Logic
-            if (! $finalizeOnce && $status === 'failed' && $settings?->auto_reschedule_rejected) {
-                $isRejected = str_contains(strtolower($message ?? ''), 'rejected')
-                           || str_contains(strtolower($message ?? ''), 'not allowed');
-
-                if ($isRejected) {
-                    $nextRun = now();
-                    if ($settings->retry_tomorrow_at) {
-                        $nextRun = now()->addDay()->setTimeFromTimeString($settings->retry_tomorrow_at);
-                    }
-
-                    $transaction->update([
-                        'status' => 'queued',
-                        'occurred_at' => $nextRun,
-                        'status_desc' => __('Rescheduled for :time.', ['time' => AppTimezone::format($nextRun, 'g:i A')]),
-                        'auto_reply_id' => null,
-                        'auto_reply_trigger_condition' => null,
-                        'auto_reply_message' => null,
-                        'auto_reply_recipient_phone' => null,
-                        'auto_reply_sim_slot' => null,
-                        'auto_reply_status' => null,
-                        'auto_reply_attempts' => 0,
-                        'auto_reply_sent_at' => null,
-                        'auto_reply_failed_at' => null,
-                        'auto_reply_failure_reason' => null,
-                    ]);
-
-                    $this->info("Transaction #{$id} rescheduled for tomorrow.");
-
-                    return self::SUCCESS;
-                }
-            }
-
-            $transaction->update([
-                'status' => $status,
-                'status_desc' => $statusDesc,
-                'processed_at' => now(),
-            ]);
-
-            $user = $transaction->user;
-            if ($user && $status === 'completed') {
-                $activePlan = $user->plans()->where('is_active', true)->first();
-                if ($activePlan) {
-                    $activePlan->increment('ussd_counter');
-
-                    // Refresh to get the new counter value
-                    $activePlan->refresh();
-
-                    if ($activePlan->type === 'usage_pack' && $activePlan->ussd_requests_included !== null) {
-                        if ($activePlan->ussd_counter >= $activePlan->ussd_requests_included) {
-                            $activePlan->update(['is_active' => false]);
-                            $this->info("Plan '{$activePlan->name}' has been exhausted and deactivated.");
-                        }
-                    }
-                }
-            }
-
-            $this->queueAutoReply($transaction, $status);
-
-            // Dispatch update to remote backend
-            $remoteTransactionId = $transaction->transaction_id;
-            $deviceToken = $transaction->user?->bingwaDeviceRegistration?->device_token;
-
-            $localOnlyTransactionSources = ['quick_dial', 'auto_renewal'];
-            $isLocalOnlyTransaction = in_array($transaction->matched_offer['source'] ?? null, $localOnlyTransactionSources, true);
-
-            if (! $isLocalOnlyTransaction && $remoteTransactionId && $deviceToken) {
-                $executionTimeMs = $transaction->updated_at ? (int) abs(now()->diffInMilliseconds($transaction->updated_at)) : null;
-                $failureCode = null;
-
-                if ($status === 'failed') {
-                    $lowerMessage = strtolower($message ?? '');
-                    if (str_contains($lowerMessage, 'already been recommended') || str_contains($lowerMessage, 'invalid') || str_contains($lowerMessage, 'not allowed') || str_contains($lowerMessage, 'rejected')) {
-                        $failureCode = 'INVALID_RECIPIENT';
-                    } elseif (str_contains($lowerMessage, 'insufficient') || str_contains($lowerMessage, 'low balance') || str_contains($lowerMessage, 'not enough')) {
-                        $failureCode = 'LOW_BALANCE';
-                    } elseif (str_contains($lowerMessage, 'timeout') || str_contains($lowerMessage, 'failed to execute') || str_contains($lowerMessage, 'failed to reach')) {
-                        $failureCode = 'USSD_TIMEOUT';
-                    } elseif (str_contains($lowerMessage, 'session ended') || str_contains($lowerMessage, 'cancelled')) {
-                        $failureCode = 'SESSION_ENDED';
-                    } else {
-                        $failureCode = 'SYSTEM_ERROR';
-                    }
-                }
-
-                UpdateRemoteTransactionStatusJob::dispatch(
-                    $remoteTransactionId,
-                    $deviceToken,
-                    $status === 'completed' ? 'successful' : 'failed',
-                    $message,
-                    null, // airtime_used is optional, omitting for now
-                    $executionTimeMs,
-                    now()->toIso8601String(),
-                    $failureCode
-                )->afterCommit();
-            }
-
-            return self::SUCCESS;
-        });
+        if (! $completed) {
+            $this->warn("Transaction #{$id} not found.");
+        }
 
         return self::SUCCESS;
     }
@@ -219,40 +71,5 @@ class CompleteTransactionCommand extends Command
         $message = $this->option('message');
 
         return is_string($message) ? $message : null;
-    }
-
-    private function queueAutoReply(Transaction $transaction, string $status): void
-    {
-        if (! in_array($status, ['completed', 'failed'], true)) {
-            return;
-        }
-
-        $resolved = app(ResolveAutoReplyForTransaction::class)->resolve($transaction);
-
-        $transaction->update([
-            'auto_reply_id' => $resolved['auto_reply_id'],
-            'auto_reply_trigger_condition' => $resolved['trigger_condition'],
-            'auto_reply_message' => $resolved['reply_message'],
-            'auto_reply_recipient_phone' => $resolved['recipient_phone'],
-            'auto_reply_status' => $resolved['auto_reply_id'] !== null ? 'queued' : 'skipped',
-            'auto_reply_attempts' => 0,
-            'auto_reply_sent_at' => null,
-            'auto_reply_failed_at' => null,
-            'auto_reply_failure_reason' => $resolved['auto_reply_id'] !== null
-                ? null
-                : __('No active auto-reply matched the transaction outcome.'),
-        ]);
-
-        if ($resolved['auto_reply_id'] === null) {
-            Log::info('Auto-reply skipped because no active rule matched the transaction outcome.', [
-                'transaction_id' => $transaction->id,
-                'status' => $status,
-                'trigger_condition' => $resolved['trigger_condition'],
-            ]);
-
-            return;
-        }
-
-        SendAutoReplySmsJob::dispatch($transaction->id)->afterCommit();
     }
 }

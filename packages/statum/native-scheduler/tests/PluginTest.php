@@ -88,6 +88,38 @@ describe('Native Code', function () {
             ->toContain('defaultMode = "express"')
             ->not->toContain('defaultMode = "advanced", defaultIsSambaza = true');
     });
+
+    it('forwards timeout settings and serializes native ussd bridge calls', function () {
+        $kotlinFile = $this->pluginPath.'/resources/android/src/com/statum/plugins/nativescheduler/BingwaFunctions.kt';
+        $kotlinContent = file_get_contents($kotlinFile);
+
+        expect($kotlinContent)
+            ->toContain('parameters["timeoutSeconds"]')
+            ->toContain('timeoutSeconds = timeoutSeconds')
+            ->toContain('private val ussdMutex = Mutex()');
+    });
+
+    it('keeps advanced execution on public sim routing APIs with bounded dialogs', function () {
+        $kotlinFile = $this->pluginPath.'/resources/android/src/com/statum/plugins/nativescheduler/UssdExecutor.kt';
+        $kotlinContent = file_get_contents($kotlinFile);
+
+        expect($kotlinContent)
+            ->toContain('TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, handle')
+            ->toContain('telephonyManager.getSubscriptionId(handle) == subId')
+            ->toContain('dialogTimeoutMs(timeoutMs)')
+            ->not->toContain('putExtra("android.telecom.extra.PHONE_ACCOUNT_HANDLE", subId)');
+    });
+
+    it('listens broadly for oem ussd windows but filters them before scraping', function () {
+        $kotlinFile = $this->pluginPath.'/resources/android/src/com/statum/plugins/nativescheduler/UssdAccessibilityService.kt';
+        $kotlinContent = file_get_contents($kotlinFile);
+
+        expect($kotlinContent)
+            ->toContain('packageNames = null')
+            ->toContain('isTelephonyWindow')
+            ->toContain('eventPackage == packageName')
+            ->not->toContain('DIALER_PACKAGES');
+    });
 });
 
 describe('PHP Classes', function () {

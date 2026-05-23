@@ -10,6 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
@@ -30,19 +31,33 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
 
     public function handle(): void
     {
-        Log::debug('Bingwa incoming push received; queuing transaction sync command.', [
+        Log::debug('Bingwa transaction sync job started.', [
             'user_id' => $this->userId,
             'push_data' => $this->pushData,
+        ]);
+
+        Log::debug('Bingwa transaction sync job invoking artisan command.', [
+            'user_id' => $this->userId,
+            'command' => 'bingwa:sync-transactions',
         ]);
 
         $exitCode = Artisan::call('bingwa:sync-transactions', [
             '--user-id' => $this->userId,
         ]);
 
-        Log::debug('Bingwa transaction sync command finished from push notification.', [
+        Log::debug('Bingwa transaction sync job finished.', [
             'user_id' => $this->userId,
             'artisan_exit_code' => $exitCode,
             'artisan_output' => Artisan::output(),
+        ]);
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        Log::error('Bingwa transaction sync job marked as failed.', [
+            'user_id' => $this->userId,
+            'message' => $exception->getMessage(),
+            'exception' => $exception::class,
         ]);
     }
 }

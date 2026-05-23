@@ -8,6 +8,6 @@ it('registers the bingwa background tasks in the Laravel scheduler', function ()
     expect($console)
         ->toContain("Schedule::command('bingwa:heartbeat')")
         ->toContain("Schedule::command('bingwa:sync-transactions')")
-        ->toContain('->everyFifteenMinutes()')
-        ->toContain('->onAnyNetwork()');
+        ->toContain("Schedule::command('bingwa:process-auto-renewals')")
+        ->toContain('->everyMinute()');
 });

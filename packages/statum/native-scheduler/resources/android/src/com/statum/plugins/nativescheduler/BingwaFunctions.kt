@@ -16,13 +16,17 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.nativephp.mobile.bridge.BridgeError
 import com.nativephp.mobile.bridge.BridgeFunction
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 object BingwaFunctions {
     private const val SETUP_PERMISSION_REQUEST_CODE = 5107
     private const val PERMISSION_SETUP_PREFS = "bingwa_permission_setup"
     private const val PERMISSION_SETUP_REQUESTED = "requested"
     private const val TAG = "BingwaPermissions"
+    private const val USSD_LOCK_WAIT_MS = 2_000L
+    private val ussdMutex = Mutex()
 
     class TriggerSambaza(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
@@ -330,12 +334,46 @@ object BingwaFunctions {
             ?: throw BridgeError.InvalidParameters("Missing 'code' parameter")
 
         val simSlot = (parameters["simSlot"] as? Number)?.toInt() ?: 0
-            val mode = (parameters["mode"] as? String)?.takeIf { it == "express" || it == "advanced" } ?: defaultMode
-            val isSambaza = (parameters["isSambaza"] as? Boolean) ?: defaultIsSambaza
-            val executor = UssdExecutor(context)
+        val mode = (parameters["mode"] as? String)
+            ?.takeIf { it == "express" || it == "advanced" }
+            ?: defaultMode
+        val isSambaza = (parameters["isSambaza"] as? Boolean) ?: defaultIsSambaza
+        val timeoutSeconds = ((parameters["timeoutSeconds"] as? Number)?.toInt() ?: 30)
+            .takeIf { it > 0 }
+            ?: 30
+        val executor = UssdExecutor(context)
 
-        val result = runBlocking {
-            executor.execute(code, mode, simSlot, isSambaza = isSambaza)
+        val lockAcquired = runBlocking {
+            withTimeoutOrNull(USSD_LOCK_WAIT_MS) {
+                ussdMutex.lock()
+                true
+            } ?: false
+        }
+
+        if (!lockAcquired) {
+            Log.i(TAG, "USSD bridge busy: mode=$mode simSlot=$simSlot timeoutSeconds=$timeoutSeconds")
+
+            return mapOf(
+                "success" to false,
+                "message" to "Another USSD session is already in progress. Try again shortly.",
+            )
+        }
+
+        val result = try {
+            Log.i(TAG, "USSD bridge acquired modem guard: mode=$mode simSlot=$simSlot timeoutSeconds=$timeoutSeconds")
+
+            runBlocking {
+                executor.execute(
+                    code = code,
+                    mode = mode,
+                    simSlot = simSlot,
+                    isSambaza = isSambaza,
+                    timeoutSeconds = timeoutSeconds,
+                )
+            }
+        } finally {
+            ussdMutex.unlock()
+            Log.i(TAG, "USSD bridge released modem guard: mode=$mode simSlot=$simSlot")
         }
 
         return mapOf(

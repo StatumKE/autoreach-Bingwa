@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Offer;
 use App\Models\User;
 use Laravel\Fortify\Features;
 use Livewire\Livewire;
@@ -37,13 +38,22 @@ test('plans page shows loading feedback for refresh and purchase actions', funct
         ->assertSee('Keep the app open while your phone handles the USSD session.');
 });
 
-test('quick dial page shows loading feedback for contacts and award actions', function () {
-    $this->actingAs(User::factory()->create());
+test('quick dial page shows loading feedback for award actions', function () {
+    $user = User::factory()->create();
+    $offer = Offer::factory()->for($user)->create([
+        'name' => '1 GB Data',
+        'ussd_code' => '*180*5*PN#',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user);
 
     Livewire::test('quick-dials')
-        ->call('openContactPicker')
-        ->assertSet('showContactPicker', true)
-        ->assertSee('Grant Access');
+        ->call('loadPage')
+        ->set('customerPhone', '0712345678')
+        ->call('prepareAwardOffer', $offer->id)
+        ->assertSee('wire:target="awardOffer"', false)
+        ->assertSee('Sending…');
 });
 
 test('dashboard refresh action shows loading feedback', function () {

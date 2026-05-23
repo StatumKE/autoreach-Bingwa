@@ -2,11 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Actions\Autoreach\RecoverBingwaDeviceToken;
 use App\Models\Plan;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
@@ -74,13 +77,24 @@ class SyncRemoteSubscriptionPurchaseJob implements ShouldBeUniqueUntilProcessing
             'payment_reference' => $this->paymentReference,
         ]);
 
-        $response = Http::baseUrl($baseUrl)
-            ->timeout(30)
-            ->connectTimeout(10)
-            ->acceptJson()
-            ->asJson()
-            ->withToken($deviceToken)
-            ->post('/api/v1/subscription/purchase', $payload);
+        $response = $this->postPurchase($baseUrl, $deviceToken, $payload);
+
+        if ($response->status() === 401) {
+            Log::warning('Remote subscription purchase sync returned unauthorized; attempting token recovery.', [
+                'plan_id' => $plan->getKey(),
+                'plan_code' => $plan->code,
+                'payment_reference' => $this->paymentReference,
+            ]);
+
+            $recoveredRegistration = app(RecoverBingwaDeviceToken::class)->recover($plan->user);
+            $recoveredToken = $recoveredRegistration->device_token;
+
+            if (! is_string($recoveredToken) || $recoveredToken === '') {
+                throw new RuntimeException("Failed to recover device token for subscription purchase sync on plan {$plan->getKey()}: recovered token was empty.");
+            }
+
+            $response = $this->postPurchase($baseUrl, $recoveredToken, $payload);
+        }
 
         if ($response->status() !== 201 || $response->json('status') !== 'accepted') {
             throw new RuntimeException('Failed to sync subscription purchase. API returned: '.$response->status().' '.$response->body());
@@ -108,5 +122,22 @@ class SyncRemoteSubscriptionPurchaseJob implements ShouldBeUniqueUntilProcessing
             'payment_reference' => $this->paymentReference,
             'message' => $exception?->getMessage(),
         ]);
+    }
+
+    /**
+     * Send the remote subscription purchase request.
+     */
+    private function postPurchase(string $baseUrl, string $deviceToken, array $payload): Response
+    {
+        return Http::baseUrl($baseUrl)
+            ->timeout(30)
+            ->connectTimeout(10)
+            ->acceptJson()
+            ->asJson()
+            ->retry(3, 100, function (\Throwable $exception): bool {
+                return $exception instanceof ConnectionException;
+            }, throw: false)
+            ->withToken($deviceToken)
+            ->post('/api/v1/subscription/purchase', $payload);
     }
 }

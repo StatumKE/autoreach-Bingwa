@@ -3,6 +3,7 @@
 namespace App\Actions\Autoreach;
 
 use App\Models\User;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -61,12 +62,7 @@ class SyncBingwaFcmToken
 
         for ($attempt = 1; $attempt <= 2; $attempt++) {
             try {
-                $response = Http::baseUrl($baseUrl)
-                    ->acceptJson()
-                    ->asJson()
-                    ->timeout(30)
-                    ->withToken($registration->device_token)
-                    ->post('/api/v1/auth/device/fcm-token', $payload);
+                $response = $this->executeFcmSyncRequest($baseUrl, $registration->device_token, $payload);
 
                 Log::debug('Bingwa FCM sync attempt completed.', [
                     'user_id' => $user->getKey(),
@@ -99,6 +95,40 @@ class SyncBingwaFcmToken
 
                     return true;
                 }
+
+                if ($response->status() === 401 && $attempt === 1) {
+                    Log::warning('Bingwa FCM sync returned unauthorized; attempting token recovery and retry.', [
+                        'user_id' => $user->getKey(),
+                        'flow_id' => $flowId,
+                        'attempt' => $attempt,
+                    ]);
+
+                    try {
+                        $registration = app(RecoverBingwaDeviceToken::class)->recover($user);
+                    } catch (Throwable $throwable) {
+                        Log::warning('Bingwa FCM token recovery failed after unauthorized response.', [
+                            'user_id' => $user->getKey(),
+                            'flow_id' => $flowId,
+                            'attempt' => $attempt,
+                            'message' => $throwable->getMessage(),
+                        ]);
+
+                        report($throwable);
+
+                        return false;
+                    }
+
+                    if ($registration->device_token === null || $registration->device_token === '') {
+                        Log::warning('Bingwa FCM token recovery returned an empty token.', [
+                            'user_id' => $user->getKey(),
+                            'flow_id' => $flowId,
+                        ]);
+
+                        return false;
+                    }
+
+                    continue;
+                }
             } catch (Throwable $throwable) {
                 Log::warning('Bingwa FCM sync attempt threw an exception.', [
                     'user_id' => $user->getKey(),
@@ -114,6 +144,19 @@ class SyncBingwaFcmToken
         $this->logFailure($user, $registration->device_token, $fcmToken, $response, $flowId);
 
         return false;
+    }
+
+    private function executeFcmSyncRequest(string $baseUrl, string $deviceToken, array $payload): Response
+    {
+        return Http::baseUrl($baseUrl)
+            ->acceptJson()
+            ->asJson()
+            ->timeout(30)
+            ->retry(3, 100, function (Throwable $exception): bool {
+                return $exception instanceof ConnectionException;
+            }, throw: false)
+            ->withToken($deviceToken)
+            ->post('/api/v1/auth/device/fcm-token', $payload);
     }
 
     private function isAlreadySynced(string $deviceToken, string $fcmToken): bool

@@ -116,6 +116,7 @@ test('the android queue worker initializes the background environment before usi
         ->toContain('synchronized(PHPBridge.phpLock)')
         ->toContain('nativeEphemeralBoot')
         ->toContain('nativeEphemeralArtisan')
+        ->toContain('queue:work --once --timeout=360')
         ->toContain('nativeEphemeralShutdown')
         ->not->toContain('nativeWorkerBoot')
         ->not->toContain('nativeWorkerArtisan')

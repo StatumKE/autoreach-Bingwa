@@ -106,7 +106,9 @@ class PersistBingwaTransaction
             $statusDesc = __("Price mismatch: No active offer found for amount {$amount}.");
         }
 
-        $transaction = DB::transaction(function () use ($amount, $fallbackOfferType, $mpesaCode, $offerId, $payload, $status, $statusDesc, $transactionId, $user): Transaction {
+        $occurredAt = $this->normalizeOccurredAt($payload['occurred_at'] ?? null);
+
+        $transaction = DB::transaction(function () use ($amount, $fallbackOfferType, $mpesaCode, $occurredAt, $offerId, $payload, $status, $statusDesc, $transactionId, $user): Transaction {
             return Transaction::query()->updateOrCreate(
                 ['transaction_id' => $transactionId],
                 [
@@ -120,12 +122,23 @@ class PersistBingwaTransaction
                     'offer_type' => $payload['offer_type'] ?? $fallbackOfferType ?? $payload['service'] ?? 'broadcast',
                     'matched_offer' => $payload['matched_offer'] ?? null,
                     'balance' => null,
-                    'occurred_at' => $this->normalizeOccurredAt($payload['occurred_at'] ?? null),
+                    'occurred_at' => $occurredAt,
+                    'next_attempt_at' => $occurredAt,
                     'status' => $status,
                     'status_desc' => $statusDesc,
+                    'processed_at' => $status === 'failed' ? now() : null,
                 ],
             );
         });
+
+        if ($transaction->status === 'failed') {
+            app(QueueRemoteTransactionStatusUpdate::class)->queue(
+                $transaction,
+                'failed',
+                $statusDesc,
+                executedAt: now()->toIso8601String(),
+            );
+        }
 
         return [
             'transaction' => $transaction,

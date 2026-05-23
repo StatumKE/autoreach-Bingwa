@@ -62,6 +62,79 @@ it('syncs a successful local subscription purchase to the backend', function ():
     });
 });
 
+it('recovers the backend device token when the purchase sync returns unauthorized', function (): void {
+    config(['services.autoreach.backend_url' => 'https://backend.example.test']);
+
+    $user = User::factory()->create();
+
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'old-device-token-401',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
+    $plan = Plan::factory()->create([
+        'user_id' => $user->id,
+        'backend_plan_id' => 5,
+        'code' => 'token_300',
+        'name' => '300 USSD Requests',
+        'type' => 'usage_pack',
+        'price' => 50,
+        'remote_subscription_id' => null,
+        'remote_purchase_synced_at' => null,
+        'remote_purchase_response' => null,
+    ]);
+
+    Http::fake(function ($request) {
+        if ($request->url() === 'https://backend.example.test/api/v1/auth/device/token/recover') {
+            return Http::response([
+                'status' => 'success',
+                'message' => 'Device token recovered.',
+                'device_token' => 'new-device-token-401',
+                'device_id' => 123,
+                'bhc_code' => 'BHC-ZXCVB',
+            ], 200);
+        }
+
+        if ($request->url() === 'https://backend.example.test/api/v1/subscription/purchase'
+            && $request->hasHeader('Authorization', 'Bearer old-device-token-401')) {
+            return Http::response([
+                'status' => 'failed',
+                'message' => 'Unauthorized device token',
+            ], 401);
+        }
+
+        if ($request->url() === 'https://backend.example.test/api/v1/subscription/purchase'
+            && $request->hasHeader('Authorization', 'Bearer new-device-token-401')) {
+            return Http::response([
+                'status' => 'accepted',
+                'subscription_id' => 123,
+                'plan' => [
+                    'code' => 'token_300',
+                    'name' => '300 USSD Requests',
+                    'type' => 'usage_pack',
+                    'price' => 50,
+                ],
+                'balance' => [],
+            ], 201);
+        }
+
+        return Http::response([], 404);
+    });
+
+    (new SyncRemoteSubscriptionPurchaseJob($plan->id, 'MPE123456'))->handle();
+
+    $fresh = $plan->fresh();
+
+    expect($fresh?->remote_subscription_id)->toBe(123);
+    expect($fresh?->remote_purchase_synced_at)->not->toBeNull();
+    expect($fresh?->remote_purchase_response['status'] ?? null)->toBe('accepted');
+    expect($user->refresh()->bingwaDeviceRegistration?->device_token)->toBe('new-device-token-401');
+
+    Http::assertSentCount(3);
+});
+
 it('does not post a subscription purchase that is already synced', function (): void {
     $plan = Plan::factory()->create([
         'remote_subscription_id' => 123,

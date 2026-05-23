@@ -2,6 +2,7 @@
 
 namespace App\Actions\Autoreach;
 
+use App\Exceptions\UssdModemBusyException;
 use App\Models\DeviceSetting;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -21,7 +22,7 @@ class RefreshAirtimeBalance
         $settings = $this->ensureSettings($user);
 
         $simSlot = $settings->primary_transaction_sim === 'slot_2' ? 1 : 0;
-        $response = $this->executeBalanceQuery($simSlot);
+        $response = $this->executeBalanceQuery($simSlot, (int) ($settings->ussd_timeout_seconds ?? 30));
 
         if ($response === null) {
             Log::warning('Bingwa airtime balance refresh failed: No response from USSD bridge.', ['user_id' => $user->id]);
@@ -112,7 +113,7 @@ class RefreshAirtimeBalance
             || stripos($rawResponse, 'not granted') !== false;
     }
 
-    private function executeBalanceQuery(int $simSlot): ?string
+    private function executeBalanceQuery(int $simSlot, int $timeoutSeconds): ?string
     {
         $nativephpAvailable = function_exists('nativephp_call');
 
@@ -129,9 +130,27 @@ class RefreshAirtimeBalance
             'code' => '*144#',
             'mode' => 'express',
             'simSlot' => $simSlot,
+            'timeoutSeconds' => max(1, $timeoutSeconds),
         ]);
 
-        $rawResponse = nativephp_call('ExecuteUssd', $payload);
+        try {
+            $rawResponse = app(UssdModemLock::class)->run(
+                callback: fn (): mixed => nativephp_call('ExecuteUssd', $payload),
+                operation: 'airtime-refresh',
+                waitSeconds: 2,
+                leaseSeconds: max(1, $timeoutSeconds) + 15,
+                context: [
+                    'sim_slot' => $simSlot,
+                ],
+            );
+        } catch (UssdModemBusyException $exception) {
+            Log::info('Bingwa airtime balance refresh skipped because the modem is busy.', [
+                'sim_slot' => $simSlot,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
 
         Log::debug('Bingwa airtime USSD raw response.', [
             'sim_slot' => $simSlot,

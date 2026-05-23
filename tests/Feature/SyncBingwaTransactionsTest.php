@@ -6,6 +6,8 @@ use App\Models\Offer;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Monolog\Handler\TestHandler;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
@@ -49,6 +51,69 @@ beforeEach(function () {
     ]);
 
     $this->action = app(FetchNextBingwaJobs::class);
+});
+
+test('bingwa transaction sync recovers the device token on unauthorized job responses and retries successfully', function () {
+    Http::fake(function ($request) {
+        if ($request->url() === 'https://backend.statum.co.ke/api/v1/auth/device/token/recover') {
+            return Http::response([
+                'status' => 'success',
+                'message' => 'Device token recovered.',
+                'device_token' => 'recovered-device-token',
+                'device_id' => 456,
+                'bhc_code' => 'BHC-ZXCVB',
+            ], 200);
+        }
+
+        if (str_contains($request->url(), '/api/v1/jobs/next/data_bundles')
+            && $request->hasHeader('Authorization', 'Bearer raw-device-token')) {
+            return Http::response([
+                'status' => 'failed',
+                'message' => 'Unauthorized device token',
+            ], 401);
+        }
+
+        if (str_contains($request->url(), '/api/v1/jobs/next/data_bundles')
+            && $request->hasHeader('Authorization', 'Bearer recovered-device-token')) {
+            return Http::response([
+                'transaction_id' => 70,
+                'mpesa_code' => 'UDH9Z12J5E',
+                'sender_phone' => '0719704751',
+                'sender_name' => 'egline jerop',
+                'amount' => 20,
+                'offer_name' => 'Test 1 day',
+                'offer_type' => 'data_bundles',
+                'matched_offer' => [
+                    'offer_local_id' => '9',
+                    'offer_key' => 'test_1_day',
+                    'offer_name' => 'Test 1 day',
+                    'offer_type' => 'data_bundles',
+                    'offer_amount' => 20,
+                    'canonical_offer_id' => 9,
+                ],
+                'occurred_at' => '2026-04-17T17:34:15+00:00',
+            ], 200);
+        }
+
+        if (str_contains($request->url(), '/api/v1/jobs/next/sms')
+            || str_contains($request->url(), '/api/v1/jobs/next/airtime')) {
+            return Http::response('', 204);
+        }
+
+        return Http::response([], 404);
+    });
+
+    $result = $this->action->sync($this->user, 1);
+
+    expect($result)->toMatchArray([
+        'synced' => 1,
+        'skipped' => 0,
+        'failed' => 0,
+    ]);
+
+    expect($this->user->refresh()->bingwaDeviceRegistration?->device_token)->toBe('recovered-device-token');
+
+    Http::assertSentCount(5);
 });
 
 test('bingwa transaction sync clamps low limits to one and stores single-job responses without balance', function () {
@@ -315,4 +380,52 @@ test('bingwa transaction sync clamps high limits to ten and treats stopped devic
     });
 
     expect(Transaction::query()->count())->toBe(0);
+});
+
+test('bingwa transaction sync logs invalid payloads with endpoint context', function () {
+    $userId = $this->user->id;
+    $handler = new TestHandler;
+    $logger = Log::getFacadeRoot()->driver()->getLogger();
+    $logger->pushHandler($handler);
+
+    try {
+        Http::fake([
+            'backend.statum.co.ke/api/v1/jobs/next/data_bundles*' => Http::response([
+                'foo' => 'bar',
+            ], 200),
+            'backend.statum.co.ke/api/v1/jobs/next/sms*' => Http::response('', 204),
+            'backend.statum.co.ke/api/v1/jobs/next/airtime*' => Http::response('', 204),
+        ]);
+
+        $result = $this->action->sync($this->user, 99);
+
+        expect($result)->toMatchArray([
+            'synced' => 0,
+            'skipped' => 0,
+            'failed' => 1,
+        ]);
+    } finally {
+        $logger->popHandler();
+    }
+
+    $warningRecords = array_values(array_filter(
+        $handler->getRecords(),
+        fn ($record): bool => $record->level->getName() === 'WARNING'
+    ));
+
+    expect($warningRecords)->toHaveCount(1);
+
+    $warning = $warningRecords[0];
+
+    expect($warning->message)->toBe('Bingwa transaction sync request failed.');
+    expect($warning->context)->toMatchArray([
+        'user_id' => $userId,
+        'endpoint' => 'data_bundles',
+        'url' => 'https://backend.statum.co.ke/api/v1/jobs/next/data_bundles',
+        'reason' => 'unexpected_payload_shape',
+        'status' => 200,
+    ]);
+    expect($warning->context['response_json'])->toMatchArray([
+        'foo' => 'bar',
+    ]);
 });

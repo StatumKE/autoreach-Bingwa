@@ -1,0 +1,566 @@
+--------- beginning of main
+05-28 17:18:17.108 I/NativePHP(31020): NativePHP module initializing
+05-28 17:18:17.259 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:18:18.351 I/NativePHP(31020): nativephp_call() called with method: ExecuteUssd
+05-28 17:18:19.584 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:18:20.040 I/NativePHP(31020): NativePHP module initializing
+05-28 17:18:20.181 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:18:20.239 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:18:24.377 I/NativePHP(31020): NativePHP module initializing
+05-28 17:18:24.542 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:18:25.639 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:18:30.088 I/NativePHP(31020): NativePHP module initializing
+05-28 17:18:30.252 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:18:30.308 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:18:40.081 I/NativePHP(31020): NativePHP module initializing
+05-28 17:18:40.231 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:18:40.292 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:18:50.079 I/NativePHP(31020): NativePHP module initializing
+05-28 17:18:50.251 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:18:50.313 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:18:55.660 I/NativePHP(31020): NativePHP module initializing
+05-28 17:18:55.835 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:18:59.067 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:18:59.629 I/NativePHP(31020): NativePHP module initializing
+05-28 17:18:59.786 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:19:00.975 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:19:00.985 I/NativePHP(31020): NativePHP module initializing
+05-28 17:19:01.152 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:19:01.211 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:19:10.090 I/NativePHP(31020): NativePHP module initializing
+05-28 17:19:10.248 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:19:10.306 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:19:20.077 I/NativePHP(31020): NativePHP module initializing
+05-28 17:19:20.227 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:19:20.291 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:19:29.079 I/NativePHP(31020): NativePHP module initializing
+05-28 17:19:29.255 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:19:32.497 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:19:32.505 I/NativePHP(31020): NativePHP module initializing
+05-28 17:19:32.680 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:19:35.464 I/NativePHP(31020): nativephp_call() called with method: ExecuteUssd
+05-28 17:19:36.284 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:19:36.297 I/NativePHP(31020): NativePHP module initializing
+05-28 17:19:36.474 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:19:36.532 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:19:40.079 I/NativePHP(31020): NativePHP module initializing
+05-28 17:19:40.235 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:19:40.300 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:19:50.083 I/NativePHP(31020): NativePHP module initializing
+05-28 17:19:50.250 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:19:50.307 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:19:54.501 I/NativePHP(31020): NativePHP module initializing
+05-28 17:19:54.660 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:19:54.768 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:20:02.509 I/NativePHP(31020): NativePHP module initializing
+05-28 17:20:02.681 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:20:05.768 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:20:35.783 I/NativePHP(31020): NativePHP module initializing
+05-28 17:20:35.951 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:20:39.188 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:21:09.200 I/NativePHP(31020): NativePHP module initializing
+05-28 17:21:09.365 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:21:12.603 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:21:42.617 I/NativePHP(31020): NativePHP module initializing
+05-28 17:21:42.784 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:21:46.016 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:21:58.250 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:21:58.324 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:21:59.330 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:21:59.350 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:22:00.127 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:22:07.798 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:07.991 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:22:11.235 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:22:11.245 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:11.428 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:22:11.480 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:22:11.506 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:11.643 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:22:11.710 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:22:14.252 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:14.418 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:22:15.156 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:22:17.200 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:22:17.657 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:22:21.907 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:22.063 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:22:22.129 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:22:23.674 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:23.848 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:22:27.090 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:22:31.898 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:32.059 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:22:32.118 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:22:32.243 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:22:33.262 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:22:39.104 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:39.276 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:22:42.514 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:22:42.522 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:42.697 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:22:42.759 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:22:48.320 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:22:50.486 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:22:51.890 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:52.057 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:22:52.116 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:22:53.312 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:53.481 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:22:58.130 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:22:58.153 I/NativePHP(31020): NativePHP module initializing
+05-28 17:22:58.324 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:23:01.295 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:23:01.325 I/NativePHP(31020): NativePHP module initializing
+05-28 17:23:01.496 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:23:01.709 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:23:01.890 I/NativePHP(31020): NativePHP module initializing
+05-28 17:23:02.062 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:23:02.121 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:23:05.553 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:23:06.526 I/NativePHP(31020): NativePHP module initializing
+05-28 17:23:06.686 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:23:06.691 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:23:06.957 I/NativePHP(31020): nativephp_call() called with method: ExecuteUssd
+05-28 17:23:07.960 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:23:08.777 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:23:09.403 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:23:09.403 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:23:09.624 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:23:09.649 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:23:10.480 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:23:11.893 I/NativePHP(31020): NativePHP module initializing
+05-28 17:23:12.059 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:23:12.118 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:23:21.751 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:23:21.863 I/NativePHP(31020): NativePHP module initializing
+05-28 17:23:22.010 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:23:22.068 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:23:24.731 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:23:31.900 I/NativePHP(31020): NativePHP module initializing
+05-28 17:23:32.070 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:23:32.140 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:23:37.983 I/NativePHP(31020): NativePHP module initializing
+05-28 17:23:38.153 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:23:39.276 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:23:39.781 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:23:40.882 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:23:41.862 I/NativePHP(31020): NativePHP module initializing
+05-28 17:23:42.011 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:23:42.076 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:23:51.912 I/NativePHP(31020): NativePHP module initializing
+05-28 17:23:52.081 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:23:52.148 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:23:55.946 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:23:57.940 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:24:01.914 I/NativePHP(31020): NativePHP module initializing
+05-28 17:24:02.080 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:24:02.139 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:24:09.290 I/NativePHP(31020): NativePHP module initializing
+05-28 17:24:09.476 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:24:12.736 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:24:12.749 I/NativePHP(31020): NativePHP module initializing
+05-28 17:24:12.926 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:24:12.972 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:24:12.988 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:24:13.999 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:24:21.914 I/NativePHP(31020): NativePHP module initializing
+05-28 17:24:22.077 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:24:22.135 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:24:29.062 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:24:31.292 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:24:31.913 I/NativePHP(31020): NativePHP module initializing
+05-28 17:24:32.072 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:24:32.127 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:24:41.900 I/NativePHP(31020): NativePHP module initializing
+05-28 17:24:42.053 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:24:42.122 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:24:42.752 I/NativePHP(31020): NativePHP module initializing
+05-28 17:24:42.921 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:24:46.170 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:24:46.353 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:24:47.418 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:24:51.899 I/NativePHP(31020): NativePHP module initializing
+05-28 17:24:52.061 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:24:52.113 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:25:01.887 I/NativePHP(31020): NativePHP module initializing
+05-28 17:25:02.045 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:25:02.101 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:25:02.474 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:25:04.654 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:25:11.900 I/NativePHP(31020): NativePHP module initializing
+05-28 17:25:12.057 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:25:12.113 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:25:16.181 I/NativePHP(31020): NativePHP module initializing
+05-28 17:25:16.352 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:25:19.592 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:25:19.695 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:25:20.780 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:25:21.893 I/NativePHP(31020): NativePHP module initializing
+05-28 17:25:22.057 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:25:22.115 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:25:31.865 I/NativePHP(31020): NativePHP module initializing
+05-28 17:25:32.038 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:25:32.106 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:25:35.845 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:25:37.985 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:25:41.889 I/NativePHP(31020): NativePHP module initializing
+05-28 17:25:42.053 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:25:42.101 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:25:49.608 I/NativePHP(31020): NativePHP module initializing
+05-28 17:25:49.778 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:25:53.039 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:25:53.046 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:25:53.050 I/NativePHP(31020): NativePHP module initializing
+05-28 17:25:53.217 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:25:53.266 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:25:54.096 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:26:01.896 I/NativePHP(31020): NativePHP module initializing
+05-28 17:26:02.046 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:26:02.093 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:26:09.175 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:26:11.420 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:26:11.886 I/NativePHP(31020): NativePHP module initializing
+05-28 17:26:12.036 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:26:12.097 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:26:21.900 I/NativePHP(31020): NativePHP module initializing
+05-28 17:26:22.056 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:26:22.123 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:26:23.053 I/NativePHP(31020): NativePHP module initializing
+05-28 17:26:23.222 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:26:26.467 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:26:26.476 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:26:27.512 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:26:31.920 I/NativePHP(31020): NativePHP module initializing
+05-28 17:26:32.081 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:26:32.138 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:26:41.903 I/NativePHP(31020): NativePHP module initializing
+05-28 17:26:42.054 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:26:42.117 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:26:42.557 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:26:44.553 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:26:51.877 I/NativePHP(31020): NativePHP module initializing
+05-28 17:26:52.045 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:26:52.104 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:26:56.480 I/NativePHP(31020): NativePHP module initializing
+05-28 17:26:56.653 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:26:59.622 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:26:59.897 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:27:00.681 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:27:01.909 I/NativePHP(31020): NativePHP module initializing
+05-28 17:27:02.074 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:27:02.132 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:27:11.892 I/NativePHP(31020): NativePHP module initializing
+05-28 17:27:12.054 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:27:12.113 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:27:15.739 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:27:17.963 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:27:21.907 I/NativePHP(31020): NativePHP module initializing
+05-28 17:27:22.067 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:27:22.127 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:27:29.908 I/NativePHP(31020): NativePHP module initializing
+05-28 17:27:30.078 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:27:33.020 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:27:33.331 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:27:33.339 I/NativePHP(31020): NativePHP module initializing
+05-28 17:27:33.475 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:27:33.525 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:27:33.995 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:27:41.857 I/NativePHP(31020): NativePHP module initializing
+05-28 17:27:41.992 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:27:42.041 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:27:49.030 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:27:51.011 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:27:51.857 I/NativePHP(31020): NativePHP module initializing
+05-28 17:27:52.027 I/NativePHP(31020): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:27:52.086 I/NativePHP(31020): NativePHP module shutting down
+05-28 17:27:57.425 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:27:57.692 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:27:57.697 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:27:57.978 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:27:57.982 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:27:58.246 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:27:58.250 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:27:58.516 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:27:58.530 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:27:58.674 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:01.895 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:01.905 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:02.086 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:02.136 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:02.166 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:02.316 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:02.434 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:02.489 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:02.620 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:02.639 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:02.667 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:02.806 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:02.833 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:04.905 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:05.080 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:06.066 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:28:07.163 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:28:08.317 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:13.004 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:13.176 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:13.239 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:14.328 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:14.494 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:17.720 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:19.918 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:28:20.544 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:28:20.545 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:28:20.894 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:28:20.926 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:28:22.940 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:23.090 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:23.154 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:26.656 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:28:26.681 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:28:27.523 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:28:29.735 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:29.898 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:33.123 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:33.136 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:33.317 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:34.426 I/NativePHP( 6938): nativephp_call() called with method: ExecuteUssd
+05-28 17:28:35.414 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:35.423 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:35.586 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:35.637 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:36.291 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:28:36.911 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:28:36.911 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:28:37.143 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:28:37.171 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:28:38.222 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:28:42.568 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:28:42.933 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:43.078 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:43.144 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:43.399 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:28:52.976 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:53.133 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:53.201 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:28:57.141 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:28:57.307 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:28:58.461 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:28:58.675 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:00.569 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:02.973 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:03.133 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:03.196 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:12.981 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:13.141 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:13.203 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:15.637 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:16.698 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:16.714 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:17.350 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:29:17.350 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:29:17.677 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:17.706 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:18.534 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:20.497 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:21.129 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:29:21.129 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:29:21.484 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:21.517 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:22.404 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:22.948 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:23.097 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:23.158 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:24.991 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:25.627 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:29:25.628 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:29:25.950 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:25.978 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:26.839 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:28.645 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:28.684 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:28.845 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:29.266 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:29:29.266 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:29:29.587 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:29.616 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:30.453 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:31.739 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:32.076 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:32.939 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:33.078 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:33.140 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:39.334 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:39.489 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:40.529 I/NativePHP( 6938): nativephp_call() called with method: ExecuteUssd
+05-28 17:29:41.535 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:42.525 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:42.675 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:43.730 I/NativePHP( 6938): nativephp_call() called with method: ExecuteUssd
+05-28 17:29:44.726 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:44.736 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:44.884 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:44.945 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:45.785 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:45.935 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:47.200 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:47.218 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:47.858 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:29:47.859 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:29:48.230 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:48.256 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:48.508 I/NativePHP( 6938): nativephp_call() called with method: ExecuteUssd
+05-28 17:29:49.295 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:49.307 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:49.495 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:52.353 I/NativePHP( 6938): nativephp_call() called with method: ExecuteUssd
+05-28 17:29:52.739 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:52.768 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:53.304 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:53.318 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:53.475 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:53.542 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:53.578 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:53.596 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:54.398 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:54.420 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:55.249 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:55.271 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:55.313 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:29:55.464 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:29:55.902 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:29:55.902 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:29:56.252 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:56.277 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:57.081 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:57.109 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:57.777 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:29:57.778 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:29:58.009 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:58.047 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:58.365 I/NativePHP( 6938): nativephp_call() called with method: ExecuteUssd
+05-28 17:29:58.693 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:29:58.693 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:29:58.927 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:58.954 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:29:59.359 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:29:59.608 I/NativePHP( 8816): nativephp_can() called with method: Phone.SmsListen
+05-28 17:29:59.608 I/NativePHP( 8816): nativephp_call() called with method: Phone.SmsListen
+05-28 17:29:59.830 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:29:59.847 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:30:00.654 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:30:00.670 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:30:01.504 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:30:02.095 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:30:02.234 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:30:02.271 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:30:03.088 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:30:05.307 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:30:05.318 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:30:05.477 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:30:05.528 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:30:12.987 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:30:13.133 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:30:13.194 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:30:18.150 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:30:23.757 I/NativePHP( 8816): NativePHP module shutting down
+05-28 17:30:25.734 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:30:25.925 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:30:27.088 I/NativePHP( 6938): nativephp_call() called with method: ExecuteUssd
+05-28 17:30:27.519 I/NativePHP( 8816): NativePHP module initializing
+05-28 17:30:27.832 I/NativePHP( 8816): nativephp_can() called with method: Phone.DialUssd
+05-28 17:30:27.832 I/NativePHP( 8816): nativephp_can() called with method: Phone.DialUssd
+05-28 17:30:27.832 I/NativePHP( 8816): nativephp_call() called with method: Phone.DialUssd
+05-28 17:30:27.896 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:30:27.946 I/NativePHP( 8816): nativephp_call() called with method: Edge.Set
+05-28 17:30:30.881 I/NativePHP( 8816): nativephp_call() called with method: Edge.Set
+05-28 17:30:35.332 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:30:35.554 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:30:38.827 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:30:42.973 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:30:43.153 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:30:43.212 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:30:52.990 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:30:53.144 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:30:53.202 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:31:02.985 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:31:03.146 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:31:03.203 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:31:08.846 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:31:09.023 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:31:11.929 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:31:11.941 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:31:12.105 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:31:12.236 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:31:14.072 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:31:14.218 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:31:14.334 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:31:22.854 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:31:23.005 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:31:23.084 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:31:33.207 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:31:33.374 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:31:33.437 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:31:41.948 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:31:42.122 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:31:46.404 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:31:46.415 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:31:46.577 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:31:46.641 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:31:53.226 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:31:53.371 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:31:53.433 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:32:03.179 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:32:03.324 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:32:03.384 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:32:13.189 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:32:13.359 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:32:13.421 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:32:16.424 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:32:16.602 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:32:19.477 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:32:23.224 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:32:23.379 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:32:23.436 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:32:33.220 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:32:33.396 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:32:33.459 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:32:43.216 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:32:43.380 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:32:43.441 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:32:49.497 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:32:49.671 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:32:52.647 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:32:53.233 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:32:53.392 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:32:53.454 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:33:03.214 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:33:03.381 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:33:03.445 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:33:13.215 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:33:13.384 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:33:13.447 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:33:22.672 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:33:22.851 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:33:26.100 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:33:26.109 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:33:26.278 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:33:26.327 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:33:33.214 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:33:33.375 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:33:33.431 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:33:43.219 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:33:43.377 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:33:43.427 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:33:53.219 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:33:53.366 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:33:53.426 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:33:56.118 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:33:56.280 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:33:59.515 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:34:03.223 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:34:03.364 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:34:03.414 I/NativePHP( 6938): NativePHP module shutting down
+05-28 17:34:13.191 I/NativePHP( 6938): NativePHP module initializing
+05-28 17:34:13.326 I/NativePHP( 6938): nativephp_call() called with method: BackgroundTasks.Register
+05-28 17:34:13.382 I/NativePHP( 6938): NativePHP module shutting down

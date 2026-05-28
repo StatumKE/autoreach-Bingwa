@@ -33,7 +33,7 @@ class FetchNextBingwaJobs
      *
      * @return array{synced:int, skipped:int, failed:int}
      */
-    public function sync(User $user, int $limit = 10): array
+    public function sync(User $user, int $limit = 10, ?string $onlyService = null): array
     {
         $limit = $this->normalizeLimit($limit);
         $registration = $user->bingwaDeviceRegistration;
@@ -49,14 +49,19 @@ class FetchNextBingwaJobs
         $skipped = 0;
         $failed = 0;
 
+        $endpointsToFetch = self::ENDPOINTS;
+        if ($onlyService !== null && array_key_exists($onlyService, $endpointsToFetch)) {
+            $endpointsToFetch = [$onlyService => $endpointsToFetch[$onlyService]];
+        }
+
         // ── Concurrent fetch ────────────────────────────────────────────────
         // Http::pool() dispatches all requests simultaneously using Guzzle's
         // async promise API. The pool is named so responses can be retrieved
         // by their endpoint key without relying on array position.
-        $poolResponses = Http::pool(function (Pool $pool) use ($baseUrl, $token, $limit): array {
+        $poolResponses = Http::pool(function (Pool $pool) use ($baseUrl, $token, $limit, $endpointsToFetch): array {
             $requests = [];
 
-            foreach (self::ENDPOINTS as $type => $endpoint) {
+            foreach ($endpointsToFetch as $type => $endpoint) {
                 $requests[] = $pool
                     ->as($type)
                     ->acceptJson()
@@ -73,7 +78,7 @@ class FetchNextBingwaJobs
         // occurs — always check the type before treating the value as a Response.
         $allJobs = [];
 
-        foreach (self::ENDPOINTS as $type => $endpoint) {
+        foreach ($endpointsToFetch as $type => $endpoint) {
             $url = "{$baseUrl}{$endpoint}";
             $response = $poolResponses[$type] ?? null;
 
@@ -107,10 +112,6 @@ class FetchNextBingwaJobs
                 continue;
             }
 
-            // 204 No Content — no jobs waiting.
-            if ($response->noContent()) {
-                continue;
-            }
 
             // 403 — backend reports the device as stopped.
             if ($response->status() === 403) {
@@ -147,6 +148,11 @@ class FetchNextBingwaJobs
                 if ($response === null) {
                     continue;
                 }
+            }
+
+            // 204 No Content — no jobs waiting (check this after potential token recovery)
+            if ($response->status() === 204 || $response->noContent()) {
+                continue;
             }
 
             if (! $response->successful()) {

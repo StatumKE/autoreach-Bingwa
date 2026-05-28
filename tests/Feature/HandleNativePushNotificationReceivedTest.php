@@ -6,11 +6,11 @@ use App\Jobs\SyncBingwaTransactionsJob;
 use App\Listeners\HandleNativePushNotificationReceived;
 use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Bus;
 use Native\Mobile\Events\PushNotification\PushNotificationReceived;
 
 test('push notification received dispatches a transaction sync job for the matching device', function () {
-    Queue::fake();
+    Bus::fake();
 
     $user = User::factory()->create();
 
@@ -30,14 +30,14 @@ test('push notification received dispatches a transaction sync job for the match
         'device_id' => '45',
     ]));
 
-    Queue::assertPushed(SyncBingwaTransactionsJob::class, function (SyncBingwaTransactionsJob $job) use ($user): bool {
+    Bus::assertDispatchedSync(SyncBingwaTransactionsJob::class, function (SyncBingwaTransactionsJob $job) use ($user): bool {
         return $job->userId === $user->getKey()
             && $job->pushData['device_id'] === '45';
     });
 });
 
 test('push notification received ignores payloads without a backend device id', function () {
-    Queue::fake();
+    Bus::fake();
 
     app(HandleNativePushNotificationReceived::class)->handle(new PushNotificationReceived([
         'event' => 'Native\\Mobile\\Events\\PushNotification\\PushNotificationReceived',
@@ -46,5 +46,5 @@ test('push notification received ignores payloads without a backend device id', 
         'service' => 'sms',
     ]));
 
-    Queue::assertNothingPushed();
+    Bus::assertNotDispatchedSync(SyncBingwaTransactionsJob::class);
 });

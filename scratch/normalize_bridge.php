@@ -1,7 +1,7 @@
 <?php
 
 $bridgeFile = 'nativephp/android/app/src/main/cpp/php_bridge.c';
-if (!file_exists($bridgeFile)) {
+if (! file_exists($bridgeFile)) {
     echo "File not found: $bridgeFile\n";
     exit(1);
 }
@@ -20,7 +20,7 @@ $hotPathStartup = <<<'C'
 C;
 $contents = str_replace($hotPathStartup, '', $contents);
 
-// 3. Fix worker_embed_init startup (it should also probably avoid startup if already done, 
+// 3. Fix worker_embed_init startup (it should also probably avoid startup if already done,
 // but it's used differently. Let's look at the context.)
 $workerStartup = <<<'C'
     // php_module_startup() is guarded by module_initialized — it won't re-init

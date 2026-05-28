@@ -335,12 +335,20 @@ new #[Title('Dashboard')] class extends Component
         accessibilityEnabled: true,
         async checkAccessibility() {
             try {
-                if (typeof window.AutoreachNative === 'undefined' || !window.AutoreachNative.call) {
-                    return;
-                }
-                const result = await window.AutoreachNative.call('CheckSetupStatus', {});
-                if (result && typeof result.data?.accessibilityEnabled !== 'undefined') {
-                    this.accessibilityEnabled = result.data.accessibilityEnabled;
+                const response = await fetch('/_native/api/call', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: JSON.stringify({
+                        method: 'CheckSetupStatus',
+                        params: {},
+                    }),
+                });
+                const result = await response.json();
+                if (result && typeof result.accessibilityEnabled !== 'undefined') {
+                    this.accessibilityEnabled = result.accessibilityEnabled;
                 }
             } catch (e) {
                 console.error(e);
@@ -348,10 +356,17 @@ new #[Title('Dashboard')] class extends Component
         },
         async openAccessibility() {
             try {
-                if (typeof window.AutoreachNative === 'undefined' || !window.AutoreachNative.call) {
-                    return;
-                }
-                await window.AutoreachNative.call('OpenAccessibilitySettings', {});
+                await fetch('/_native/api/call', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: JSON.stringify({
+                        method: 'OpenAccessibilitySettings',
+                        params: {},
+                    }),
+                });
             } catch (e) {
                 console.error(e);
             }

@@ -29,7 +29,7 @@ class QueueRemoteTransactionStatusUpdate
             return;
         }
 
-        UpdateRemoteTransactionStatusJob::dispatch(
+        UpdateRemoteTransactionStatusJob::dispatchSync(
             (int) $transaction->user_id,
             $remoteTransactionId,
             $deviceToken,
@@ -39,6 +39,6 @@ class QueueRemoteTransactionStatusUpdate
             $executionTimeMs,
             $executedAt ?? AppTimezone::now()->toIso8601String(),
             $failureCode ?? BingwaTransactionFailureCode::fromStatusAndMessage($status, $message),
-        )->afterCommit();
+        );
     }
 }

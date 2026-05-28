@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Actions\Autoreach\DispatchBingwaQueuedTransactionsJob;
 use App\Actions\Autoreach\FetchNextBingwaJobs;
+use App\Models\DeviceSetting;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
@@ -42,7 +42,6 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
      */
     public function handle(
         FetchNextBingwaJobs $fetchNextBingwaJobs,
-        DispatchBingwaQueuedTransactionsJob $dispatchBingwaQueuedTransactionsJob,
     ): void {
         Log::debug('Bingwa transaction sync job started.', [
             'user_id' => $this->userId,
@@ -69,7 +68,8 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
             return;
         }
 
-        $result = $fetchNextBingwaJobs->sync($user);
+        $onlyService = $this->pushData['service'] ?? null;
+        $result = $fetchNextBingwaJobs->sync($user, 10, $onlyService);
 
         Log::debug('Bingwa transaction sync job finished fetching.', [
             'user_id' => $this->userId,
@@ -78,14 +78,23 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
             'failed' => $result['failed'],
         ]);
 
-        // Dispatch the USSD processor when there are newly synced jobs or any
-        // existing queued transactions still waiting to be processed.
+        // Dispatch the USSD processor synchronously when there are newly synced jobs
+        // or any existing queued transactions still waiting to be processed.
+        // Doing this synchronously skips the latency of queueing a second job.
         if ($result['synced'] > 0 || Transaction::query()->where('status', 'queued')->exists()) {
-            Log::debug('Bingwa transaction sync job dispatching queued processor.', [
+            if (! DeviceSetting::isTransactionProcessingEnabledForUser($this->userId)) {
+                Log::debug('Bingwa transaction processing skipped because processing is paused.', [
+                    'user_id' => $this->userId,
+                ]);
+
+                return;
+            }
+
+            Log::debug('Bingwa transaction sync job dispatching queued processor synchronously.', [
                 'user_id' => $this->userId,
             ]);
 
-            $dispatchBingwaQueuedTransactionsJob->dispatch($this->userId);
+            ProcessBingwaQueuedTransactionsJob::dispatchSync($this->userId);
         }
     }
 

@@ -1,17 +1,19 @@
 <?php
 
-use App\Actions\Autoreach\DispatchBingwaQueuedTransactionsJob;
 use App\Actions\Autoreach\FetchNextBingwaJobs;
+use App\Jobs\ProcessBingwaQueuedTransactionsJob;
 use App\Jobs\SyncBingwaTransactionsJob;
 use App\Models\BingwaDeviceRegistration;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Mockery\MockInterface;
 
 it('fetches jobs and dispatches the queued processor when synced transactions exist', function (): void {
     Queue::fake();
+    Bus::fake();
     Log::spy();
 
     $user = User::factory()->create();
@@ -26,17 +28,13 @@ it('fetches jobs and dispatches the queued processor when synced transactions ex
     $this->mock(FetchNextBingwaJobs::class, function (MockInterface $mock) use ($user): void {
         $mock->shouldReceive('sync')
             ->once()
-            ->withArgs(fn (User $arg): bool => $arg->id === $user->id)
+            ->withArgs(fn (User $arg, int $limit, ?string $onlyService): bool => $arg->id === $user->id && $limit === 10 && $onlyService === null)
             ->andReturn(['synced' => 1, 'skipped' => 0, 'failed' => 0]);
     });
 
-    $this->mock(DispatchBingwaQueuedTransactionsJob::class, function (MockInterface $mock): void {
-        $mock->shouldReceive('dispatch')
-            ->once()
-            ->andReturn(true);
-    });
-
     app()->call([(new SyncBingwaTransactionsJob($user->id)), 'handle']);
+
+    Bus::assertDispatchedSync(ProcessBingwaQueuedTransactionsJob::class);
 
     Log::shouldHaveReceived('debug')
         ->with(
@@ -48,6 +46,7 @@ it('fetches jobs and dispatches the queued processor when synced transactions ex
 
 it('skips dispatch when there are no synced or queued transactions', function (): void {
     Queue::fake();
+    Bus::fake();
 
     $user = User::factory()->create();
 
@@ -61,17 +60,15 @@ it('skips dispatch when there are no synced or queued transactions', function ()
     $this->mock(FetchNextBingwaJobs::class, function (MockInterface $mock) use ($user): void {
         $mock->shouldReceive('sync')
             ->once()
-            ->withArgs(fn (User $arg): bool => $arg->id === $user->id)
+            ->withArgs(fn (User $arg, int $limit, ?string $onlyService): bool => $arg->id === $user->id && $limit === 10 && $onlyService === null)
             ->andReturn(['synced' => 0, 'skipped' => 0, 'failed' => 0]);
-    });
-
-    $this->mock(DispatchBingwaQueuedTransactionsJob::class, function (MockInterface $mock): void {
-        $mock->shouldNotReceive('dispatch');
     });
 
     expect(Transaction::query()->where('status', 'queued')->exists())->toBeFalse();
 
     app()->call([(new SyncBingwaTransactionsJob($user->id)), 'handle']);
+
+    Bus::assertNotDispatchedSync(ProcessBingwaQueuedTransactionsJob::class);
 });
 
 it('skips the sync when user has no bingwa device registration', function (): void {
@@ -82,10 +79,6 @@ it('skips the sync when user has no bingwa device registration', function (): vo
 
     $this->mock(FetchNextBingwaJobs::class, function (MockInterface $mock): void {
         $mock->shouldNotReceive('sync');
-    });
-
-    $this->mock(DispatchBingwaQueuedTransactionsJob::class, function (MockInterface $mock): void {
-        $mock->shouldNotReceive('dispatch');
     });
 
     app()->call([(new SyncBingwaTransactionsJob($user->id)), 'handle']);

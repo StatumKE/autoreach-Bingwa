@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('app_interface_mode', 20)->default('express');
             $table->boolean('auto_reschedule_rejected')->default(true);
             $table->string('retry_tomorrow_at', 20)->nullable();
-            $table->unsignedSmallInteger('ussd_timeout_seconds')->default(30);
+            $table->unsignedSmallInteger('ussd_timeout_seconds')->default(60);
             $table->boolean('intelligent_auto_retry')->default(true);
             $table->unsignedSmallInteger('retry_interval_minutes')->default(1);
             $table->unsignedSmallInteger('max_attempts')->default(2);

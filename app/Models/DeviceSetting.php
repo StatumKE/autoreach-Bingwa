@@ -24,6 +24,9 @@ use Illuminate\Support\Facades\Cache;
  * @property int $max_attempts
  * @property bool $retry_network_issues
  * @property bool $transaction_processing_enabled
+ * @property bool $incoming_sms_enabled
+ * @property bool $incoming_sms_allow_all_senders
+ * @property string|null $incoming_sms_sim_slot
  * @property float|null $airtime_balance
  * @property string|null $airtime_balance_raw_response
  * @property Carbon|null $airtime_balance_checked_at
@@ -43,6 +46,9 @@ use Illuminate\Support\Facades\Cache;
     'max_attempts',
     'retry_network_issues',
     'transaction_processing_enabled',
+    'incoming_sms_enabled',
+    'incoming_sms_allow_all_senders',
+    'incoming_sms_sim_slot',
     'airtime_balance',
     'airtime_balance_raw_response',
     'airtime_balance_checked_at',
@@ -85,6 +91,8 @@ class DeviceSetting extends Model
             'max_attempts' => 'integer',
             'retry_network_issues' => 'boolean',
             'transaction_processing_enabled' => 'boolean',
+            'incoming_sms_enabled' => 'boolean',
+            'incoming_sms_allow_all_senders' => 'boolean',
             'airtime_balance' => 'decimal:2',
             'airtime_balance_checked_at' => 'datetime',
         ];

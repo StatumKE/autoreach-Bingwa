@@ -22,7 +22,7 @@ class RefreshAirtimeBalance
         $settings = $this->ensureSettings($user);
 
         $simSlot = $settings->primary_transaction_sim === 'slot_2' ? 1 : 0;
-        $response = $this->executeBalanceQuery($simSlot, (int) ($settings->ussd_timeout_seconds ?? 30));
+        $response = $this->executeBalanceQuery($simSlot, (int) ($settings->ussd_timeout_seconds ?? 60));
 
         if ($response === null) {
             Log::warning('Bingwa airtime balance refresh failed: No response from USSD bridge.', ['user_id' => $user->id]);
@@ -247,7 +247,7 @@ class RefreshAirtimeBalance
             'app_interface_mode' => 'express',
             'auto_reschedule_rejected' => true,
             'retry_tomorrow_at' => '12:30 AM',
-            'ussd_timeout_seconds' => 30,
+            'ussd_timeout_seconds' => 60,
             'intelligent_auto_retry' => true,
             'retry_interval_minutes' => 1,
             'max_attempts' => 2,

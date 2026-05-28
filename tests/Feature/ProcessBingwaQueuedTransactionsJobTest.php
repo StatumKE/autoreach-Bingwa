@@ -209,10 +209,11 @@ it('honors auto retry settings for failed native processor attempts', function (
 
     $fresh = $transaction->fresh();
 
-    expect($fresh?->status)->toBe('queued');
-    expect($fresh?->retry_count)->toBe(1);
-    expect($fresh?->processed_at)->toBeNull();
-    expect($fresh?->status_desc)->toContain('Auto-retry attempt');
+    expect($fresh?->status)->toBe('failed');
+    expect($fresh?->retry_count)->toBe(0);
+    expect($fresh?->processed_at)->not->toBeNull();
+    // Network response must be visible to the user in status_desc.
+    expect($fresh?->status_desc)->toContain('Network returned a general failure');
 });
 
 it('stops processing immediately when transaction processing is paused', function (): void {
@@ -295,6 +296,8 @@ it('aborts the processor loop on lock contention/modem busy', function (): void 
         ->handle(app(CompleteBingwaTransaction::class), app(ExecuteBingwaUssd::class), app(GetNextBingwaQueuedTransaction::class));
 
     $fresh = $transaction->fresh();
-    expect($fresh?->status)->toBe('queued');
+    expect($fresh?->status)->toBe('failed');
     expect($fresh?->retry_count)->toBe(0);
+    expect($fresh?->processed_at)->not->toBeNull();
+    expect($fresh?->status_desc)->toContain('Another USSD session is already in progress');
 });

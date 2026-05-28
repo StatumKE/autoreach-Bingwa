@@ -160,6 +160,35 @@ new #[Title('Transactions')] class extends Component
     }
 
     /**
+     * Delete selected transactions for the authenticated user.
+     */
+    public function deleteSelectedTransactions(): void
+    {
+        $selectedIds = $this->normalizedSelectedIds();
+
+        if (empty($selectedIds)) {
+            return;
+        }
+
+        Transaction::query()
+            ->where('user_id', Auth::id())
+            ->whereIn('id', $selectedIds)
+            ->delete();
+
+        $this->selectedIds = [];
+        $this->resetPage();
+
+        \Illuminate\Support\Facades\Cache::forget('dashboard:metrics:'.Auth::id().':'.AppTimezone::now()->toDateString());
+
+        Flux::toast(
+            variant: 'success',
+            text: __('Selected transactions deleted successfully.')
+        );
+    }
+
+
+
+    /**
      * Open a transaction details modal for the selected transaction.
      */
     public function openTransactionDetails(int $transactionId): void
@@ -372,6 +401,29 @@ new #[Title('Transactions')] class extends Component
             $this->selectedIds
         )));
     }
+
+    /**
+     * Toggle selection of all retryable transactions on the current page.
+     */
+    public function toggleSelectAllPage(bool $currentlySelected): void
+    {
+        $transactions = $this->transactions();
+        $pageIds = [];
+        if ($transactions instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator || method_exists($transactions, 'items')) {
+            $pageIds = collect($transactions->items())
+                ->filter(fn (Transaction $t): bool => $this->canRetryTransaction($t))
+                ->pluck('id')
+                ->all();
+        }
+
+        if ($currentlySelected) {
+            // Remove page IDs from selection
+            $this->selectedIds = array_values(array_diff($this->selectedIds, $pageIds));
+        } else {
+            // Add page IDs to selection
+            $this->selectedIds = array_values(array_unique(array_merge($this->selectedIds, $pageIds)));
+        }
+    }
 };
 ?>
 
@@ -399,6 +451,8 @@ new #[Title('Transactions')] class extends Component
             </span>
         </flux:button>
     </div>
+
+
 
     <div class="flex flex-col gap-3">
         <flux:input 
@@ -447,6 +501,18 @@ new #[Title('Transactions')] class extends Component
             </div>
 
             <div class="flex items-center gap-2">
+                <flux:modal.trigger name="confirm-delete">
+                    <flux:button
+                        type="button"
+                        variant="ghost"
+                        class="!h-8 px-3 text-[10px] font-bold uppercase tracking-widest text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                    >
+                        <flux:icon.trash variant="mini" class="size-3.5 mr-1 text-rose-600" />
+                        {{ __('Delete') }}
+                    </flux:button>
+                </flux:modal.trigger>
+
+
                 <flux:button
                     type="button"
                     variant="ghost"
@@ -462,6 +528,7 @@ new #[Title('Transactions')] class extends Component
                         {{ __('Retrying…') }}
                     </span>
                 </flux:button>
+
 
                 <flux:button
                     type="button"
@@ -503,6 +570,39 @@ new #[Title('Transactions')] class extends Component
         </div>
     @else
         <div class="flex flex-col gap-4">
+            @php
+                $retryableTransactionsOnPage = collect($transactions->items())->filter(fn($t) => $this->canRetryTransaction($t));
+                $retryableCount = $retryableTransactionsOnPage->count();
+                $selectedRetryableCount = collect($this->selectedIds)->intersect($retryableTransactionsOnPage->pluck('id'))->count();
+                $allPageRetryableSelected = $retryableCount > 0 && $selectedRetryableCount === $retryableCount;
+            @endphp
+
+            @if ($retryableCount > 0)
+                <div class="flex items-center gap-3 px-2 py-1">
+                    <label class="relative flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            wire:click="toggleSelectAllPage({{ $allPageRetryableSelected ? 'true' : 'false' }})"
+                            @checked($allPageRetryableSelected)
+                            class="peer sr-only"
+                            id="select-all-checkbox"
+                        >
+                        <div @class([
+                            'flex size-4 items-center justify-center rounded border-2 bg-white transition-all',
+                            'border-zinc-200' => ! $allPageRetryableSelected,
+                            'border-green-600 bg-green-600' => $allPageRetryableSelected,
+                        ])>
+                            <flux:icon.check variant="mini" @class([
+                                'size-3 text-white transition-transform',
+                                'scale-100' => $allPageRetryableSelected,
+                                'scale-0' => ! $allPageRetryableSelected,
+                            ]) />
+                        </div>
+                    </label>
+                    <span class="text-xs font-bold text-zinc-500 uppercase tracking-widest">{{ __('Select All') }}</span>
+                </div>
+            @endif
+
             @foreach ($transactions as $transaction)
                 @php
                     $status = strtolower((string) ($transaction->status ?? ''));
@@ -541,7 +641,11 @@ new #[Title('Transactions')] class extends Component
                                     'border-zinc-200' => ! in_array($transaction->id, $this->selectedIds ?? []),
                                     'border-green-600 bg-green-600' => in_array($transaction->id, $this->selectedIds ?? []),
                                 ])>
-                                    <flux:icon.check variant="mini" class="size-3 text-white scale-0 transition-transform peer-checked:scale-100" />
+                                    <flux:icon.check variant="mini" @class([
+                                        'size-3 text-white transition-transform',
+                                        'scale-100' => in_array($transaction->id, $this->selectedIds ?? []),
+                                        'scale-0' => ! in_array($transaction->id, $this->selectedIds ?? []),
+                                    ]) />
                                 </div>
                             </label>
                             <div class="flex items-center gap-2">
@@ -646,10 +750,7 @@ new #[Title('Transactions')] class extends Component
     <flux:modal
         name="transaction-details"
         wire:model.self="showTransactionDetails"
-        flyout
-        variant="floating"
-        position="right"
-        class="md:w-[38rem]"
+        class="w-[min(100vw-1rem,48rem)] max-w-3xl"
         @close="closeTransactionDetails"
         scroll="body"
     >
@@ -658,7 +759,7 @@ new #[Title('Transactions')] class extends Component
         @endphp
 
         @if ($selectedTransaction)
-            <div class="space-y-6">
+            <div x-data="{ copied: false }" class="space-y-6">
                 <div class="space-y-2">
                     <flux:heading size="lg">{{ __('Transaction #:id', ['id' => $selectedTransaction->id]) }}</flux:heading>
                     <flux:text class="text-sm text-zinc-500">
@@ -678,7 +779,21 @@ new #[Title('Transactions')] class extends Component
                     <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
                         <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Sender') }}</div>
                         <div class="mt-1 text-sm font-bold text-zinc-900">{{ $selectedTransaction->sender_name ?: __('Unknown sender') }}</div>
-                        <div class="text-xs text-zinc-500">{{ $selectedTransaction->sender_phone }}</div>
+                        <div class="mt-1 flex items-center gap-2">
+                            <div class="text-xs text-zinc-500">{{ $selectedTransaction->sender_phone }}</div>
+                            @if (filled($selectedTransaction->sender_phone))
+                                <flux:button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    class="!h-6 px-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500"
+                                    x-on:click="navigator.clipboard.writeText(@js($selectedTransaction->sender_phone)); copied = true; setTimeout(() => copied = false, 1200)"
+                                >
+                                    <span x-show="!copied">{{ __('Copy') }}</span>
+                                    <span x-show="copied" x-cloak>{{ __('Copied') }}</span>
+                                </flux:button>
+                            @endif
+                        </div>
                     </div>
                     <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
                         <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('M-PESA Code') }}</div>
@@ -736,4 +851,29 @@ new #[Title('Transactions')] class extends Component
             </div>
         @endif
     </flux:modal>
+
+    <flux:modal name="confirm-delete" class="max-w-lg">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('Delete Transactions') }}</flux:heading>
+                <flux:text class="mt-2 text-sm text-zinc-500">
+                    {{ __('Are you sure you want to delete the selected transactions? This action cannot be undone.') }}
+                </flux:text>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">{{ __('Cancel') }}</flux:button>
+                </flux:modal.close>
+                <flux:button
+                    variant="danger"
+                    wire:click="deleteSelectedTransactions"
+                    x-on:click="$dispatch('modal-close', { name: 'confirm-delete' })"
+                >
+                    {{ __('Yes, Delete') }}
+                </flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>
+

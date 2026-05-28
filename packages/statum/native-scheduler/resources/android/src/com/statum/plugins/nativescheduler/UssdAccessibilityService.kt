@@ -138,9 +138,16 @@ class UssdAccessibilityService : AccessibilityService() {
                 return@post
             }
 
+            // EXPLICIT SAFETY & ROBUSTNESS: Clear deduplication key before writing
+            // to allow identical consecutive prompts (e.g. invalid inputs) to be processed
+            lastSentDialogText = null
+
             // If the dialog has an input field, populate it
             if (input.isNotEmpty()) {
-                findFirstNodeByClass(root, "android.widget.EditText")?.let { editNode ->
+                findEditTextNode(root)?.let { editNode ->
+                    // Request focus first to ensure key and text change listeners are triggered
+                    editNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+
                     val args = Bundle()
                     args.putCharSequence(
                         AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
@@ -176,19 +183,21 @@ class UssdAccessibilityService : AccessibilityService() {
             || lowerPackage.contains("dialer")
             || lowerPackage.contains("telecom")
             || lowerPackage.contains("telephony")
+            || lowerPackage.contains("contacts") // Xiaomi, Huawei, etc. dialer package
+            || lowerPackage.contains("sim")
             || lowerClassName.contains("ussd")
             || lowerClassName.contains("mmi")
+            || lowerClassName.contains("dialog")
+            || lowerClassName.contains("alert")
     }
 
-    private fun findFirstNodeByClass(
-        root: AccessibilityNodeInfo,
-        className: String,
-    ): AccessibilityNodeInfo? {
+    private fun findEditTextNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         while (queue.isNotEmpty()) {
             val node = queue.removeFirst()
-            if (node.className?.toString() == className) {
+            val className = node.className?.toString().orEmpty()
+            if (className.contains("EditText", ignoreCase = true)) {
                 return node
             }
             for (i in 0 until node.childCount) {
@@ -205,7 +214,8 @@ class UssdAccessibilityService : AccessibilityService() {
 
         while (queue.isNotEmpty()) {
             val node = queue.removeFirst()
-            if (node.className?.toString() == "android.widget.TextView") {
+            val className = node.className?.toString().orEmpty()
+            if (className.contains("TextView", ignoreCase = true)) {
                 node.text?.toString()?.trim()?.takeIf { it.isNotBlank() }?.let(textParts::add)
             }
 
@@ -230,7 +240,8 @@ class UssdAccessibilityService : AccessibilityService() {
 
         while (queue.isNotEmpty()) {
             val node = queue.removeFirst()
-            if (node.className?.toString() == "android.widget.Button") {
+            val className = node.className?.toString().orEmpty()
+            if (className.contains("Button", ignoreCase = true)) {
                 fallbackButton = node
                 if (node.text?.toString()?.lowercase()?.trim() in CONFIRM_LABELS) {
                     return node

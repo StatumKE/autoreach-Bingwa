@@ -10,6 +10,7 @@ use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Throwable;
 
 class DeviceSettingsController extends BaseController
 {
@@ -71,14 +72,24 @@ class DeviceSettingsController extends BaseController
             'retry_interval_minutes' => ['required', 'integer', 'min:1', 'max:60'],
             'max_attempts' => ['required', 'integer', 'min:1', 'max:10'],
             'retry_network_issues' => ['sometimes', 'boolean'],
+            'incoming_sms_enabled' => ['sometimes', 'boolean'],
+            'incoming_sms_allow_all_senders' => ['sometimes', 'boolean'],
+            'incoming_sms_sim_slot' => ['required', Rule::in(array_keys($this->incomingSmsSlotOptions()))],
         ]);
 
-        $transactionProcessingEnabled = $request->boolean('transaction_processing_enabled');
+        $currentSetting = DeviceSetting::query()
+            ->where('user_id', Auth::id())
+            ->first();
+        $transactionProcessingEnabled = $request->has('transaction_processing_enabled')
+            ? $request->boolean('transaction_processing_enabled')
+            : (bool) ($currentSetting?->transaction_processing_enabled ?? true);
         $autoRescheduleRejected = $request->boolean('auto_reschedule_rejected');
         $intelligentAutoRetry = $request->boolean('intelligent_auto_retry');
         $retryNetworkIssues = $request->boolean('retry_network_issues');
+        $incomingSmsEnabled = $request->boolean('incoming_sms_enabled');
+        $incomingSmsAllowAllSenders = $request->boolean('incoming_sms_allow_all_senders');
 
-        $this->persist([
+        $setting = $this->persist([
             'transaction_processing_enabled' => $transactionProcessingEnabled,
             'auto_reschedule_rejected' => $autoRescheduleRejected,
             'retry_tomorrow_at' => $autoRescheduleRejected ? ($validated['retry_tomorrow_at'] ?? null) : null,
@@ -87,7 +98,12 @@ class DeviceSettingsController extends BaseController
             'retry_interval_minutes' => (int) $validated['retry_interval_minutes'],
             'max_attempts' => (int) $validated['max_attempts'],
             'retry_network_issues' => $retryNetworkIssues,
+            'incoming_sms_enabled' => $incomingSmsEnabled,
+            'incoming_sms_allow_all_senders' => $incomingSmsAllowAllSenders,
+            'incoming_sms_sim_slot' => $validated['incoming_sms_sim_slot'],
         ]);
+
+        $this->syncIncomingSmsNativeSettings($setting);
 
         return redirect()
             ->route('device.edit')
@@ -137,7 +153,7 @@ class DeviceSettingsController extends BaseController
                 'force' => true,
                 'openSpecialSettings' => true,
             ], JSON_THROW_ON_ERROR));
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return redirect()
                 ->route('device.edit')
                 ->with('status', __('Unable to request permissions right now.'));
@@ -164,7 +180,11 @@ class DeviceSettingsController extends BaseController
      *     maxAttempts: string,
      *     retryNetworkIssues: bool,
      *     transactionProcessingEnabled: bool,
+     *     incomingSmsEnabled: bool,
+     *     incomingSmsAllowAllSenders: bool,
+     *     incomingSmsSimSlot: string,
      *     simSlotOptions: array<string, string>,
+     *     incomingSmsSlotOptions: array<string, string>,
      *     retryScheduleOptions: array<string, string>,
      * }
      */
@@ -198,7 +218,7 @@ class DeviceSettingsController extends BaseController
                 if (isset($infoResponse['data']['os_version'])) {
                     $osVersion = (string) $infoResponse['data']['os_version'];
                 }
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // Fall back to the stored registration details.
             }
         }
@@ -212,13 +232,17 @@ class DeviceSettingsController extends BaseController
             'smsAutoReplySim' => $deviceSetting?->sms_auto_reply_sim ?? 'slot_1',
             'autoRescheduleRejected' => (bool) ($deviceSetting?->auto_reschedule_rejected ?? false),
             'retryTomorrowAt' => $deviceSetting?->retry_tomorrow_at ?? '12:30 AM',
-            'ussdTimeoutSeconds' => (string) ($deviceSetting?->ussd_timeout_seconds ?? 30),
+            'ussdTimeoutSeconds' => (string) ($deviceSetting?->ussd_timeout_seconds ?? 60),
             'intelligentAutoRetry' => (bool) ($deviceSetting?->intelligent_auto_retry ?? true),
             'retryIntervalMinutes' => (string) ($deviceSetting?->retry_interval_minutes ?? 1),
             'maxAttempts' => (string) ($deviceSetting?->max_attempts ?? 2),
             'retryNetworkIssues' => (bool) ($deviceSetting?->retry_network_issues ?? false),
             'transactionProcessingEnabled' => (bool) ($deviceSetting?->transaction_processing_enabled ?? true),
+            'incomingSmsEnabled' => (bool) ($deviceSetting?->incoming_sms_enabled ?? true),
+            'incomingSmsAllowAllSenders' => (bool) ($deviceSetting?->incoming_sms_allow_all_senders ?? false),
+            'incomingSmsSimSlot' => $deviceSetting?->incoming_sms_sim_slot ?? 'all',
             'simSlotOptions' => $this->simSlotOptions(),
+            'incomingSmsSlotOptions' => $this->incomingSmsSlotOptions(),
             'retryScheduleOptions' => $this->retryScheduleOptions(),
         ];
     }
@@ -231,6 +255,18 @@ class DeviceSettingsController extends BaseController
         return [
             'slot_1' => __('Slot 1'),
             'slot_2' => __('Slot 2'),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function incomingSmsSlotOptions(): array
+    {
+        return [
+            'all' => __('All SIM slots'),
+            'slot_1' => __('Slot 1 only'),
+            'slot_2' => __('Slot 2 only'),
         ];
     }
 
@@ -254,14 +290,31 @@ class DeviceSettingsController extends BaseController
     /**
      * @param  array<string, bool|int|string|null>  $data
      */
-    private function persist(array $data): void
+    private function persist(array $data): ?DeviceSetting
     {
         $userId = Auth::id();
 
         if (! $userId) {
+            return null;
+        }
+
+        return DeviceSetting::query()->updateOrCreate(['user_id' => $userId], $data);
+    }
+
+    private function syncIncomingSmsNativeSettings(?DeviceSetting $setting): void
+    {
+        if (! $setting instanceof DeviceSetting || ! function_exists('nativephp_call')) {
             return;
         }
 
-        DeviceSetting::query()->updateOrCreate(['user_id' => $userId], $data);
+        try {
+            nativephp_call('UpdateIncomingSmsSettings', json_encode([
+                'enabled' => $setting->incoming_sms_enabled,
+                'allowAllSenders' => $setting->incoming_sms_allow_all_senders,
+                'simSlot' => $setting->incoming_sms_sim_slot ?? 'all',
+            ], JSON_THROW_ON_ERROR));
+        } catch (Throwable) {
+            // The Laravel row remains the source of truth; native preferences resync on the next save.
+        }
     }
 }

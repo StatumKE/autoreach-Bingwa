@@ -96,7 +96,7 @@ class PopUssdJobCommand extends Command
                 $resolvedCode = str_replace('PN', $transaction->sender_phone, $transaction->offer->ussd_code);
                 $settings = $transaction->user?->deviceSetting;
                 $simSlot = ($settings?->primary_transaction_sim === 'slot_2') ? 1 : 0;
-                $timeout = $settings?->ussd_timeout_seconds ?? 30;
+                $timeout = $settings?->ussd_timeout_seconds ?? 60;
 
                 return [
                     'id' => $transaction->id,

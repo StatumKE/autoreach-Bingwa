@@ -160,7 +160,6 @@ new #[Title('Dashboard')] class extends Component
         // dashboard island. The island polls every 10s so caching is unnecessary.
         return Transaction::query()
             ->where('user_id', Auth::id())
-            ->orderByDesc('occurred_at')
             ->orderByDesc('id')
             ->limit(10)
             ->get([
@@ -198,11 +197,17 @@ new #[Title('Dashboard')] class extends Component
         $this->isRefreshingBalance = true;
 
         try {
-            Log::debug('Bingwa dashboard airtime refresh requested. Dispatching to background queue.', [
+            Log::debug('Bingwa dashboard airtime refresh requested synchronously.', [
                 'user_id' => Auth::id(),
             ]);
 
-            \App\Jobs\RefreshAirtimeBalanceJob::dispatch(Auth::user());
+            app(RefreshAirtimeBalance::class)->refresh(Auth::user());
+            $this->hydrateAirtimeBalance();
+        } catch (\Throwable $throwable) {
+            Log::error('Dashboard airtime refresh failed.', [
+                'user_id' => Auth::id(),
+                'message' => $throwable->getMessage(),
+            ]);
         } finally {
             $this->isRefreshingBalance = false;
         }
@@ -225,6 +230,7 @@ new #[Title('Dashboard')] class extends Component
     /**
      * Sync transactions and process jobs.
      */
+
     public function syncTransactions(): void
     {
         try {
@@ -252,23 +258,27 @@ new #[Title('Dashboard')] class extends Component
     {
         return Cache::remember($this->dashboardMetricsCacheKey(), now()->addSeconds(15), function (): array {
             $userId = (int) Auth::id();
-            $startOfWeek = now()->startOfWeek();
-            $endOfWeek = now()->endOfWeek();
+            $now = AppTimezone::now();
+            $today = $now->toDateString();
+            $startOfWeek = $now->copy()->startOfWeek();
+            $endOfWeek = $now->copy()->endOfWeek();
 
             $successful = Transaction::query()
                 ->where('user_id', $userId)
                 ->where('status', 'completed')
+                ->whereDate('occurred_at', $today)
                 ->count();
 
             $failed = Transaction::query()
                 ->where('user_id', $userId)
                 ->where('status', 'failed')
+                ->whereDate('occurred_at', $today)
                 ->count();
 
             $usedToday = Transaction::query()
                 ->where('user_id', $userId)
                 ->where('status', 'completed')
-                ->whereDate('occurred_at', Carbon::today())
+                ->whereDate('occurred_at', $today)
                 ->sum('amount');
 
             $dailyTotals = Transaction::query()
@@ -311,7 +321,7 @@ new #[Title('Dashboard')] class extends Component
 
     private function dashboardMetricsCacheKey(): string
     {
-        return 'dashboard:metrics:'.Auth::id();
+        return 'dashboard:metrics:'.Auth::id().':'.AppTimezone::now()->toDateString();
     }
 
     private function recentTransactionsCacheKey(): string
@@ -321,8 +331,38 @@ new #[Title('Dashboard')] class extends Component
 
 }; ?>
 
-<div class="min-h-screen bg-app-bg px-4 pb-24 pt-3 text-zinc-900">
-    <div class="mx-auto flex max-w-[780px] flex-col gap-3">
+<div
+    class="h-[calc(100dvh-var(--inset-top,0px)-48px)] overflow-hidden bg-app-bg px-4 pb-4 pt-3 text-zinc-900 lg:h-auto lg:min-h-screen lg:pb-24 lg:pt-3"
+    x-data="{
+        accessibilityEnabled: true,
+        async checkAccessibility() {
+            try {
+                if (typeof window.AutoreachNative === 'undefined' || !window.AutoreachNative.call) {
+                    return;
+                }
+                const result = await window.AutoreachNative.call('CheckSetupStatus', {});
+                if (result && typeof result.data?.accessibilityEnabled !== 'undefined') {
+                    this.accessibilityEnabled = result.data.accessibilityEnabled;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        },
+        async openAccessibility() {
+            try {
+                if (typeof window.AutoreachNative === 'undefined' || !window.AutoreachNative.call) {
+                    return;
+                }
+                await window.AutoreachNative.call('OpenAccessibilitySettings', {});
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    }"
+    x-init="checkAccessibility(); setInterval(() => checkAccessibility(), 10000);"
+    @visibilitychange.window="if (document.visibilityState === 'visible') checkAccessibility()"
+>
+    <div class="mx-auto flex h-full max-w-[780px] flex-col gap-3 lg:h-auto">
         {{-- Greeting --}}
         <div class="flex items-start justify-between px-1">
             <div class="min-w-0">
@@ -330,6 +370,38 @@ new #[Title('Dashboard')] class extends Component
                 <div class="text-sm font-bold leading-tight text-zinc-900">{{ auth()->user()->name }}</div>
             </div>
         </div>
+
+        {{-- Accessibility Service Alert --}}
+        <div
+            x-show="!accessibilityEnabled"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 -translate-y-2 scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+            x-transition:leave-end="opacity-0 -translate-y-2 scale-95"
+            class="rounded-xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-amber-500/5 border border-red-500/20 px-4 py-3 shadow-sm ring-1 ring-red-500/10 flex items-start gap-3 transition-all hover:border-red-500/30"
+            x-cloak
+        >
+            <flux:icon.exclamation-circle class="mt-0.5 size-4 shrink-0 text-red-500 animate-pulse" />
+            <div class="min-w-0 flex-1">
+                <div class="text-xs font-black text-red-900 leading-tight">{{ __('Accessibility Service Off') }}</div>
+                <div class="mt-0.5 text-[11px] leading-snug text-red-800/90 font-medium">
+                    {{ __('USSD automated package delivery cannot run without the accessibility service. Please enable Autoreach Bingwa in settings.') }}
+                </div>
+                <div class="mt-2 flex items-center gap-2">
+                    <button
+                        type="button"
+                        id="btn-enable-accessibility"
+                        @click="openAccessibility"
+                        class="rounded-lg bg-red-600 text-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition hover:bg-red-700 active:scale-95 shadow-sm hover:shadow"
+                    >
+                        {{ __('Enable Service') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
 
         {{-- Stat Cards --}}
         <div class="grid grid-cols-3 gap-2">
@@ -490,7 +562,7 @@ new #[Title('Dashboard')] class extends Component
         </div>
 
         @island
-            <div wire:poll.visible.10s class="space-y-2">
+            <div wire:poll.visible.10s class="flex min-h-0 flex-1 flex-col gap-2">
                 {{-- Recent Transactions --}}
                 <div class="flex items-center justify-between px-1 pt-1">
                     <div class="text-xs font-bold text-zinc-900">{{ __('Recent Transactions') }}</div>
@@ -499,8 +571,10 @@ new #[Title('Dashboard')] class extends Component
                     </flux:button>
                 </div>
 
-                <div class="min-h-[150px] rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
-                    <div class="divide-y divide-zinc-100 text-center">
+
+
+                <div class="min-h-0 flex-1 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
+                    <div class="h-full overflow-y-auto overscroll-contain divide-y divide-zinc-100 text-center">
                         @forelse($this->recentTransactions as $tx)
                             @php
                                 $status = strtolower((string) ($tx->status ?? ''));

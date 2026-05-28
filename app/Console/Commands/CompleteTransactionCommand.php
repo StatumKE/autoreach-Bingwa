@@ -8,7 +8,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
 
-#[Signature('bingwa:complete-transaction {id? : The local transaction ID} {status? : completed or failed} {--transaction-id= : The local transaction ID} {--result= : completed or failed} {--message= : Optional status description} {--message-base64= : Optional base64-encoded status description} {--finalize-once : Finalize immediately without auto-retry or reschedule}')]
+#[Signature('bingwa:complete-transaction {id? : The local transaction ID} {status? : completed or failed} {--transaction-id= : The local transaction ID} {--result= : completed or failed} {--message= : Optional status description} {--message-base64= : Optional base64-encoded status description}')]
 #[Description('Mark a transaction as completed or failed after a USSD execution attempt.')]
 class CompleteTransactionCommand extends Command
 {
@@ -44,7 +44,6 @@ class CompleteTransactionCommand extends Command
             transactionId: $id,
             status: $status,
             message: $message,
-            finalizeOnce: (bool) $this->option('finalize-once'),
         );
 
         if (! $completed) {

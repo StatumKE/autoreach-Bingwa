@@ -5,7 +5,7 @@ namespace App\Support;
 final class KenyanPhoneNumber
 {
     /**
-     * Normalize a Kenyan mobile number to local 07XXXXXXXX format when possible.
+     * Normalize a Kenyan mobile number to local 07XXXXXXXX or 01XXXXXXXX format when possible.
      */
     public static function normalizeToLocal(string $phone): string
     {
@@ -28,6 +28,6 @@ final class KenyanPhoneNumber
      */
     public static function isLocalKenyanMobile(string $phone): bool
     {
-        return preg_match('/^07\d{8}$/', self::normalizeToLocal($phone)) === 1;
+        return preg_match('/^(?:07|01)\d{8}$/', self::normalizeToLocal($phone)) === 1;
     }
 }

@@ -196,7 +196,7 @@ class extends Component {
                             Granted
                         </span>
                     </div>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed">Send auto-reply SMS messages to buyers from the selected SIM.</p>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed">Send auto-reply SMS and read incoming M-Pesa payment messages.</p>
                     <button
                         x-show="!status.smsGranted"
                         x-cloak

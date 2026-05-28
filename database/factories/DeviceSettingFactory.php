@@ -32,6 +32,9 @@ class DeviceSettingFactory extends Factory
             'max_attempts' => fake()->randomElement([2, 3, 4]),
             'retry_network_issues' => true,
             'transaction_processing_enabled' => true,
+            'incoming_sms_enabled' => true,
+            'incoming_sms_allow_all_senders' => false,
+            'incoming_sms_sim_slot' => 'all',
         ];
     }
 }

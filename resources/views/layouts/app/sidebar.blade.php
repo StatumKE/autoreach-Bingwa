@@ -89,12 +89,15 @@
         @persist('mobile-nav')
             <div x-data="{ open: false }" x-on:keydown.escape.window="open = false" class="lg:hidden">
                 <div
-                    class="fixed inset-x-0 top-0 z-[9999] flex items-center gap-3 border-b border-black/10 bg-app-shell !px-3 text-white"
-                    style="height: calc(112px + var(--inset-top, 0px)); padding-top: var(--inset-top, 0px);"
+                @php
+                    $mobileHeaderHeight = 48;
+                @endphp
+                class="fixed inset-x-0 top-0 z-[9999] flex items-center gap-3 border-b border-black/10 bg-app-shell !px-3 text-white"
+                style="height: calc({{ $mobileHeaderHeight }}px + var(--inset-top, 0px)); padding-top: var(--inset-top, 0px);"
                 >
                     <button
                         type="button"
-                        class="app-mobile-menu-toggle !text-white z-[999999] translate-y-1"
+                        class="app-mobile-menu-toggle !text-white z-[999999]"
                         x-on:click="open = true"
                         aria-controls="mobile-navigation-drawer"
                         :aria-expanded="open.toString()"
@@ -116,7 +119,8 @@
                     x-cloak
                     x-show="open"
                     x-transition.opacity.duration.150ms
-                    class="fixed inset-x-0 bottom-0 top-[calc(112px+var(--inset-top,0px))] z-[10000] lg:hidden"
+                    class="fixed inset-x-0 bottom-0 z-[10000] lg:hidden"
+                    style="top: calc({{ $mobileHeaderHeight }}px + var(--inset-top, 0px));"
                 >
                     <div class="absolute inset-0 bg-black/60" x-on:click="open = false"></div>
 
@@ -200,7 +204,7 @@
             </div>
         @endpersist
 
-        <div class="lg:pt-0" style="padding-top: calc(112px + var(--inset-top, 0px));">
+        <div class="lg:pt-0" style="padding-top: {{ $mobileHeaderHeight }}px;">
             {{ $slot }}
         </div>
 

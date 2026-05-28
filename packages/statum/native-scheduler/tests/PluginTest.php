@@ -35,7 +35,8 @@ describe('Plugin Manifest', function () {
         expect(collect($manifest['bridge_functions'])->pluck('name'))
             ->toContain('TriggerSambaza')
             ->toContain('ExecuteUssd')
-            ->toContain('SendSms');
+            ->toContain('SendSms')
+            ->toContain('UpdateIncomingSmsSettings');
 
         foreach ($manifest['bridge_functions'] as $function) {
             expect($function)->toHaveKeys(['name']);
@@ -97,6 +98,31 @@ describe('Native Code', function () {
             ->toContain('parameters["timeoutSeconds"]')
             ->toContain('timeoutSeconds = timeoutSeconds')
             ->toContain('private val ussdMutex = Mutex()');
+    });
+
+    it('declares context-only bridge functions required by background sms processing', function () {
+        $manifest = json_decode(file_get_contents($this->manifestPath), true);
+        $bridgeFunctions = collect($manifest['bridge_functions'])->keyBy('name');
+
+        foreach (['TriggerSambaza', 'ExecuteUssd', 'SendSms', 'CheckSetupStatus', 'UpdateIncomingSmsSettings'] as $name) {
+            expect($bridgeFunctions[$name]['android_params'] ?? null)->toBe(['context']);
+        }
+    });
+
+    it('has incoming sms receiver and worker sources', function () {
+        $receiverFile = $this->pluginPath.'/resources/android/src/com/statum/plugins/nativescheduler/BingwaIncomingSmsReceiver.kt';
+        $workerFile = $this->pluginPath.'/resources/android/src/com/statum/plugins/nativescheduler/BingwaIncomingSmsWorker.kt';
+
+        expect(file_exists($receiverFile))->toBeTrue()
+            ->and(file_get_contents($receiverFile))
+            ->toContain('Telephony.Sms.Intents.SMS_RECEIVED_ACTION')
+            ->toContain('OneTimeWorkRequestBuilder<BingwaIncomingSmsWorker>')
+            ->not->toContain('setExpedited')
+            ->and(file_exists($workerFile))->toBeTrue()
+            ->and(file_get_contents($workerFile))
+            ->toContain('bingwa:process-incoming-sms')
+            ->toContain('registerContextOnlyBridgeFunctions(applicationContext)')
+            ->not->toContain('Log.i(TAG, payload');
     });
 
     it('keeps advanced execution on public sim routing APIs with bounded dialogs', function () {
@@ -181,6 +207,22 @@ describe('Lifecycle Hooks', function () {
         $manifest = json_decode(file_get_contents($this->manifestPath), true);
 
         expect($manifest['android']['permissions'] ?? [])
-            ->toContain('android.permission.SEND_SMS');
+            ->toContain('android.permission.SEND_SMS')
+            ->toContain('android.permission.RECEIVE_SMS');
+    });
+
+    it('declares workmanager and the protected incoming sms receiver', function () {
+        $manifest = json_decode(file_get_contents($this->manifestPath), true);
+
+        expect($manifest['android']['dependencies']['implementation'] ?? [])
+            ->toContain('androidx.work:work-runtime-ktx:2.11.2');
+
+        $receiver = collect($manifest['android']['receivers'] ?? [])
+            ->firstWhere('name', 'com.statum.plugins.nativescheduler.BingwaIncomingSmsReceiver');
+
+        expect($receiver)->not->toBeNull()
+            ->and($receiver['exported'])->toBeTrue()
+            ->and($receiver['permission'])->toBe('android.permission.BROADCAST_SMS')
+            ->and($receiver['intent_filters'][0]['action'] ?? null)->toBe('android.provider.Telephony.SMS_RECEIVED');
     });
 });

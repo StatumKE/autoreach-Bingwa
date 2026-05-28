@@ -93,7 +93,28 @@ class PersistBingwaTransaction
         }
 
         $amount = (float) ($payload['amount'] ?? 0);
-        $matchedOffer = $activeOffers->firstWhere('price', (int) $amount);
+        $type = $payload['offer_type'] ?? $fallbackOfferType ?? $payload['service'] ?? 'broadcast';
+        $category = match ($type) {
+            'data_bundles', 'data' => 'data',
+            'sms' => 'sms',
+            'airtime' => 'airtime',
+            default => null,
+        };
+
+        $matchedOffer = $activeOffers
+            ->filter(function ($offer) use ($category, $amount) {
+                if ($category !== null && $offer->category !== $category) {
+                    return false;
+                }
+
+                return $offer->price === (int) $amount;
+            })
+            ->first();
+
+        if (! $matchedOffer) {
+            $matchedOffer = $activeOffers->firstWhere('price', (int) $amount);
+        }
+
         $status = 'queued';
         $statusDesc = __('Pulled from backend job queue.');
         $offerId = $matchedOffer?->getKey();

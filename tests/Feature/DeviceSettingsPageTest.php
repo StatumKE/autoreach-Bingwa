@@ -14,12 +14,18 @@ test('device settings page is displayed', function () {
         ->assertSee('Transaction Processing')
         ->assertSee('SIM Slot Mapping')
         ->assertSee('Automation Rules')
+        ->assertSee('Incoming M-Pesa SMS')
+        ->assertSee('Read incoming M-Pesa SMS')
+        ->assertSee('Allow all SMS senders')
         ->assertSee('Disable Processing')
         ->assertSee('Active')
         ->assertSee('Grant All Permissions')
         ->assertSee('Autoreach Bingwa')
         ->assertSee('name="primary_transaction_sim"', false)
         ->assertSee('name="sms_auto_reply_sim"', false)
+        ->assertSee('name="incoming_sms_enabled"', false)
+        ->assertSee('name="incoming_sms_allow_all_senders"', false)
+        ->assertSee('name="incoming_sms_sim_slot"', false)
         ->assertSee('data-hardware-action-template=', false)
         ->assertSee('/settings/device/hardware/__PRIMARY_SIM__/__SMS_SIM__', false)
         ->assertSee('<select', false)
@@ -317,6 +323,9 @@ test('technical settings can be updated with a plain post form', function () {
             'retry_interval_minutes' => '3',
             'max_attempts' => '4',
             'retry_network_issues' => '1',
+            'incoming_sms_enabled' => '1',
+            'incoming_sms_allow_all_senders' => '1',
+            'incoming_sms_sim_slot' => 'slot_2',
         ])
         ->assertRedirect(route('device.edit'));
 
@@ -329,5 +338,9 @@ test('technical settings can be updated with a plain post form', function () {
         'retry_interval_minutes' => 3,
         'max_attempts' => 4,
         'retry_network_issues' => true,
+        'transaction_processing_enabled' => true,
+        'incoming_sms_enabled' => true,
+        'incoming_sms_allow_all_senders' => true,
+        'incoming_sms_sim_slot' => 'slot_2',
     ]);
 });

@@ -9,6 +9,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // Heartbeat and Transaction Sync schedules
-Schedule::command('bingwa:heartbeat')->everyMinute();
-Schedule::command('bingwa:sync-transactions')->everyMinute();
+Schedule::command('bingwa:heartbeat')->everyMinute()->withoutOverlapping();
+Schedule::command('bingwa:sync-transactions')->everyMinute()->withoutOverlapping();
 Schedule::command('bingwa:process-auto-renewals')->everyMinute()->withoutOverlapping();
+Schedule::command('bingwa:fetch-airtime-balance')->cron('*/30 * * * *')->onAnyNetwork()->withoutOverlapping();

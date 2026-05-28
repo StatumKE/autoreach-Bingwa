@@ -91,7 +91,7 @@ it('queues an auto reply sms job after a successful transaction when an active r
         'status_desc' => 'Transaction completed successfully.',
     ]);
 
-    $this->artisan("bingwa:complete-transaction {$transaction->id} completed --finalize-once")
+    $this->artisan("bingwa:complete-transaction {$transaction->id} completed")
         ->assertExitCode(0);
 
     Queue::assertPushed(SendAutoReplySmsJob::class, function (SendAutoReplySmsJob $job) use ($transaction): bool {
@@ -120,7 +120,7 @@ it('marks auto reply as skipped when no active rule matches', function () {
         'status_desc' => 'Transaction completed successfully.',
     ]);
 
-    $this->artisan("bingwa:complete-transaction {$transaction->id} completed --finalize-once")
+    $this->artisan("bingwa:complete-transaction {$transaction->id} completed")
         ->assertExitCode(0);
 
     Queue::assertNothingPushed();
@@ -142,7 +142,7 @@ it('sets a base64 encoded status_desc containing spaces and newlines', function 
     $message = "Invalid choice. Try again.\nPlease enter your Till Number:";
     $encodedMessage = base64_encode($message);
 
-    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --finalize-once --message-base64={$encodedMessage}")
+    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --message-base64={$encodedMessage}")
         ->assertExitCode(0);
 
     $fresh = $transaction->fresh();
@@ -161,7 +161,7 @@ it('supports option-only invocation for native runtime calls', function () {
     $message = 'Network returned a general failure';
     $encodedMessage = base64_encode($message);
 
-    $this->artisan("bingwa:complete-transaction --transaction-id={$transaction->id} --result=failed --finalize-once --message-base64={$encodedMessage}")
+    $this->artisan("bingwa:complete-transaction --transaction-id={$transaction->id} --result=failed --message-base64={$encodedMessage}")
         ->assertExitCode(0);
 
     $fresh = $transaction->fresh();
@@ -239,7 +239,7 @@ it('sets the processed_at timestamp on completion', function () {
     expect($fresh->processed_at->isSameDay(now()))->toBeTrue();
 });
 
-it('finalizes a failed transaction once when finalize-once is requested', function () {
+it('finalizes a failed transaction as failed immediately', function () {
     $user = User::factory()->create();
     DeviceSetting::factory()->create([
         'user_id' => $user->id,
@@ -255,7 +255,7 @@ it('finalizes a failed transaction once when finalize-once is requested', functi
         'processed_at' => null,
     ]);
 
-    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --finalize-once --message='Request rejected by carrier'")
+    $this->artisan("bingwa:complete-transaction {$transaction->id} failed --message='Request rejected by carrier'")
         ->assertExitCode(0);
 
     $fresh = $transaction->fresh();
@@ -292,7 +292,7 @@ it('does not retry non retryable carrier messages', function () {
     expect($fresh?->processed_at)->not->toBeNull();
 });
 
-it('reschedules rejected carrier messages when intelligent retry is disabled', function () {
+it('fails rejected carrier messages immediately', function () {
     $user = User::factory()->create();
     DeviceSetting::factory()->create([
         'user_id' => $user->id,
@@ -307,18 +307,15 @@ it('reschedules rejected carrier messages when intelligent retry is disabled', f
         'occurred_at' => now()->subHour(),
         'processed_at' => null,
     ]);
-    $occurredAt = $transaction->occurred_at;
 
     $this->artisan("bingwa:complete-transaction {$transaction->id} failed --message='Request rejected by carrier'")
         ->assertExitCode(0);
 
     $fresh = $transaction->fresh();
 
-    expect($fresh?->status)->toBe('queued');
-    expect($fresh?->processed_at)->toBeNull();
-    expect($fresh?->status_desc)->toContain('Rescheduled');
-    expect($fresh?->occurred_at?->equalTo($occurredAt))->toBeTrue();
-    expect($fresh?->next_attempt_at)->not->toBeNull();
+    expect($fresh?->status)->toBe('failed');
+    expect($fresh?->processed_at)->not->toBeNull();
+    expect($fresh?->status_desc)->toBe('Request rejected by carrier');
 });
 
 it('does not dispatch a backend status update for quick dial transactions', function () {
@@ -342,7 +339,7 @@ it('does not dispatch a backend status update for quick dial transactions', func
         ],
     ]);
 
-    $this->artisan("bingwa:complete-transaction {$transaction->id} completed --finalize-once --message='USSD accepted'")
+    $this->artisan("bingwa:complete-transaction {$transaction->id} completed --message='USSD accepted'")
         ->assertExitCode(0);
 
     $fresh = $transaction->fresh();
@@ -374,7 +371,7 @@ it('does not dispatch a backend status update for auto renewal transactions', fu
         ],
     ]);
 
-    $this->artisan("bingwa:complete-transaction {$transaction->id} completed --finalize-once --message='USSD accepted'")
+    $this->artisan("bingwa:complete-transaction {$transaction->id} completed --message='USSD accepted'")
         ->assertExitCode(0);
 
     expect($transaction->fresh()?->status)->toBe('completed');
@@ -382,7 +379,7 @@ it('does not dispatch a backend status update for auto renewal transactions', fu
     Queue::assertNotPushed(UpdateRemoteTransactionStatusJob::class);
 });
 
-it('reverts transaction status to queued without incrementing retry count on lock contention', function () {
+it('fails transaction on modem lock contention instead of re-queuing', function () {
     $user = User::factory()->create();
     DeviceSetting::factory()->create([
         'user_id' => $user->id,
@@ -403,14 +400,13 @@ it('reverts transaction status to queued without incrementing retry count on loc
 
     $fresh = $transaction->fresh();
 
-    expect($fresh?->status)->toBe('queued');
+    expect($fresh?->status)->toBe('failed');
     expect($fresh?->retry_count)->toBe(1);
-    expect($fresh?->auto_reply_status)->toBeNull();
-    expect($fresh?->auto_reply_message)->toBeNull();
-    expect($fresh?->status_desc)->toBe('Another USSD session is already in progress.');
+    expect($fresh?->processed_at)->not->toBeNull();
+    expect($fresh?->status_desc)->toBe('Another USSD session is already in progress');
 });
 
-it('finalizes failed transaction immediately on network timeout when retry_network_issues is disabled', function () {
+it('fails transaction immediately on network timeout regardless of retry_network_issues setting', function () {
     $user = User::factory()->create();
     DeviceSetting::factory()->create([
         'user_id' => $user->id,
@@ -436,7 +432,7 @@ it('finalizes failed transaction immediately on network timeout when retry_netwo
     expect($fresh?->processed_at)->not->toBeNull();
 });
 
-it('retries failed transaction on network timeout when retry_network_issues is enabled', function () {
+it('fails transaction immediately on network timeout when retry_network_issues is enabled', function () {
     $user = User::factory()->create();
     DeviceSetting::factory()->create([
         'user_id' => $user->id,
@@ -452,16 +448,13 @@ it('retries failed transaction on network timeout when retry_network_issues is e
         'retry_count' => 0,
         'processed_at' => null,
     ]);
-    $occurredAt = $transaction->occurred_at;
 
     $this->artisan("bingwa:complete-transaction {$transaction->id} failed --message='USSD timeout occurred'")
         ->assertExitCode(0);
 
     $fresh = $transaction->fresh();
 
-    expect($fresh?->status)->toBe('queued');
-    expect($fresh?->retry_count)->toBe(1);
-    expect($fresh?->processed_at)->toBeNull();
-    expect($fresh?->occurred_at?->equalTo($occurredAt))->toBeTrue();
-    expect($fresh?->next_attempt_at)->not->toBeNull();
+    expect($fresh?->status)->toBe('failed');
+    expect($fresh?->retry_count)->toBe(0);
+    expect($fresh?->processed_at)->not->toBeNull();
 });

@@ -22,7 +22,7 @@ class QueueRemoteTransactionStatusUpdate
 
         $remoteTransactionId = $transaction->transaction_id;
         $deviceToken = $transaction->user?->bingwaDeviceRegistration?->device_token;
-        $localOnlyTransactionSources = ['quick_dial', 'auto_renewal'];
+        $localOnlyTransactionSources = ['quick_dial', 'auto_renewal', 'mpesa_sms'];
         $isLocalOnlyTransaction = in_array($transaction->matched_offer['source'] ?? null, $localOnlyTransactionSources, true);
 
         if ($isLocalOnlyTransaction || blank($remoteTransactionId) || blank($deviceToken)) {

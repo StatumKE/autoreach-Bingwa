@@ -1,11 +1,11 @@
 <?php
 
 use App\Actions\Autoreach\RefreshAirtimeBalance;
-use App\Jobs\RefreshAirtimeBalanceJob;
 use App\Models\DeviceSetting;
 use App\Models\Transaction;
 use App\Models\User;
-use Illuminate\Support\Facades\Queue;
+use App\Support\AppTimezone;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 
 test('guests are redirected to the login page', function () {
@@ -20,6 +20,8 @@ test('authenticated users can visit the dashboard', function () {
     $response = $this->get(route('dashboard'));
     $response->assertOk();
     $response->assertSee('Autoreach Bingwa');
+    $response->assertSee('height: calc(48px + var(--inset-top, 0px))', false);
+    $response->assertSee('h-[calc(100dvh-var(--inset-top,0px)-48px)]', false);
 });
 
 test('dashboard no longer renders a current balance card when historical balance data exists', function () {
@@ -110,19 +112,103 @@ test('dashboard recent transactions show ussd messages with status styling', fun
 
     $response->assertOk();
     $response->assertSee('Recent Transactions');
+    $response->assertSee('overflow-y-auto overscroll-contain', false);
 });
 
-test('dashboard refresh action queues the airtime balance refresh without failing', function () {
+test('dashboard recent transactions are ordered by newest id first', function () {
     $user = User::factory()->create();
 
+    Transaction::factory()->for($user)->create([
+        'sender_name' => 'First Created',
+        'amount' => 100,
+        'offer_name' => 'Older Bundle',
+        'status' => 'completed',
+        'status_desc' => 'Older transaction.',
+        'occurred_at' => now()->addMinutes(5),
+    ]);
+
+    Transaction::factory()->for($user)->create([
+        'sender_name' => 'Second Created',
+        'amount' => 50,
+        'offer_name' => 'Newer Bundle',
+        'status' => 'failed',
+        'status_desc' => 'Newer transaction.',
+        'occurred_at' => now()->subMinutes(5),
+    ]);
+
     $this->actingAs($user);
-    Queue::fake();
+
+    $response = $this->get(route('dashboard'));
+
+    $response->assertOk();
+    $response->assertSeeInOrder(['Second Created', 'First Created']);
+});
+
+test('dashboard success and failed stats reset at midnight in Nairobi time', function () {
+    $user = User::factory()->create();
+
+    Carbon::setTestNow(Carbon::parse('2026-05-23 23:59:00', AppTimezone::name()));
+
+    try {
+        Transaction::factory()->for($user)->create([
+            'amount' => 100,
+            'status' => 'completed',
+            'occurred_at' => now(),
+        ]);
+
+        Transaction::factory()->for($user)->create([
+            'amount' => 50,
+            'status' => 'failed',
+            'occurred_at' => now(),
+        ]);
+
+        $this->actingAs($user);
+
+        $beforeMidnight = Livewire::test('dashboard')->instance()->stats;
+
+        expect($beforeMidnight)->toMatchArray([
+            'successful' => 1,
+            'failed' => 1,
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-05-24 00:00:00', AppTimezone::name()));
+
+        $afterMidnight = Livewire::test('dashboard')->instance()->stats;
+
+        expect($afterMidnight)->toMatchArray([
+            'successful' => 0,
+            'failed' => 0,
+        ]);
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
+test('dashboard refresh action triggers the airtime balance refresh synchronously', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $this->mock(RefreshAirtimeBalance::class, function ($mock) use ($user) {
+        $mock->shouldReceive('refresh')
+            ->once()
+            ->withArgs(fn ($arg) => $arg->is($user))
+            ->andReturn([
+                'balance' => 150.00,
+                'raw_response' => 'Airtime Bal: 150.00KSH',
+                'checked_at' => now(),
+                'permission_denied' => false,
+            ]);
+
+        $mock->shouldReceive('cached')
+            ->andReturn([
+                'balance' => 150.00,
+                'raw_response' => 'Airtime Bal: 150.00KSH',
+                'checked_at' => now(),
+                'permission_denied' => false,
+            ]);
+    });
 
     Livewire::test('dashboard')
         ->call('refreshData')
         ->assertHasNoErrors();
-
-    Queue::assertPushed(RefreshAirtimeBalanceJob::class, function (RefreshAirtimeBalanceJob $job) use ($user): bool {
-        return $job->user->is($user);
-    });
 });

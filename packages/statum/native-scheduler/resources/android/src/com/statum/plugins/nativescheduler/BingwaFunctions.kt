@@ -120,11 +120,36 @@ object BingwaFunctions {
             return mapOf(
                 "phoneGranted" to isPhoneGranted(context),
                 "smsGranted" to isSmsGranted(context),
+                "incomingSmsGranted" to isIncomingSmsGranted(context),
                 "contactsGranted" to isContactsGranted(context),
                 "notificationsGranted" to isNotificationsGranted(context),
                 "batteryUnrestricted" to isBatteryUnrestricted(context),
                 "accessibilityEnabled" to isAccessibilityServiceEnabled(context),
                 "overlayGranted" to canDrawOverlays(context),
+            )
+        }
+    }
+
+    class UpdateIncomingSmsSettings(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val enabled = parameters["enabled"] as? Boolean ?: true
+            val allowAllSenders = parameters["allowAllSenders"] as? Boolean ?: false
+            val simSlot = (parameters["simSlot"] as? String)
+                ?.takeIf { it == "all" || it == "slot_1" || it == "slot_2" }
+                ?: "all"
+
+            BingwaIncomingSmsSettings.update(
+                context = context,
+                enabled = enabled,
+                allowAllSenders = allowAllSenders,
+                simSlot = simSlot,
+            )
+
+            return mapOf(
+                "success" to true,
+                "enabled" to enabled,
+                "allowAllSenders" to allowAllSenders,
+                "simSlot" to simSlot,
             )
         }
     }
@@ -139,6 +164,7 @@ object BingwaFunctions {
             }
             if (!isSmsGranted(activity)) {
                 missing.add(Manifest.permission.SEND_SMS)
+                missing.add(Manifest.permission.RECEIVE_SMS)
                 missing.add(Manifest.permission.READ_PHONE_STATE)
             }
             if (!isContactsGranted(activity)) {
@@ -154,6 +180,7 @@ object BingwaFunctions {
                 return mapOf(
                     "requested" to false,
                     "phoneGranted" to true,
+                    "smsGranted" to true,
                     "contactsGranted" to true,
                     "notificationsGranted" to true,
                 )
@@ -403,6 +430,7 @@ object BingwaFunctions {
         return buildList {
             add(Manifest.permission.CALL_PHONE)
             add(Manifest.permission.SEND_SMS)
+            add(Manifest.permission.RECEIVE_SMS)
             add(Manifest.permission.READ_CONTACTS)
             add(Manifest.permission.READ_PHONE_STATE)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -418,7 +446,12 @@ object BingwaFunctions {
 
     private fun isSmsGranted(context: Context): Boolean {
         return ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun isIncomingSmsGranted(context: Context): Boolean {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun isContactsGranted(context: Context): Boolean {

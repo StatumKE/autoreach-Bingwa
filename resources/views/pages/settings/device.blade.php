@@ -251,6 +251,62 @@
 
                     <div class="space-y-5">
                         <div class="rounded-xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
+                            <div class="space-y-1">
+                                <h3 class="text-xs font-bold text-zinc-900">{{ __('Incoming M-Pesa SMS') }}</h3>
+                                <p class="text-[10px] leading-relaxed text-zinc-500">
+                                    {{ __('Create local transactions from received M-Pesa payment messages.') }}
+                                </p>
+                            </div>
+
+                            <div class="mt-4 space-y-4 border-t border-zinc-200 pt-4">
+                                <label for="incoming_sms_enabled" class="flex items-center justify-between gap-4">
+                                    <span class="text-xs font-bold text-zinc-900">{{ __('Read incoming M-Pesa SMS') }}</span>
+                                    <input
+                                        id="incoming_sms_enabled"
+                                        type="checkbox"
+                                        name="incoming_sms_enabled"
+                                        value="1"
+                                        @checked(old('incoming_sms_enabled', $incomingSmsEnabled))
+                                        class="size-4 rounded border-zinc-300 text-green-600 focus:ring-green-500"
+                                    >
+                                </label>
+
+                                <label for="incoming_sms_allow_all_senders" class="flex items-center justify-between gap-4">
+                                    <span class="min-w-0">
+                                        <span class="block text-xs font-bold text-zinc-900">{{ __('Allow all SMS senders') }}</span>
+                                        <span class="block text-[10px] leading-relaxed text-zinc-500">{{ __('Default only trusts MPESA and M-PESA sender IDs.') }}</span>
+                                    </span>
+                                    <input
+                                        id="incoming_sms_allow_all_senders"
+                                        type="checkbox"
+                                        name="incoming_sms_allow_all_senders"
+                                        value="1"
+                                        @checked(old('incoming_sms_allow_all_senders', $incomingSmsAllowAllSenders))
+                                        class="size-4 rounded border-zinc-300 text-green-600 focus:ring-green-500"
+                                    >
+                                </label>
+
+                                <div class="space-y-2">
+                                    <label for="incoming_sms_sim_slot" class="text-xs font-bold text-zinc-700">{{ __('Read SMS from') }}</label>
+                                    <select
+                                        id="incoming_sms_sim_slot"
+                                        name="incoming_sms_sim_slot"
+                                        class="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                                    >
+                                        @foreach ($incomingSmsSlotOptions as $value => $label)
+                                            <option value="{{ $value }}" @selected(old('incoming_sms_sim_slot', $incomingSmsSimSlot) === $value)>
+                                                {{ $label }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('incoming_sms_sim_slot')
+                                        <p class="text-xs font-semibold text-rose-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
                             <div class="flex items-center gap-3">
                                 <input
                                     id="auto_reschedule_rejected"

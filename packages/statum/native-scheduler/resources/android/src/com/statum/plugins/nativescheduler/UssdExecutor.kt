@@ -15,7 +15,9 @@ import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
@@ -128,63 +130,77 @@ class UssdExecutor(private val context: Context) {
      * the carrier processes the full string (e.g. *180*5*7*0712345678#) and returns one response.
      * The Handler must run on the main looper for the callback to be delivered correctly.
      */
-    private suspend fun runExpress(code: String, subId: Int): UssdResult =
-        suspendCancellableCoroutine { continuation ->
-            var telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+    private suspend fun runExpress(code: String, subId: Int): UssdResult {
+        val resultChannel = Channel<UssdResult>(Channel.CONFLATED)
+        var telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
-            // Route to the specific SIM
-            if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                telephonyManager = telephonyManager.createForSubscriptionId(subId)
+        // Route to the specific SIM
+        if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            telephonyManager = telephonyManager.createForSubscriptionId(subId)
+        }
+
+        val handler = Handler(Looper.getMainLooper())
+
+        val callback = object : TelephonyManager.UssdResponseCallback() {
+            override fun onReceiveUssdResponse(
+                tm: TelephonyManager,
+                request: String,
+                response: CharSequence
+            ) {
+                Log.d(TAG, "Express USSD callback success: $response")
+                val message = response.toString()
+                resultChannel.trySend(
+                    UssdResult(
+                        success = isPurchaseSuccessMessage(message),
+                        message = message,
+                    )
+                )
             }
 
-            val handler = Handler(Looper.getMainLooper())
-
-            val callback = object : TelephonyManager.UssdResponseCallback() {
-                override fun onReceiveUssdResponse(
-                    tm: TelephonyManager,
-                    request: String,
-                    response: CharSequence
-                ) {
-                    Log.d(TAG, "Express USSD success: $response")
-                    if (continuation.isActive) {
-                        val message = response.toString()
-                        continuation.resume(
-                            UssdResult(
-                                success = isPurchaseSuccessMessage(message),
-                                message = message,
-                            )
-                        )
-                    }
-                }
-
-                override fun onReceiveUssdResponseFailed(
-                    tm: TelephonyManager,
-                    request: String,
-                    failureCode: Int
-                ) {
-                    val reason = ussdFailureReason(failureCode)
-                    Log.w(TAG, "Express USSD failed: code=$failureCode — $reason")
-                    if (continuation.isActive) {
-                        continuation.resume(UssdResult(success = false, message = reason))
-                    }
-                }
-            }
-
-            try {
-                telephonyManager.sendUssdRequest(code, callback, handler)
-            } catch (exception: Exception) {
-                Log.e(TAG, "sendUssdRequest threw exception", exception)
-                if (continuation.isActive) {
-                    continuation.resume(UssdResult(success = false, message = exception.message ?: "Unknown error"))
-                }
-            }
-
-            // Note: TelephonyManager has no cancel mechanism once sent to the modem.
-            // invokeOnCancellation only cleans up coroutine state.
-            continuation.invokeOnCancellation {
-                Log.w(TAG, "Express USSD coroutine cancelled — modem request may still complete")
+            override fun onReceiveUssdResponseFailed(
+                tm: TelephonyManager,
+                request: String,
+                failureCode: Int
+            ) {
+                val reason = ussdFailureReason(failureCode)
+                Log.w(TAG, "Express USSD callback failed: code=$failureCode — $reason")
+                resultChannel.trySend(UssdResult(success = false, message = reason))
             }
         }
+
+        // Drain any stale accessibility channel data first
+        while (UssdAccessibilityService.responseChannel.tryReceive().isSuccess) { /* drain */ }
+
+        try {
+            telephonyManager.sendUssdRequest(code, callback, handler)
+        } catch (exception: Exception) {
+            Log.e(TAG, "sendUssdRequest threw exception", exception)
+            return UssdResult(success = false, message = exception.message ?: "Unknown error")
+        }
+
+        // Race between the telephony callback and the accessibility service channel
+        val result = select<UssdResult> {
+            resultChannel.onReceive { it }
+
+            // Only listen to accessibility if the service is running/connected
+            if (UssdAccessibilityService.instance != null) {
+                UssdAccessibilityService.responseChannel.onReceive { dialogText ->
+                    Log.d(TAG, "Express USSD captured via Accessibility: $dialogText")
+
+                    // Click OK/Send to dismiss/close the system dialog automatically
+                    UssdAccessibilityService.instance?.injectInput("")
+                    UssdAccessibilityService.instance?.dismiss()
+
+                    UssdResult(
+                        success = isPurchaseSuccessMessage(dialogText),
+                        message = dialogText
+                    )
+                }
+            }
+        }
+
+        return result
+    }
 
     // -------------------------------------------------------------------------
     // Advanced Mode — AccessibilityService-driven interactive USSD

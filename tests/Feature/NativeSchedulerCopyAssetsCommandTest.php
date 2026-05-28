@@ -37,8 +37,9 @@ test('native scheduler manifest no longer registers the removed workmanager sche
         ->not->toContain('QueueSchedulerRun')
         ->not->toContain('BingwaSchedulerService')
         ->not->toContain('SchedulerBootReceiver')
-        ->not->toContain('work-runtime-ktx')
-        ->not->toContain('initNativeScheduler');
+        ->not->toContain('initNativeScheduler')
+        ->toContain('BingwaIncomingSmsReceiver')
+        ->toContain('androidx.work:work-runtime-ktx');
 });
 
 test('native android manifest does not register the removed workmanager scheduler components', function () {

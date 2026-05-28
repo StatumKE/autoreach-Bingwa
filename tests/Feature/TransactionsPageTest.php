@@ -69,6 +69,34 @@ test('transactions load and display the requested details', function () {
     $response->assertDontSee('#'.$transaction->id);
 });
 
+test('transactions page orders rows by newest id first', function () {
+    $user = User::factory()->create();
+
+    Transaction::factory()->for($user)->create([
+        'sender_name' => 'First Created',
+        'offer_name' => 'Older Bundle',
+        'amount' => 100,
+        'status' => 'completed',
+        'status_desc' => 'Older transaction.',
+        'occurred_at' => Carbon::parse('2026-04-21 07:00:00', 'UTC'),
+    ]);
+
+    Transaction::factory()->for($user)->create([
+        'sender_name' => 'Second Created',
+        'offer_name' => 'Newer Bundle',
+        'amount' => 50,
+        'status' => 'failed',
+        'status_desc' => 'Newer transaction.',
+        'occurred_at' => Carbon::parse('2026-04-20 07:00:00', 'UTC'),
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test('transactions')
+        ->call('loadTransactions')
+        ->assertSeeInOrder(['Second Created', 'First Created']);
+});
+
 test('transactions rows open a detail modal with the resolved ussd code and matched product', function () {
     $user = User::factory()->create();
     $offer = Offer::factory()->for($user)->create([
@@ -119,6 +147,7 @@ test('transactions rows open a detail modal with the resolved ussd code and matc
         ->assertSee('Matched App Product')
         ->assertSee('1 GB Data')
         ->assertSee('*180*5*2*0712345678*1*1#')
+        ->assertSee('Copy')
         ->assertSee('Transaction completed successfully.')
         ->assertDontSee('Matched Payload')
         ->assertDontSee('Local Row Data');
@@ -155,6 +184,8 @@ test('transactions page only queries the transaction list once per render', func
 });
 
 test('failed transactions can be retried from the transactions page', function () {
+    Bus::fake();
+
     $user = User::factory()->create();
 
     $transaction = Transaction::factory()->for($user)->create([
@@ -182,9 +213,13 @@ test('failed transactions can be retried from the transactions page', function (
     ]);
 
     expect($transaction->fresh()->status_desc)->toBe('Retry requested from the Transactions page.');
+
+    Bus::assertDispatched(ProcessBingwaQueuedTransactionsJob::class, 1);
 });
 
 test('pending transactions can be retried from the transactions page', function () {
+    Bus::fake();
+
     $user = User::factory()->create();
 
     $transaction = Transaction::factory()->for($user)->create([
@@ -212,9 +247,13 @@ test('pending transactions can be retried from the transactions page', function 
     ]);
 
     expect($transaction->fresh()->status_desc)->toBe('Retry requested from the Transactions page.');
+
+    Bus::assertDispatched(ProcessBingwaQueuedTransactionsJob::class, 1);
 });
 
 test('retrying a transaction clears any previous auto reply state', function () {
+    Bus::fake();
+
     $user = User::factory()->create();
     $autoReply = AutoReply::factory()->for($user)->create([
         'name' => 'Failed Reply',
@@ -252,6 +291,8 @@ test('retrying a transaction clears any previous auto reply state', function () 
     expect($fresh?->auto_reply_status)->toBeNull();
     expect($fresh?->auto_reply_message)->toBeNull();
     expect($fresh?->auto_reply_failure_reason)->toBeNull();
+
+    Bus::assertDispatched(ProcessBingwaQueuedTransactionsJob::class, 1);
 });
 
 test('selected transactions can be retried in bulk from the transactions page', function () {
@@ -300,4 +341,50 @@ test('selected transactions can be retried in bulk from the transactions page', 
     expect($secondTransaction->fresh()->status_desc)->toBe('Retry requested from the Transactions page.');
 
     Bus::assertDispatched(ProcessBingwaQueuedTransactionsJob::class, 1);
+});
+
+test('transactions can be toggled using select all page action', function () {
+    $user = User::factory()->create();
+
+    $retryable1 = Transaction::factory()->for($user)->create([
+        'status' => 'failed',
+    ]);
+    $retryable2 = Transaction::factory()->for($user)->create([
+        'status' => 'pending',
+    ]);
+    $nonRetryable = Transaction::factory()->for($user)->create([
+        'status' => 'completed',
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test('transactions')
+        ->call('loadTransactions')
+        // Try selecting all when currently not selected
+        ->call('toggleSelectAllPage', false)
+        // Assert it only contains retryable IDs.
+        ->assertSet('selectedIds', [$retryable2->id, $retryable1->id])
+        // Now toggle selecting all off (currentlySelected = true)
+        ->call('toggleSelectAllPage', true)
+        ->assertSet('selectedIds', []);
+});
+
+test('transactions can be deleted from the transactions page', function () {
+    $user = User::factory()->create();
+    $txs = Transaction::factory()->for($user)->count(3)->create([
+        'status' => 'failed',
+    ]);
+
+    $this->actingAs($user);
+
+    expect(Transaction::where('user_id', $user->id)->count())->toBe(3);
+
+    Livewire::test('transactions')
+        ->call('loadTransactions')
+        ->set('selectedIds', [$txs[0]->id, $txs[1]->id])
+        ->call('deleteSelectedTransactions')
+        ->assertHasNoErrors();
+
+    expect(Transaction::where('user_id', $user->id)->count())->toBe(1);
+    expect(Transaction::where('id', $txs[2]->id)->exists())->toBeTrue();
 });

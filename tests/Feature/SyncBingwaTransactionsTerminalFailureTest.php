@@ -69,7 +69,6 @@ it('queues a remote status update when a backend transaction fails during sync',
     Queue::assertPushed(UpdateRemoteTransactionStatusJob::class, function (UpdateRemoteTransactionStatusJob $job): bool {
         return $job->remoteTransactionId === '91'
             && $job->status === 'failed'
-            && $job->failureCode === 'SYSTEM_ERROR'
-            && $job->deviceToken === 'raw-device-token';
+            && $job->failureCode === 'SYSTEM_ERROR';
     });
 });

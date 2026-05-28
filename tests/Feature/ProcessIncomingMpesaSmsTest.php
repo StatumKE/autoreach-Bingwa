@@ -3,6 +3,7 @@
 use App\Actions\Autoreach\ExecuteBingwaUssd;
 use App\Actions\Autoreach\ProcessIncomingMpesaSms;
 use App\Jobs\UpdateRemoteTransactionStatusJob;
+use App\Models\AutoReply;
 use App\Models\BingwaDeviceRegistration;
 use App\Models\DeviceSetting;
 use App\Models\Offer;
@@ -146,10 +147,11 @@ it('ignores duplicate M-Pesa codes without changing the existing transaction', f
         ->and($existing->fresh()?->status_desc)->toBe('Existing transaction.');
 });
 
-it('saves a visible failed local transaction when no offer matches the amount', function (): void {
+it('saves a visible failed local transaction when no offer matches the amount and an auto reply is configured', function (): void {
     $user = registeredIncomingSmsUser();
     Plan::factory()->for($user)->create(['is_active' => true, 'type' => 'time_unlimited']);
     Offer::factory()->for($user)->create(['price' => 50, 'is_active' => true]);
+    AutoReply::factory()->for($user)->create(['trigger_condition' => 'offer_unavailable', 'is_active' => true]);
 
     $this->mock(ExecuteBingwaUssd::class, function (MockInterface $mock): void {
         $mock->shouldNotReceive('execute');
@@ -164,6 +166,23 @@ it('saves a visible failed local transaction when no offer matches the amount', 
         ->and($transaction->status)->toBe('failed')
         ->and($transaction->processed_at)->not->toBeNull()
         ->and($transaction->matched_offer)->toMatchArray(['source' => 'mpesa_sms']);
+});
+
+it('ignores incoming M-Pesa SMS when no offer matches the amount and no auto reply is configured', function (): void {
+    $user = registeredIncomingSmsUser();
+    Plan::factory()->for($user)->create(['is_active' => true, 'type' => 'time_unlimited']);
+    Offer::factory()->for($user)->create(['price' => 50, 'is_active' => true]);
+
+    $this->mock(ExecuteBingwaUssd::class, function (MockInterface $mock): void {
+        $mock->shouldNotReceive('execute');
+    });
+
+    $result = app(ProcessIncomingMpesaSms::class)->process(incomingSmsPayload());
+    $transaction = Transaction::query()->where('mpesa_code', 'UBO817Y3ZG')->first();
+
+    expect($result['status'])->toBe('ignored')
+        ->and($result['message'])->toBe('no_matching_offer_and_no_auto_reply')
+        ->and($transaction)->toBeNull();
 });
 
 it('rejects untrusted senders by default and accepts them when allow all is enabled', function (): void {

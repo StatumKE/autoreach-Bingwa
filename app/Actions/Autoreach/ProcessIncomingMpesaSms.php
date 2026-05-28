@@ -3,6 +3,7 @@
 namespace App\Actions\Autoreach;
 
 use App\Jobs\ProcessBingwaQueuedTransactionsJob;
+use App\Models\AutoReply;
 use App\Models\DeviceSetting;
 use App\Models\Offer;
 use App\Models\Plan;
@@ -87,6 +88,10 @@ class ProcessIncomingMpesaSms
         $offer = $this->matchingOffer($user, $parsed);
 
         if (! $activePlan instanceof Plan) {
+            if (! $this->hasActiveAutoReply($user, 'failed_transaction')) {
+                return $this->ignored('no_active_plan_and_no_auto_reply');
+            }
+
             $transaction = $this->createFailedTransaction(
                 user: $user,
                 parsed: $parsed,
@@ -100,6 +105,10 @@ class ProcessIncomingMpesaSms
         }
 
         if (! $offer instanceof Offer) {
+            if (! $this->hasActiveAutoReply($user, 'offer_unavailable')) {
+                return $this->ignored('no_matching_offer_and_no_auto_reply');
+            }
+
             $transaction = $this->createFailedTransaction(
                 user: $user,
                 parsed: $parsed,
@@ -278,6 +287,15 @@ class ProcessIncomingMpesaSms
         }
 
         return $receivedSimSlot !== null && $configuredSimSlot === $receivedSimSlot;
+    }
+
+    private function hasActiveAutoReply(User $user, string $triggerCondition): bool
+    {
+        return AutoReply::query()
+            ->where('user_id', $user->getKey())
+            ->where('trigger_condition', $triggerCondition)
+            ->where('is_active', true)
+            ->exists();
     }
 
     /**

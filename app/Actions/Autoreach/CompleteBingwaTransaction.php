@@ -58,13 +58,11 @@ class CompleteBingwaTransaction
                 'auto_reply_trigger_condition' => $resolved['trigger_condition'],
                 'auto_reply_message' => $resolved['reply_message'],
                 'auto_reply_recipient_phone' => $resolved['recipient_phone'],
-                'auto_reply_status' => $autoReplyQueued ? 'queued' : 'skipped',
+                'auto_reply_status' => $autoReplyQueued ? 'queued' : null,
                 'auto_reply_attempts' => 0,
                 'auto_reply_sent_at' => null,
                 'auto_reply_failed_at' => null,
-                'auto_reply_failure_reason' => $autoReplyQueued
-                    ? null
-                    : __('No active auto-reply matched the transaction outcome.'),
+                'auto_reply_failure_reason' => null,
             ]);
 
             $this->incrementPlanUsage($transaction, $status);

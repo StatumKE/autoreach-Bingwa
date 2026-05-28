@@ -127,10 +127,10 @@ it('marks auto reply as skipped when no active rule matches', function () {
 
     $fresh = $transaction->fresh();
 
-    expect($fresh?->auto_reply_status)->toBe('skipped');
+    expect($fresh?->auto_reply_status)->toBeNull();
     expect($fresh?->auto_reply_trigger_condition)->toBe('successful_transaction');
     expect($fresh?->auto_reply_message)->toBeNull();
-    expect($fresh?->auto_reply_failure_reason)->not->toBeNull();
+    expect($fresh?->auto_reply_failure_reason)->toBeNull();
 });
 
 it('sets a base64 encoded status_desc containing spaces and newlines', function () {

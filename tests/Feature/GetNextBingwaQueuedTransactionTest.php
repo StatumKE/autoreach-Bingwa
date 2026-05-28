@@ -55,7 +55,6 @@ it('fails and queues a remote status update when a queued backend transaction ca
 
     Queue::assertPushed(UpdateRemoteTransactionStatusJob::class, function (UpdateRemoteTransactionStatusJob $job): bool {
         return $job->remoteTransactionId === 'TX-900'
-            && $job->status === 'failed'
-            && $job->deviceToken === 'raw-device-token';
+            && $job->status === 'failed';
     });
 });

@@ -49,7 +49,6 @@ it('recovers the backend device token when updating remote transaction status re
     (new UpdateRemoteTransactionStatusJob(
         userId: $user->id,
         remoteTransactionId: 'REMOTE-123',
-        deviceToken: 'old-device-token-401',
         status: 'successful',
         ussdResponse: null,
         airtimeUsed: null,

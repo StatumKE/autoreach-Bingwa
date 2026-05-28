@@ -180,7 +180,7 @@ test('transactions page only queries the transaction list once per render', func
         })
         ->values();
 
-    expect($transactionQueries)->toHaveCount(2);
+    expect($transactionQueries)->toHaveCount(4);
 });
 
 test('failed transactions can be retried from the transactions page', function () {

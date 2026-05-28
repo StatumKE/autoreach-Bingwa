@@ -21,44 +21,37 @@ class FetchBingwaSubscriptionPlans
      */
     public function fetch(User $user, bool $forceRefresh = false): array
     {
-        $registration = $user->bingwaDeviceRegistration;
-
-        if ($registration === null) {
-            throw ValidationException::withMessages([
-                'device_token' => __('Register this device before viewing subscription plans.'),
-            ]);
-        }
-
-        if (! is_string($registration->device_token) || $registration->device_token === '') {
-            throw ValidationException::withMessages([
-                'device_token' => __('The saved Bingwa device token is missing. Recover the token before viewing subscription plans.'),
-            ]);
-        }
+        $deviceToken = $this->resolveDeviceToken($user);
 
         if ($forceRefresh) {
-            return $this->fetchFresh($user, $registration->device_token);
+            return $this->fetchFresh($user, $deviceToken);
         }
 
-        $cacheKey = $this->cacheKey($user->id, $registration->device_token);
-        $cachedPlans = Cache::get($cacheKey);
-
-        if (is_array($cachedPlans)) {
-            return $cachedPlans;
-        }
-
-        $plans = $this->fetchFresh($user, $registration->device_token);
-
-        Cache::put(
-            $this->cacheKey($user->id, $user->refresh()->bingwaDeviceRegistration?->device_token ?? $registration->device_token),
-            $plans,
-            now()->addMinutes(self::CACHE_TTL_MINUTES),
+        return Cache::flexible(
+            $this->cacheKey($user->id, $deviceToken),
+            [30, 120],
+            function () use ($user, $deviceToken): array {
+                return $this->fetchFresh($user, $deviceToken);
+            }
         );
+    }
 
-        return $plans;
+    /**
+     * Peek at the currently cached plans without triggering a backend request.
+     *
+     * @return array{plans: array<int, array<string, mixed>>, sambaza_line: ?string, sambaza_ussd_prompts: array<int, mixed>}|null
+     */
+    public function cached(User $user): ?array
+    {
+        $deviceToken = $this->resolveDeviceToken($user);
+        $cachedPlans = Cache::get($this->cacheKey($user->id, $deviceToken));
+
+        return is_array($cachedPlans) ? $cachedPlans : null;
     }
 
     private function fetchFresh(User $user, string $deviceToken): array
     {
+        $effectiveDeviceToken = $deviceToken;
         $response = $this->requestPlans($deviceToken);
 
         if ($response->status() === 401) {
@@ -77,6 +70,7 @@ class FetchBingwaSubscriptionPlans
 
             if ($recoveredToken !== $deviceToken) {
                 Cache::forget($this->cacheKey($user->id, $deviceToken));
+                $effectiveDeviceToken = $recoveredToken;
             }
 
             $response = $this->requestPlans($recoveredToken);
@@ -85,7 +79,15 @@ class FetchBingwaSubscriptionPlans
         if ($response->successful()) {
             Log::debug('📦 Plans response received', ['plans_count' => count($response->json('plans') ?? $response->json('data') ?? [])]);
 
-            return $this->normalizePlansResponse($response);
+            $plans = $this->normalizePlansResponse($response);
+
+            Cache::put(
+                $this->cacheKey($user->id, $effectiveDeviceToken),
+                $plans,
+                now()->addMinutes(self::CACHE_TTL_MINUTES),
+            );
+
+            return $plans;
         }
 
         Log::error('❌ Plans fetch failed', ['status' => $response->status(), 'body' => $response->json()]);
@@ -128,6 +130,25 @@ class FetchBingwaSubscriptionPlans
         throw ValidationException::withMessages([
             'device_token' => $response->json('message') ?? __('Unable to load subscription plans right now.'),
         ]);
+    }
+
+    private function resolveDeviceToken(User $user): string
+    {
+        $registration = $user->bingwaDeviceRegistration;
+
+        if ($registration === null) {
+            throw ValidationException::withMessages([
+                'device_token' => __('Register this device before viewing subscription plans.'),
+            ]);
+        }
+
+        if (! is_string($registration->device_token) || $registration->device_token === '') {
+            throw ValidationException::withMessages([
+                'device_token' => __('The saved Bingwa device token is missing. Recover the token before viewing subscription plans.'),
+            ]);
+        }
+
+        return $registration->device_token;
     }
 
     private function requestPlans(string $deviceToken): Response

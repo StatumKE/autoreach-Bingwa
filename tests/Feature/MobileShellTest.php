@@ -118,6 +118,11 @@ test('the android queue worker initializes the background environment before usi
         ->toContain('nativeEphemeralArtisan')
         ->toContain('queue:work --once --timeout=360')
         ->toContain('nativeEphemeralShutdown')
+        ->toContain('PROCESSED_SLEEP_MS')
+        ->toContain('INITIAL_IDLE_SLEEP_MS')
+        ->toContain('MAX_IDLE_SLEEP_MS')
+        ->toContain('idleSleepMs = INITIAL_IDLE_SLEEP_MS')
+        ->toContain('coerceAtMost(MAX_IDLE_SLEEP_MS)')
         ->not->toContain('nativeWorkerBoot')
         ->not->toContain('nativeWorkerArtisan')
         ->not->toContain('nativeWorkerShutdown');
@@ -134,6 +139,43 @@ test('the android queue worker initializes the background environment before usi
         ->toContain('synchronized(PHPBridge.phpLock)')
         ->toContain('nativeEphemeralBoot')
         ->toContain('nativeEphemeralShutdown');
+});
+
+test('the android shell only runs the queue worker when the app is backgrounded', function () {
+    $mainActivitySource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/ui/MainActivity.kt'));
+
+    expect($mainActivitySource)
+        ->toContain('environmentReady = true')
+        ->toContain('syncQueueWorkerState()')
+        ->toContain('override fun onStart()')
+        ->toContain('override fun onStop()')
+        ->toContain('isActivityVisible = true')
+        ->toContain('isActivityVisible = false')
+        ->toContain('if (!isFinishing) {')
+        ->not->toContain('// Start background queue worker')
+        ->toContain('Queue worker starting because the app moved to the background')
+        ->toContain('Queue worker stopping because the app is in the foreground')
+        ->toContain('queueWorker = PHPQueueWorker(applicationContext).also { it.start() }');
+});
+
+test('the mobile list pages render immediately without wire:init polling', function () {
+    $pageFiles = [
+        base_path('resources/views/components/⚡offers.blade.php'),
+        base_path('resources/views/components/⚡transactions.blade.php'),
+        base_path('resources/views/components/⚡auto-replies.blade.php'),
+        base_path('resources/views/components/⚡sms.blade.php'),
+        base_path('resources/views/components/⚡quick-dials.blade.php'),
+        base_path('resources/views/components/⚡auto-renewals.blade.php'),
+    ];
+
+    foreach ($pageFiles as $pageFile) {
+        $pageSource = File::get($pageFile);
+
+        expect($pageSource)
+            ->toContain('public bool $loaded = true;')
+            ->not->toContain('wire:init="loadPage"')
+            ->not->toContain('wire:init="loadTransactions"');
+    }
 });
 
 test('the android native ephemeral runtime cannot be reused across background threads', function () {

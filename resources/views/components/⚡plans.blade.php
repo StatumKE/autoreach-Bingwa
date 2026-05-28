@@ -30,7 +30,18 @@ new #[Title('Subscriptions')] class extends Component {
 
     public function mount(): void
     {
-        $this->simSlot = Auth::user()->deviceSetting?->primary_transaction_sim === 'slot_2' ? 1 : 0;
+        $user = Auth::user();
+
+        $this->simSlot = $user->deviceSetting?->primary_transaction_sim === 'slot_2' ? 1 : 0;
+        $this->activePlan = $user->plans()->where('is_active', true)->first();
+
+        $cachedPlans = app(FetchBingwaSubscriptionPlans::class)->cached($user);
+
+        if (is_array($cachedPlans)) {
+            $this->plans = $cachedPlans['plans'] ?? [];
+            $this->sambazaLine = $cachedPlans['sambaza_line'] ?? null;
+            $this->loaded = true;
+        }
     }
 
     /**
@@ -42,19 +53,27 @@ new #[Title('Subscriptions')] class extends Component {
 
         $this->activePlan = Auth::user()->plans()->where('is_active', true)->first();
 
-        $this->loaded = true;
         $this->errorMessage = null;
+
+        if (! $forceRefresh && $this->plans !== []) {
+            $this->loaded = true;
+
+            return;
+        }
 
         try {
             $result = app(FetchBingwaSubscriptionPlans::class)->fetch(Auth::user(), $forceRefresh);
 
             $this->plans = $result['plans'];
             $this->sambazaLine = $result['sambaza_line'] ?? null;
+            $this->loaded = true;
         } catch (ValidationException $exception) {
             $this->plans = [];
+            $this->loaded = true;
             $this->errorMessage = collect($exception->errors())->flatten()->first() ?? __('Unable to load subscription plans right now.');
         } catch (RequestException $exception) {
             $this->plans = [];
+            $this->loaded = true;
             $this->errorMessage = $exception->response->json('message') ?? __('Unable to load subscription plans right now.');
         }
     }

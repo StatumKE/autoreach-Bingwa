@@ -17,7 +17,7 @@ new #[Title('Transactions')] class extends Component
 {
     use WithPagination;
 
-    public bool $loaded = false;
+    public bool $loaded = true;
 
     public int $refreshKey = 0;
 
@@ -427,7 +427,7 @@ new #[Title('Transactions')] class extends Component
 };
 ?>
 
-<div class="flex flex-col gap-3 px-4 pb-24 pt-3 bg-app-bg text-zinc-900 min-h-screen" wire:init="loadTransactions">
+<div class="flex flex-col gap-3 px-4 pb-24 pt-3 bg-app-bg text-zinc-900 min-h-screen">
     @php
         $transactions = $this->transactions();
     @endphp
@@ -876,4 +876,3 @@ new #[Title('Transactions')] class extends Component
         </div>
     </flux:modal>
 </div>
-

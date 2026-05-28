@@ -10,7 +10,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Quick Dial')] class extends Component {
-    public bool $loaded = false;
+    public bool $loaded = true;
 
     public string $customerPhone = '';
 
@@ -183,7 +183,7 @@ new #[Title('Quick Dial')] class extends Component {
     }
 }; ?>
 
-<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3" wire:init="loadPage">
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
     @php
         $offers = $this->loaded ? $this->activeOffers : collect();
     @endphp

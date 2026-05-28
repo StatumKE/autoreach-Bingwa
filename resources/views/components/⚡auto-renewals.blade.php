@@ -16,7 +16,7 @@ use Livewire\WithPagination;
 new #[Title('Auto Renewals')] class extends Component {
     use WithPagination;
 
-    public bool $loaded = false;
+    public bool $loaded = true;
 
     public string $customerPhone = '';
 
@@ -291,7 +291,7 @@ new #[Title('Auto Renewals')] class extends Component {
     }
 }; ?>
 
-<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3" wire:init="loadPage">
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
     @php
         $activeOffers = $this->loaded ? $this->activeOffers : collect();
         $renewals = $this->loaded ? $this->autoRenewals : collect();

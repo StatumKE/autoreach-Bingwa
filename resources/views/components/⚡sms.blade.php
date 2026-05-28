@@ -14,7 +14,7 @@ use Livewire\WithPagination;
 new #[Title('SMS History')] class extends Component {
     use WithPagination;
 
-    public bool $loaded = false;
+    public bool $loaded = true;
 
     #[Url(as: 'q')]
     public string $search = '';
@@ -182,7 +182,7 @@ new #[Title('SMS History')] class extends Component {
     }
 }; ?>
 
-<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3" wire:init="loadPage">
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
     @php
         $messages = $this->loaded ? $this->smsMessages : collect();
     @endphp

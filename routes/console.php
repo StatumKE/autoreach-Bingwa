@@ -8,8 +8,8 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Heartbeat and Transaction Sync schedules
-Schedule::command('bingwa:heartbeat')->everyMinute()->withoutOverlapping();
-Schedule::command('bingwa:sync-transactions')->everyMinute()->withoutOverlapping();
-Schedule::command('bingwa:process-auto-renewals')->everyMinute()->withoutOverlapping();
+// Heartbeat, transaction sync, and auto-renewal schedules
+Schedule::command('bingwa:heartbeat')->everyFifteenMinutes()->withoutOverlapping();
+Schedule::command('bingwa:sync-transactions')->everyFifteenMinutes()->withoutOverlapping();
+Schedule::command('bingwa:process-auto-renewals')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('bingwa:fetch-airtime-balance')->cron('*/30 * * * *')->onAnyNetwork()->withoutOverlapping();

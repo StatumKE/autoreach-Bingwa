@@ -141,20 +141,16 @@ test('the android queue worker initializes the background environment before usi
         ->toContain('nativeEphemeralShutdown');
 });
 
-test('the android shell only runs the queue worker when the app is backgrounded', function () {
+test('the android shell keeps the queue worker available while the app is foregrounded', function () {
     $mainActivitySource = File::get(base_path('nativephp/android/app/src/main/java/com/nativephp/mobile/ui/MainActivity.kt'));
 
     expect($mainActivitySource)
-        ->toContain('environmentReady = true')
-        ->toContain('syncQueueWorkerState()')
-        ->toContain('override fun onStart()')
-        ->toContain('override fun onStop()')
-        ->toContain('isActivityVisible = true')
-        ->toContain('isActivityVisible = false')
-        ->toContain('if (!isFinishing) {')
-        ->not->toContain('// Start background queue worker')
-        ->toContain('Queue worker starting because the app moved to the background')
-        ->toContain('Queue worker stopping because the app is in the foreground')
+        ->toContain('queueWorker = PHPQueueWorker(applicationContext).also { it.start() }')
+        ->not->toContain('syncQueueWorkerState()')
+        ->not->toContain('override fun onStart()')
+        ->not->toContain('override fun onStop()')
+        ->not->toContain('Queue worker starting because the app moved to the background')
+        ->not->toContain('Queue worker stopping because the app is in the foreground')
         ->toContain('queueWorker = PHPQueueWorker(applicationContext).also { it.start() }');
 });
 

@@ -13,6 +13,8 @@ use Livewire\WithPagination;
 new #[Title('Auto Replies')] class extends Component {
     use WithPagination;
 
+    public bool $loaded = false;
+
     public bool $showForm = false;
 
     public ?int $editingAutoReplyId = null;
@@ -35,6 +37,14 @@ new #[Title('Auto Replies')] class extends Component {
     public function mount(): void
     {
         $this->ensureDefaultReplies();
+    }
+
+    /**
+     * Set the loaded flag so the list renders after the shell is painted.
+     */
+    public function loadPage(): void
+    {
+        $this->loaded = true;
     }
 
     /**
@@ -392,9 +402,9 @@ new #[Title('Auto Replies')] class extends Component {
     }
 }; ?>
 
-<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
+<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3" wire:init="loadPage">
     @php
-        $autoReplies = $this->autoReplies;
+        $autoReplies = $this->loaded ? $this->autoReplies : collect();
     @endphp
 
     <div class="flex flex-col gap-3">
@@ -422,7 +432,17 @@ new #[Title('Auto Replies')] class extends Component {
             </div>
         @endif
 
-        @if ($autoReplies->isEmpty())
+        @if (! $this->loaded)
+            <div class="flex flex-col gap-3">
+                @for ($i = 0; $i < 4; $i++)
+                    <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 animate-pulse">
+                        <div class="h-4 w-28 rounded bg-zinc-100"></div>
+                        <div class="mt-4 h-4 w-40 rounded bg-zinc-100"></div>
+                        <div class="mt-3 h-16 w-full rounded bg-zinc-100/70"></div>
+                    </div>
+                @endfor
+            </div>
+        @elseif ($autoReplies->isEmpty())
             <div class="rounded-xl bg-white px-4 py-10 text-center shadow-sm ring-1 ring-zinc-200">
                 <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-green-50 text-green-600 ring-1 ring-green-100 shadow-inner">
                     <flux:icon.sparkles class="size-6" />

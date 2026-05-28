@@ -248,6 +248,10 @@ new #[Title('Dashboard')] class extends Component
     /**
      * Get the cached dashboard metrics snapshot.
      *
+     * Uses a single aggregated query instead of 4 separate round-trips.
+     * One query computes today's counts+sum via CASE/WHEN aggregation;
+     * a second fetches weekly day-bucket totals for the chart.
+     *
      * @return array{
      *     stats: array{successful: int, failed: int},
      *     airtime: array{used_today: float|int},
@@ -256,30 +260,24 @@ new #[Title('Dashboard')] class extends Component
      */
     private function dashboardMetrics(): array
     {
-        return Cache::remember($this->dashboardMetricsCacheKey(), now()->addSeconds(15), function (): array {
+        return Cache::remember($this->dashboardMetricsCacheKey(), now()->addSeconds(30), function (): array {
             $userId = (int) Auth::id();
             $now = AppTimezone::now();
             $today = $now->toDateString();
             $startOfWeek = $now->copy()->startOfWeek();
             $endOfWeek = $now->copy()->endOfWeek();
 
-            $successful = Transaction::query()
-                ->where('user_id', $userId)
-                ->where('status', 'completed')
-                ->whereDate('occurred_at', $today)
-                ->count();
-
-            $failed = Transaction::query()
-                ->where('user_id', $userId)
-                ->where('status', 'failed')
-                ->whereDate('occurred_at', $today)
-                ->count();
-
-            $usedToday = Transaction::query()
-                ->where('user_id', $userId)
-                ->where('status', 'completed')
-                ->whereDate('occurred_at', $today)
-                ->sum('amount');
+            // Single aggregated query for today's stats
+            $todayRow = DB::selectOne(
+                'SELECT
+                    COALESCE(SUM(CASE WHEN status = ? AND DATE(occurred_at) = ? THEN 1 ELSE 0 END), 0) AS completed_count,
+                    COALESCE(SUM(CASE WHEN status = ? AND DATE(occurred_at) = ? THEN 1 ELSE 0 END), 0) AS failed_count,
+                    COALESCE(SUM(CASE WHEN status = ? AND DATE(occurred_at) = ? THEN amount ELSE 0 END), 0) AS used_today
+                FROM transactions
+                WHERE user_id = ?
+                  AND occurred_at >= ?',
+                ['completed', $today, 'failed', $today, 'completed', $today, $userId, $today],
+            );
 
             $dailyTotals = Transaction::query()
                 ->where('user_id', $userId)
@@ -304,11 +302,11 @@ new #[Title('Dashboard')] class extends Component
 
             return [
                 'stats' => [
-                    'successful' => $successful,
-                    'failed' => $failed,
+                    'successful' => (int) ($todayRow->completed_count ?? 0),
+                    'failed' => (int) ($todayRow->failed_count ?? 0),
                 ],
                 'airtime' => [
-                    'used_today' => $usedToday,
+                    'used_today' => (float) ($todayRow->used_today ?? 0),
                 ],
                 'commission' => [
                     'total' => $totalCommission,

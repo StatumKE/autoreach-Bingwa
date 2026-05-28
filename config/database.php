@@ -40,7 +40,7 @@ return [
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
             'busy_timeout' => 5000,
             'journal_mode' => 'wal',
-            'synchronous' => null,
+            'synchronous' => 'NORMAL',
             'transaction_mode' => 'DEFERRED',
         ],
 

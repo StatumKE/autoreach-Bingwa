@@ -2,23 +2,6 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
-        <style>
-            body::after {
-                content: "WEBVIEW ALIVE - TOP: " var(--inset-top, 'N/A');
-                position: fixed;
-                bottom: 20px;
-                left: 20px;
-                right: 20px;
-                background: rgba(255, 255, 0, 0.8);
-                color: black;
-                text-align: center;
-                z-index: 1000000;
-                padding: 10px;
-                border-radius: 10px;
-                font-weight: bold;
-                pointer-events: none;
-            }
-        </style>
     </head>
     <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 overscroll-y-none">
         @php

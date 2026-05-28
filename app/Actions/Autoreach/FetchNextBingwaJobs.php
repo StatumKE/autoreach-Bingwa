@@ -112,7 +112,6 @@ class FetchNextBingwaJobs
                 continue;
             }
 
-
             // 403 — backend reports the device as stopped.
             if ($response->status() === 403) {
                 $failed++;

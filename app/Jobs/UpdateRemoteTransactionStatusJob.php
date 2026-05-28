@@ -26,7 +26,6 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
     public function __construct(
         public readonly int $userId,
         public readonly string $remoteTransactionId,
-        public readonly string $deviceToken,
         public readonly string $status,
         public readonly ?string $ussdResponse,
         public readonly ?float $airtimeUsed,
@@ -50,8 +49,14 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
             throw new RuntimeException("Unable to update remote transaction status {$this->remoteTransactionId}: user {$this->userId} was not found.");
         }
 
-        $deviceToken = $this->deviceToken;
         $registration = $user->bingwaDeviceRegistration;
+        $deviceToken = $registration?->device_token;
+
+        if (blank($deviceToken)) {
+            Log::warning("Cannot update remote status for transaction {$this->remoteTransactionId}: device token is missing.");
+
+            return;
+        }
 
         $payload = [
             'status' => $this->status,

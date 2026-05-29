@@ -295,6 +295,18 @@ new #[Title('Auto Renewals')] class extends Component {
     @php
         $activeOffers = $this->loaded ? $this->activeOffers : collect();
         $renewals = $this->loaded ? $this->autoRenewals : collect();
+        $renewalIds = $renewals->pluck('id')->filter()->toArray();
+        $matchedTransactions = [];
+        if (!empty($renewalIds)) {
+            $matchedTransactions = \App\Models\Transaction::query()
+                ->whereIn('matched_offer->auto_renewal_id', $renewalIds)
+                ->get()
+                ->keyBy(function ($tx) {
+                    $matched = is_string($tx->matched_offer) ? json_decode($tx->matched_offer, true) : $tx->matched_offer;
+                    return $matched['auto_renewal_id'] ?? null;
+                })
+                ->all();
+        }
     @endphp
 
     <div class="flex flex-col gap-3">
@@ -412,6 +424,18 @@ new #[Title('Auto Renewals')] class extends Component {
                                         ])>
                                             {{ $this->statusLabel($renewal->status) }}
                                         </span>
+                                        @php
+                                            $tx = $matchedTransactions[$renewal->id] ?? null;
+                                        @endphp
+                                        @if ($tx)
+                                            <div class="mt-1.5 max-w-[200px] text-[10px] leading-relaxed text-zinc-500 break-words font-medium">
+                                                {{ $tx->status_desc }}
+                                            </div>
+                                        @elseif ($renewal->notes)
+                                            <div class="mt-1.5 max-w-[200px] text-[10px] leading-relaxed text-zinc-500 break-words font-medium">
+                                                {{ $renewal->notes }}
+                                            </div>
+                                        @endif
                                     </td>
                                     <td class="px-5 py-4 align-top text-right">
                                         <button
@@ -464,6 +488,17 @@ new #[Title('Auto Renewals')] class extends Component {
                                     </div>
                                 </div>
                             </div>
+                            @php
+                                $tx = $matchedTransactions[$renewal->id] ?? null;
+                            @endphp
+                            @if ($tx || $renewal->notes)
+                                <div class="rounded-2xl bg-zinc-50 px-4 py-3 ring-1 ring-zinc-200 mt-2">
+                                    <div class="text-[8px] font-black uppercase tracking-[0.24em] text-zinc-400">{{ __('Purchase Message') }}</div>
+                                    <div class="mt-1 text-xs font-medium text-zinc-600 break-words">
+                                        {{ $tx ? $tx->status_desc : $renewal->notes }}
+                                    </div>
+                                </div>
+                            @endif
 
                             <div class="flex items-center justify-between gap-3 border-t border-zinc-100 pt-3">
                                 <div class="text-sm font-black text-zinc-950">

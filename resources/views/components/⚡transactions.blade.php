@@ -608,6 +608,9 @@ new #[Title('Transactions')] class extends Component
                     $status = strtolower((string) ($transaction->status ?? ''));
                     $isSuccess = in_array($status, ['completed', 'successful']);
                     $isFailed = $status === 'failed';
+                    $canRetry = $this->canRetryTransaction($transaction);
+                    $productLabel = $this->transactionProductLabel($transaction);
+                    $isSelected = in_array($transaction->id, $this->selectedIds ?? []);
                 @endphp
                 <article
                     wire:key="transaction-{{ $transaction->id }}"
@@ -616,8 +619,8 @@ new #[Title('Transactions')] class extends Component
                     tabindex="0"
                     @class([
                         'group relative rounded-xl bg-white p-2 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:ring-green-500/30 cursor-pointer',
-                        'ring-green-500/50 bg-green-50/10' => in_array($transaction->id, $this->selectedIds ?? []),
-                        'ring-zinc-200' => ! in_array($transaction->id, $this->selectedIds ?? []),
+                        'ring-green-500/50 bg-green-50/10' => $isSelected,
+                        'ring-zinc-200' => ! $isSelected,
                     ])
                 >
                     <div class="flex items-center justify-between gap-2">
@@ -626,25 +629,25 @@ new #[Title('Transactions')] class extends Component
                                 x-on:click.stop
                                 @class([
                                 'relative flex items-center',
-                                'cursor-pointer' => $this->canRetryTransaction($transaction),
-                                'cursor-not-allowed opacity-40' => ! $this->canRetryTransaction($transaction),
+                                'cursor-pointer' => $canRetry,
+                                'cursor-not-allowed opacity-40' => ! $canRetry,
                             ])>
                                 <input
                                     type="checkbox"
                                     wire:model.live="selectedIds"
                                     value="{{ $transaction->id }}"
-                                    @disabled(! $this->canRetryTransaction($transaction))
+                                    @disabled(! $canRetry)
                                     class="peer sr-only"
                                 >
                                 <div @class([
                                     'flex size-4 items-center justify-center rounded border-2 bg-white transition-all',
-                                    'border-zinc-200' => ! in_array($transaction->id, $this->selectedIds ?? []),
-                                    'border-green-600 bg-green-600' => in_array($transaction->id, $this->selectedIds ?? []),
+                                    'border-zinc-200' => ! $isSelected,
+                                    'border-green-600 bg-green-600' => $isSelected,
                                 ])>
                                     <flux:icon.check variant="mini" @class([
                                         'size-3 text-white transition-transform',
-                                        'scale-100' => in_array($transaction->id, $this->selectedIds ?? []),
-                                        'scale-0' => ! in_array($transaction->id, $this->selectedIds ?? []),
+                                        'scale-100' => $isSelected,
+                                        'scale-0' => ! $isSelected,
                                     ]) />
                                 </div>
                             </label>
@@ -653,8 +656,8 @@ new #[Title('Transactions')] class extends Component
                                     'inline-flex items-center rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest',
                                     'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400' => $isSuccess,
                                     'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' => $isFailed,
-                                    'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400' => strtolower($status) === 'queued',
-                                    'bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700' => ! $isSuccess && ! $isFailed && strtolower($status) !== 'queued',
+                                    'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400' => $status === 'queued',
+                                    'bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700' => ! $isSuccess && ! $isFailed && $status !== 'queued',
                                 ])>
                                     {{ blank($transaction->status) ? __('Pending') : $transaction->status }}
                                 </span>
@@ -693,12 +696,12 @@ new #[Title('Transactions')] class extends Component
                                 {{ $transaction->mpesa_code }}
                             </span>
                         @endif
-                        
 
-                        @if ($this->transactionProductLabel($transaction) !== '—')
+
+                        @if ($productLabel !== '—')
                             <span class="inline-flex items-center gap-1.5 rounded-md bg-zinc-50 px-1.5 py-0.5 text-[9px] font-bold text-zinc-600 ring-1 ring-zinc-200 dark:bg-zinc-800/50 dark:text-zinc-400 dark:ring-zinc-700/50">
                                 <span class="text-[7px] opacity-60 uppercase tracking-widest">{{ __('Product') }}</span>
-                                <span class="truncate max-w-[120px]">{{ $this->transactionProductLabel($transaction) }}</span>
+                                <span class="truncate max-w-[120px]">{{ $productLabel }}</span>
                             </span>
                         @endif
 
@@ -717,7 +720,7 @@ new #[Title('Transactions')] class extends Component
                     @endif
 
 
-                    @if ($this->canRetryTransaction($transaction))
+                    @if ($canRetry)
                         <div class="mt-2 flex justify-end">
                             <flux:button
                                 type="button"
@@ -740,6 +743,7 @@ new #[Title('Transactions')] class extends Component
                     @endif
                 </article>
             @endforeach
+
 
             <div class="mt-4 px-2">
                 {{ $transactions->links() }}
@@ -787,7 +791,33 @@ new #[Title('Transactions')] class extends Component
                                     variant="ghost"
                                     size="sm"
                                     class="!h-6 px-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500"
-                                    x-on:click="navigator.clipboard.writeText(@js($selectedTransaction->sender_phone)); copied = true; setTimeout(() => copied = false, 1200)"
+                                    data-phone="{{ $selectedTransaction->sender_phone }}"
+                                    x-on:click="
+                                        let phone = $el.getAttribute('data-phone');
+                                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                                            navigator.clipboard.writeText(phone).catch(() => {
+                                                let ta = document.createElement('textarea');
+                                                ta.value = phone;
+                                                ta.style.position = 'absolute';
+                                                ta.style.opacity = '0';
+                                                document.body.appendChild(ta);
+                                                ta.select();
+                                                document.execCommand('copy');
+                                                document.body.removeChild(ta);
+                                            });
+                                        } else {
+                                            let ta = document.createElement('textarea');
+                                            ta.value = phone;
+                                            ta.style.position = 'absolute';
+                                            ta.style.opacity = '0';
+                                            document.body.appendChild(ta);
+                                            ta.select();
+                                            document.execCommand('copy');
+                                            document.body.removeChild(ta);
+                                        }
+                                        copied = true;
+                                        setTimeout(() => copied = false, 1200);
+                                    "
                                 >
                                     <span x-show="!copied">{{ __('Copy') }}</span>
                                     <span x-show="copied" x-cloak>{{ __('Copied') }}</span>

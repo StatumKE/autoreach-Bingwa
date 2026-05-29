@@ -123,7 +123,7 @@ class ProcessIncomingMpesaSms
 
         $transaction = $this->createQueuedTransaction($user, $parsed, $offer, $payload, $simSlot);
 
-        app()->call([(new ProcessBingwaQueuedTransactionsJob($user->getKey(), (string) Str::uuid())), 'handle']);
+        app()->call([(new ProcessBingwaQueuedTransactionsJob((string) Str::uuid(), $user->getKey())), 'handle']);
 
         $transaction->refresh();
 

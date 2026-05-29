@@ -27,9 +27,18 @@ class RefreshAirtimeBalanceJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(): void
     {
-        $user = User::query()->first();
+        $users = User::query()
+            ->whereHas('bingwaDeviceRegistration', function ($query) {
+                $query->whereNotNull('device_token')
+                    ->where('device_token', '!=', '')
+                    ->where(function ($query) {
+                        $query->whereNull('status')
+                            ->orWhere('status', '!=', 'stopped');
+                    });
+            })
+            ->get();
 
-        if ($user) {
+        foreach ($users as $user) {
             app(RefreshAirtimeBalance::class)->refresh($user);
         }
     }

@@ -13,6 +13,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
@@ -89,7 +90,7 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
                 'user_id' => $user->id,
             ]);
 
-            ProcessBingwaQueuedTransactionsJob::dispatchSync();
+            ProcessBingwaQueuedTransactionsJob::dispatchSync((string) Str::uuid(), $user->id);
         }
     }
 

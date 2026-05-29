@@ -300,6 +300,7 @@ new #[Title('Auto Renewals')] class extends Component {
         if (!empty($renewalIds)) {
             $matchedTransactions = \App\Models\Transaction::query()
                 ->whereIn('matched_offer->auto_renewal_id', $renewalIds)
+                ->orderBy('id', 'asc')
                 ->get()
                 ->keyBy(function ($tx) {
                     $matched = is_string($tx->matched_offer) ? json_decode($tx->matched_offer, true) : $tx->matched_offer;

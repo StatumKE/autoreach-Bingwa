@@ -27,6 +27,7 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
 
     public function __construct(
         public ?string $flowId = null,
+        public ?int $userId = null,
     ) {}
 
     public int $tries = 3;
@@ -227,6 +228,10 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
 
     private function userId(): int
     {
+        if ($this->userId !== null) {
+            return $this->userId;
+        }
+
         $user = User::query()->first();
 
         return $user ? $user->id : 0;

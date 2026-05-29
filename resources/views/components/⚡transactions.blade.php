@@ -794,26 +794,23 @@ new #[Title('Transactions')] class extends Component
                                     data-phone="{{ $selectedTransaction->sender_phone }}"
                                     x-on:click="
                                         let phone = $el.getAttribute('data-phone');
-                                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                                            navigator.clipboard.writeText(phone).catch(() => {
-                                                let ta = document.createElement('textarea');
-                                                ta.value = phone;
-                                                ta.style.position = 'absolute';
-                                                ta.style.opacity = '0';
-                                                document.body.appendChild(ta);
-                                                ta.select();
-                                                document.execCommand('copy');
-                                                document.body.removeChild(ta);
-                                            });
-                                        } else {
+                                        let fallbackCopy = function(text) {
                                             let ta = document.createElement('textarea');
-                                            ta.value = phone;
-                                            ta.style.position = 'absolute';
-                                            ta.style.opacity = '0';
+                                            ta.value = text;
+                                            ta.style.position = 'fixed';
+                                            ta.style.left = '-9999px';
+                                            ta.style.top = '0';
+                                            ta.setAttribute('readonly', '');
                                             document.body.appendChild(ta);
                                             ta.select();
+                                            ta.setSelectionRange(0, 99999);
                                             document.execCommand('copy');
                                             document.body.removeChild(ta);
+                                        };
+                                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                                            navigator.clipboard.writeText(phone).catch(() => fallbackCopy(phone));
+                                        } else {
+                                            fallbackCopy(phone);
                                         }
                                         copied = true;
                                         setTimeout(() => copied = false, 1200);

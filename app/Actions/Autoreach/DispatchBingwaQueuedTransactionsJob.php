@@ -6,13 +6,20 @@ use App\Jobs\ProcessBingwaQueuedTransactionsJob;
 use App\Models\DeviceSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class DispatchBingwaQueuedTransactionsJob
 {
-    public function dispatch(): bool
+    public function dispatch(?int $userId = null): bool
     {
-        $user = User::query()->first();
-        $userId = $user ? $user->id : 0;
+        if ($userId === null) {
+            $user = User::query()->first();
+            $userId = $user ? $user->id : 0;
+        }
+
+        if ($userId === 0) {
+            return false;
+        }
 
         if (! DeviceSetting::isTransactionProcessingEnabledForUser($userId)) {
             Log::debug('Bingwa transaction processing dispatch skipped because processing is paused.', [
@@ -22,7 +29,7 @@ class DispatchBingwaQueuedTransactionsJob
             return false;
         }
 
-        ProcessBingwaQueuedTransactionsJob::dispatch();
+        ProcessBingwaQueuedTransactionsJob::dispatch((string) Str::uuid(), $userId);
 
         return true;
     }

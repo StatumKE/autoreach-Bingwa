@@ -372,8 +372,8 @@ new #[Title('Dashboard')] class extends Component
             }
         }
     }"
-    x-init="checkAccessibility(); setInterval(() => $data.checkAccessibility(), 10000);"
-    @visibilitychange.window="if (document.visibilityState === 'visible') $data.checkAccessibility()"
+    x-init="checkAccessibility(); const timer = setInterval(() => checkAccessibility(), 10000); $cleanup(() => clearInterval(timer));"
+    @visibilitychange.window="if (document.visibilityState === 'visible') checkAccessibility()"
 >
     <div class="mx-auto flex h-full max-w-[780px] flex-col gap-3 lg:h-auto">
         {{-- Greeting --}}

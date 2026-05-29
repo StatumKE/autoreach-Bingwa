@@ -78,14 +78,14 @@ it('runs transaction sync when transaction sync is due', function (): void {
 
     Artisan::shouldReceive('call')
         ->once()
-        ->with('bingwa:sync-transactions', ['--user-id' => $user->getKey()])
+        ->with('bingwa:sync-transactions')
         ->andReturn(0);
     Artisan::shouldReceive('output')
         ->once()
         ->andReturn('');
     Artisan::shouldReceive('call')
         ->once()
-        ->with('bingwa:process-auto-renewals', ['--user-id' => $user->getKey()])
+        ->with('bingwa:process-auto-renewals')
         ->andReturn(0);
 
     $result = app(AndroidRuntimeScheduler::class)->runDueTasks(now());
@@ -130,14 +130,14 @@ it('returns a fast next tick while queued transactions exist', function (): void
 
     Artisan::shouldReceive('call')
         ->once()
-        ->with('bingwa:sync-transactions', ['--user-id' => $user->getKey()])
+        ->with('bingwa:sync-transactions')
         ->andReturn(0);
     Artisan::shouldReceive('output')
         ->once()
         ->andReturn('');
     Artisan::shouldReceive('call')
         ->once()
-        ->with('bingwa:process-auto-renewals', ['--user-id' => $user->getKey()])
+        ->with('bingwa:process-auto-renewals')
         ->andReturn(0);
 
     $result = app(AndroidRuntimeScheduler::class)->runDueTasks(now());
@@ -209,7 +209,7 @@ it('skips transaction sync when it was run recently (within 5 minutes) based on 
 
     Artisan::shouldReceive('call')
         ->once()
-        ->with('bingwa:process-auto-renewals', ['--user-id' => $user->getKey()])
+        ->with('bingwa:process-auto-renewals')
         ->andReturn(0);
 
     $result = app(AndroidRuntimeScheduler::class)->runDueTasks($now);
@@ -229,14 +229,14 @@ it('runs transaction sync when it was run more than 5 minutes ago based on injec
 
     Artisan::shouldReceive('call')
         ->once()
-        ->with('bingwa:sync-transactions', ['--user-id' => $user->getKey()])
+        ->with('bingwa:sync-transactions')
         ->andReturn(0);
     Artisan::shouldReceive('output')
         ->once()
         ->andReturn('');
     Artisan::shouldReceive('call')
         ->once()
-        ->with('bingwa:process-auto-renewals', ['--user-id' => $user->getKey()])
+        ->with('bingwa:process-auto-renewals')
         ->andReturn(0);
 
     $result = app(AndroidRuntimeScheduler::class)->runDueTasks($now);

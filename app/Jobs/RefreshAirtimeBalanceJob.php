@@ -18,15 +18,19 @@ class RefreshAirtimeBalanceJob implements ShouldBeUnique, ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public function __construct(public User $user) {}
+    public function __construct() {}
 
     public function uniqueId(): string
     {
-        return (string) $this->user->id;
+        return 'refresh-airtime-balance';
     }
 
     public function handle(): void
     {
-        app(RefreshAirtimeBalance::class)->refresh($this->user);
+        $user = User::query()->first();
+
+        if ($user) {
+            app(RefreshAirtimeBalance::class)->refresh($user);
+        }
     }
 }

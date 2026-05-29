@@ -2,7 +2,7 @@
     <section class="auth-card flex flex-col gap-6">
         <span class="auth-badge">{{ __('Secure access') }}</span>
 
-        <x-auth-header :title="__('Welcome back')" :description="__('Sign in to continue. This device stays signed in until you choose Sign out.')" />
+        <x-auth-header :title="__('Welcome back')" :description="__('Sign in to continue.')" />
 
         <!-- Session Status -->
         <x-auth-session-status class="text-center" :status="session('status')" />

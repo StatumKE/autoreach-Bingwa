@@ -46,7 +46,7 @@ class HandleNativePushNotificationReceived
             return;
         }
 
-        SyncBingwaTransactionsJob::dispatchSync($user->getKey(), $data);
+        SyncBingwaTransactionsJob::dispatchSync($data);
 
         Log::debug('Bingwa push notification dispatched the transaction sync job.', [
             'user_id' => $user->getKey(),

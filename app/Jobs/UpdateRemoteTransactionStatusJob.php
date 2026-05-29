@@ -24,7 +24,6 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public readonly int $userId,
         public readonly string $remoteTransactionId,
         public readonly string $status,
         public readonly ?string $ussdResponse,
@@ -43,10 +42,10 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
 
         $user = User::query()
             ->with('bingwaDeviceRegistration')
-            ->find($this->userId);
+            ->first();
 
         if (! $user instanceof User) {
-            throw new RuntimeException("Unable to update remote transaction status {$this->remoteTransactionId}: user {$this->userId} was not found.");
+            throw new RuntimeException("Unable to update remote transaction status {$this->remoteTransactionId}: no user was found.");
         }
 
         $registration = $user->bingwaDeviceRegistration;
@@ -92,7 +91,6 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
             }
 
             $deviceToken = $recoveredToken;
-            $registration = $recoveredRegistration;
             $response = $this->sendRemoteStatusUpdate($baseUrl, $deviceToken, $payload);
         }
 

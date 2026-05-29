@@ -23,13 +23,12 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
     use SerializesModels;
 
     public function __construct(
-        public int $userId,
         public array $pushData = [],
     ) {}
 
     public function uniqueId(): string
     {
-        return 'bingwa-sync-transactions:'.$this->userId;
+        return 'bingwa-sync-transactions';
     }
 
     /**
@@ -43,26 +42,22 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
     public function handle(
         FetchNextBingwaJobs $fetchNextBingwaJobs,
     ): void {
-        Log::debug('Bingwa transaction sync job started.', [
-            'user_id' => $this->userId,
-            'push_data' => $this->pushData,
-        ]);
-
-        $user = User::query()
-            ->with('bingwaDeviceRegistration')
-            ->find($this->userId);
+        $user = User::query()->first();
 
         if (! $user instanceof User) {
-            Log::warning('Bingwa transaction sync job skipped because user was not found.', [
-                'user_id' => $this->userId,
-            ]);
+            Log::warning('Bingwa transaction sync job skipped because no user was found.');
 
             return;
         }
 
+        Log::debug('Bingwa transaction sync job started.', [
+            'user_id' => $user->id,
+            'push_data' => $this->pushData,
+        ]);
+
         if ($user->bingwaDeviceRegistration === null) {
             Log::debug('Bingwa transaction sync job skipped because user has no device registration.', [
-                'user_id' => $this->userId,
+                'user_id' => $user->id,
             ]);
 
             return;
@@ -72,7 +67,7 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
         $result = $fetchNextBingwaJobs->sync($user, 10, $onlyService);
 
         Log::debug('Bingwa transaction sync job finished fetching.', [
-            'user_id' => $this->userId,
+            'user_id' => $user->id,
             'synced' => $result['synced'],
             'skipped' => $result['skipped'],
             'failed' => $result['failed'],
@@ -82,26 +77,27 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
         // or any existing queued transactions still waiting to be processed.
         // Doing this synchronously skips the latency of queueing a second job.
         if ($result['synced'] > 0 || Transaction::query()->where('status', 'queued')->exists()) {
-            if (! DeviceSetting::isTransactionProcessingEnabledForUser($this->userId)) {
+            if (! DeviceSetting::isTransactionProcessingEnabledForUser($user->id)) {
                 Log::debug('Bingwa transaction processing skipped because processing is paused.', [
-                    'user_id' => $this->userId,
+                    'user_id' => $user->id,
                 ]);
 
                 return;
             }
 
             Log::debug('Bingwa transaction sync job dispatching queued processor synchronously.', [
-                'user_id' => $this->userId,
+                'user_id' => $user->id,
             ]);
 
-            ProcessBingwaQueuedTransactionsJob::dispatchSync($this->userId);
+            ProcessBingwaQueuedTransactionsJob::dispatchSync();
         }
     }
 
     public function failed(Throwable $exception): void
     {
+        $user = User::query()->first();
         Log::error('Bingwa transaction sync job marked as failed.', [
-            'user_id' => $this->userId,
+            'user_id' => $user?->id,
             'message' => $exception->getMessage(),
             'exception' => $exception::class,
         ]);

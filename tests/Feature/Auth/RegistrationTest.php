@@ -124,9 +124,7 @@ test('new users register without waiting for backend device sync', function () {
         'user_id' => auth()->id(),
     ]);
 
-    Queue::assertPushed(SyncBingwaFcmTokenJob::class, function (SyncBingwaFcmTokenJob $job): bool {
-        return $job->userId === auth()->id();
-    });
+    Queue::assertPushed(SyncBingwaFcmTokenJob::class);
 });
 
 test('registration does not depend on backend device registration being available', function () {

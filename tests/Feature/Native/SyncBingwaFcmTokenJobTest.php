@@ -43,5 +43,5 @@ test('backend fcm sync job resolves the token and hands it off to the sync actio
         ->andReturnTrue();
     app()->instance(SyncBingwaFcmToken::class, $syncAction);
 
-    (new SyncBingwaFcmTokenJob($user->id))->handle(app(RegisterBingwaDevice::class), app(SyncBingwaFcmToken::class));
+    (new SyncBingwaFcmTokenJob)->handle(app(RegisterBingwaDevice::class), app(SyncBingwaFcmToken::class));
 });

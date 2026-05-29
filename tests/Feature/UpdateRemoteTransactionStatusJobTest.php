@@ -47,7 +47,6 @@ it('recovers the backend device token when updating remote transaction status re
     });
 
     (new UpdateRemoteTransactionStatusJob(
-        userId: $user->id,
         remoteTransactionId: 'REMOTE-123',
         status: 'successful',
         ussdResponse: null,

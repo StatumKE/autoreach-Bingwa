@@ -22,9 +22,7 @@ test('it dispatches refresh airtime balance job for active registered users', fu
     $exitCode = Artisan::call('bingwa:fetch-airtime-balance');
 
     expect($exitCode)->toBe(0);
-    Queue::assertPushed(RefreshAirtimeBalanceJob::class, function (RefreshAirtimeBalanceJob $job) use ($user): bool {
-        return $job->user->id === $user->id;
-    });
+    Queue::assertPushed(RefreshAirtimeBalanceJob::class);
 });
 
 test('it does not dispatch job when there are no active registered users', function (): void {

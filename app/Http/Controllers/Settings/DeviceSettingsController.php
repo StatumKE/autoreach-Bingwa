@@ -82,7 +82,7 @@ class DeviceSettingsController extends BaseController
             ->first();
         $transactionProcessingEnabled = $request->has('transaction_processing_enabled')
             ? $request->boolean('transaction_processing_enabled')
-            : (bool) ($currentSetting?->transaction_processing_enabled ?? true);
+            : (bool) ($currentSetting ? $currentSetting->transaction_processing_enabled : true);
         $autoRescheduleRejected = $request->boolean('auto_reschedule_rejected');
         $intelligentAutoRetry = $request->boolean('intelligent_auto_retry');
         $retryNetworkIssues = $request->boolean('retry_network_issues');
@@ -130,7 +130,7 @@ class DeviceSettingsController extends BaseController
         ]);
 
         if ($next) {
-            app(DispatchBingwaQueuedTransactionsJob::class)->dispatch($userId);
+            app(DispatchBingwaQueuedTransactionsJob::class)->dispatch();
         }
 
         return redirect()
@@ -194,10 +194,10 @@ class DeviceSettingsController extends BaseController
         $deviceSetting = DeviceSetting::query()
             ->where('user_id', Auth::id())
             ->first();
-        $registration = $user?->bingwaDeviceRegistration;
+        $registration = $user ? $user->bingwaDeviceRegistration : null;
 
-        $deviceId = $registration?->hardware_id ?? $user?->autoreach_connect_id ?? 'Unknown';
-        $deviceCode = $registration?->bhc_code ?? 'None';
+        $deviceId = ($registration ? $registration->hardware_id : null) ?? ($user ? $user->autoreach_connect_id : null) ?? 'Unknown';
+        $deviceCode = ($registration ? $registration->bhc_code : null) ?? 'None';
         $osName = 'Android';
         $osVersion = 'Unknown';
 
@@ -218,29 +218,46 @@ class DeviceSettingsController extends BaseController
                 if (isset($infoResponse['data']['os_version'])) {
                     $osVersion = (string) $infoResponse['data']['os_version'];
                 }
-            } catch (Throwable) {
-                // Fall back to the stored registration details.
+            } catch (Throwable $throwable) {
+                Log::debug('Failed to retrieve device ID or info from NativePHP.', [
+                    'exception' => $throwable->getMessage(),
+                ]);
             }
         }
+
+        $operatorIdentity = ($deviceSetting ? $deviceSetting->operator_identity : null) ?? ($user ? $user->name : '');
+        $primaryTransactionSim = ($deviceSetting ? $deviceSetting->primary_transaction_sim : null) ?? 'slot_1';
+        $smsAutoReplySim = ($deviceSetting ? $deviceSetting->sms_auto_reply_sim : null) ?? 'slot_1';
+        $autoRescheduleRejected = ($deviceSetting ? $deviceSetting->auto_reschedule_rejected : null) ?? false;
+        $retryTomorrowAt = ($deviceSetting ? $deviceSetting->retry_tomorrow_at : null) ?? '12:30 AM';
+        $ussdTimeoutSeconds = ($deviceSetting ? $deviceSetting->ussd_timeout_seconds : null) ?? 60;
+        $intelligentAutoRetry = ($deviceSetting ? $deviceSetting->intelligent_auto_retry : null) ?? true;
+        $retryIntervalMinutes = ($deviceSetting ? $deviceSetting->retry_interval_minutes : null) ?? 1;
+        $maxAttempts = ($deviceSetting ? $deviceSetting->max_attempts : null) ?? 2;
+        $retryNetworkIssues = ($deviceSetting ? $deviceSetting->retry_network_issues : null) ?? false;
+        $transactionProcessingEnabled = ($deviceSetting ? $deviceSetting->transaction_processing_enabled : null) ?? true;
+        $incomingSmsEnabled = ($deviceSetting ? $deviceSetting->incoming_sms_enabled : null) ?? true;
+        $incomingSmsAllowAllSenders = ($deviceSetting ? $deviceSetting->incoming_sms_allow_all_senders : null) ?? false;
+        $incomingSmsSimSlot = ($deviceSetting ? $deviceSetting->incoming_sms_sim_slot : null) ?? 'all';
 
         return [
             'deviceId' => $deviceId,
             'deviceCode' => $deviceCode,
             'platformLabel' => $osVersion !== 'Unknown' ? trim("{$osName} {$osVersion}") : ($osName ?: __('Android')),
-            'operatorIdentity' => $deviceSetting?->operator_identity ?? $user?->name ?? '',
-            'primaryTransactionSim' => $deviceSetting?->primary_transaction_sim ?? 'slot_1',
-            'smsAutoReplySim' => $deviceSetting?->sms_auto_reply_sim ?? 'slot_1',
-            'autoRescheduleRejected' => (bool) ($deviceSetting?->auto_reschedule_rejected ?? false),
-            'retryTomorrowAt' => $deviceSetting?->retry_tomorrow_at ?? '12:30 AM',
-            'ussdTimeoutSeconds' => (string) ($deviceSetting?->ussd_timeout_seconds ?? 60),
-            'intelligentAutoRetry' => (bool) ($deviceSetting?->intelligent_auto_retry ?? true),
-            'retryIntervalMinutes' => (string) ($deviceSetting?->retry_interval_minutes ?? 1),
-            'maxAttempts' => (string) ($deviceSetting?->max_attempts ?? 2),
-            'retryNetworkIssues' => (bool) ($deviceSetting?->retry_network_issues ?? false),
-            'transactionProcessingEnabled' => (bool) ($deviceSetting?->transaction_processing_enabled ?? true),
-            'incomingSmsEnabled' => (bool) ($deviceSetting?->incoming_sms_enabled ?? true),
-            'incomingSmsAllowAllSenders' => (bool) ($deviceSetting?->incoming_sms_allow_all_senders ?? false),
-            'incomingSmsSimSlot' => $deviceSetting?->incoming_sms_sim_slot ?? 'all',
+            'operatorIdentity' => $operatorIdentity,
+            'primaryTransactionSim' => $primaryTransactionSim,
+            'smsAutoReplySim' => $smsAutoReplySim,
+            'autoRescheduleRejected' => (bool) $autoRescheduleRejected,
+            'retryTomorrowAt' => $retryTomorrowAt,
+            'ussdTimeoutSeconds' => (string) $ussdTimeoutSeconds,
+            'intelligentAutoRetry' => (bool) $intelligentAutoRetry,
+            'retryIntervalMinutes' => (string) $retryIntervalMinutes,
+            'maxAttempts' => (string) $maxAttempts,
+            'retryNetworkIssues' => (bool) $retryNetworkIssues,
+            'transactionProcessingEnabled' => (bool) $transactionProcessingEnabled,
+            'incomingSmsEnabled' => (bool) $incomingSmsEnabled,
+            'incomingSmsAllowAllSenders' => (bool) $incomingSmsAllowAllSenders,
+            'incomingSmsSimSlot' => $incomingSmsSimSlot,
             'simSlotOptions' => $this->simSlotOptions(),
             'incomingSmsSlotOptions' => $this->incomingSmsSlotOptions(),
             'retryScheduleOptions' => $this->retryScheduleOptions(),
@@ -313,8 +330,10 @@ class DeviceSettingsController extends BaseController
                 'allowAllSenders' => $setting->incoming_sms_allow_all_senders,
                 'simSlot' => $setting->incoming_sms_sim_slot ?? 'all',
             ], JSON_THROW_ON_ERROR));
-        } catch (Throwable) {
-            // The Laravel row remains the source of truth; native preferences resync on the next save.
+        } catch (Throwable $throwable) {
+            Log::warning('Failed to sync incoming SMS settings with NativePHP.', [
+                'exception' => $throwable->getMessage(),
+            ]);
         }
     }
 }

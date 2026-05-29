@@ -129,10 +129,8 @@ it('dispatches the existing transaction processor after queueing due auto renewa
         'status' => 'scheduled',
     ]);
 
-    $this->artisan('bingwa:process-auto-renewals', ['--user-id' => $user->id])
+    $this->artisan('bingwa:process-auto-renewals')
         ->assertExitCode(0);
 
-    Queue::assertPushed(ProcessBingwaQueuedTransactionsJob::class, function (ProcessBingwaQueuedTransactionsJob $job) use ($user): bool {
-        return $job->userId === $user->id;
-    });
+    Queue::assertPushed(ProcessBingwaQueuedTransactionsJob::class);
 });

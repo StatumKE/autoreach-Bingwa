@@ -1,10 +1,10 @@
 <?php
 
+use App\Jobs\SyncBingwaTransactionsJob;
 use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function (): void {
     $this->user = User::factory()->create();
@@ -17,32 +17,12 @@ beforeEach(function (): void {
     ]);
 });
 
-test('bingwa sync transactions command logs backend fetch lifecycle', function (): void {
-    Log::spy();
+test('bingwa sync transactions command queues background job', function (): void {
+    Queue::fake();
 
-    Http::fake([
-        'backend.statum.co.ke/api/v1/jobs/next/data_bundles*' => Http::response('', 204),
-        'backend.statum.co.ke/api/v1/jobs/next/sms*' => Http::response('', 204),
-        'backend.statum.co.ke/api/v1/jobs/next/airtime*' => Http::response('', 204),
-    ]);
-
-    $exitCode = Artisan::call('bingwa:sync-transactions', [
-        '--user-id' => $this->user->id,
-    ]);
+    $exitCode = Artisan::call('bingwa:sync-transactions');
 
     expect($exitCode)->toBe(0);
 
-    Log::shouldHaveReceived('debug')
-        ->with(
-            'Bingwa transactions sync fetching backend jobs.',
-            Mockery::on(fn (array $context): bool => $context['user_id'] === $this->user->id)
-        )
-        ->once();
-
-    Log::shouldHaveReceived('debug')
-        ->with(
-            'Bingwa transactions sync backend fetch finished.',
-            Mockery::on(fn (array $context): bool => $context['user_id'] === $this->user->id && $context['synced'] === 0 && $context['failed'] === 0)
-        )
-        ->once();
+    Queue::assertPushed(SyncBingwaTransactionsJob::class);
 });

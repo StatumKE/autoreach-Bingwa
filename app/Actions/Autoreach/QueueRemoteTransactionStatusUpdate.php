@@ -30,7 +30,6 @@ class QueueRemoteTransactionStatusUpdate
         }
 
         UpdateRemoteTransactionStatusJob::dispatchSync(
-            (int) $transaction->user_id,
             $remoteTransactionId,
             $status,
             $message,

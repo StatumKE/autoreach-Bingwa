@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Actions\Autoreach\SendBingwaHeartbeat;
+use App\Models\BingwaDeviceRegistration;
 use App\Models\Transaction;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -22,6 +23,11 @@ class AndroidRuntimeScheduler
     public function __construct(
         private SendBingwaHeartbeat $sendBingwaHeartbeat,
     ) {}
+
+    public static function transactionSyncKey(int $userId): string
+    {
+        return self::TRANSACTION_SYNC_KEY.':'.$userId;
+    }
 
     /**
      * @return array{ran: bool, heartbeat: bool, transaction_sync: bool, next_tick_seconds: int}
@@ -77,9 +83,7 @@ class AndroidRuntimeScheduler
                     'last_sync_at' => $lastSyncStr,
                 ]);
 
-                $exitCode = Artisan::call('bingwa:sync-transactions', [
-                    '--user-id' => $user->getKey(),
-                ]);
+                $exitCode = Artisan::call('bingwa:sync-transactions');
                 $transactionSync = $exitCode === 0;
                 Log::debug('Bingwa runtime tick transaction sync command finished.', [
                     'user_id' => $user->getKey(),
@@ -100,9 +104,7 @@ class AndroidRuntimeScheduler
                 'user_id' => $user->getKey(),
             ]);
 
-            $autoRenewalExitCode = Artisan::call('bingwa:process-auto-renewals', [
-                '--user-id' => $user->getKey(),
-            ]);
+            $autoRenewalExitCode = Artisan::call('bingwa:process-auto-renewals');
 
             $nextTickSeconds = $this->nextTickSeconds($user->getKey(), $currentTime);
 
@@ -129,17 +131,28 @@ class AndroidRuntimeScheduler
 
     private function registeredUser(): ?User
     {
-        return User::query()
-            ->with('bingwaDeviceRegistration')
-            ->whereHas('bingwaDeviceRegistration', function ($query): void {
-                $query->whereNotNull('device_token')
-                    ->where('device_token', '!=', '')
-                    ->where(function ($query): void {
-                        $query->whereNull('status')
-                            ->orWhere('status', '!=', 'stopped');
-                    });
+        $registration = BingwaDeviceRegistration::query()
+            ->whereNotNull('device_token')
+            ->where('device_token', '!=', '')
+            ->where(function ($query): void {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'stopped');
             })
             ->first();
+
+        if (! $registration) {
+            return null;
+        }
+
+        $user = User::query()->first();
+
+        if ($user) {
+            $user->setRelation('bingwaDeviceRegistration', $registration);
+
+            return $user;
+        }
+
+        return null;
     }
 
     /**
@@ -167,10 +180,5 @@ class AndroidRuntimeScheduler
             ->exists();
 
         return $hasQueued ? 15 : self::TICK_SECONDS;
-    }
-
-    public static function transactionSyncKey(int $userId): string
-    {
-        return self::TRANSACTION_SYNC_KEY.':'.$userId;
     }
 }

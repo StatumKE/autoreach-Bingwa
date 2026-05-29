@@ -30,9 +30,8 @@ test('push notification received dispatches a transaction sync job for the match
         'device_id' => '45',
     ]));
 
-    Bus::assertDispatchedSync(SyncBingwaTransactionsJob::class, function (SyncBingwaTransactionsJob $job) use ($user): bool {
-        return $job->userId === $user->getKey()
-            && $job->pushData['device_id'] === '45';
+    Bus::assertDispatchedSync(SyncBingwaTransactionsJob::class, function (SyncBingwaTransactionsJob $job): bool {
+        return $job->pushData['device_id'] === '45';
     });
 });
 

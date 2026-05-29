@@ -332,36 +332,38 @@ class extends Component {
                         </span>
                     </div>
                     <p class="text-[12px] text-zinc-400 leading-relaxed">Reads USSD responses from the network to confirm transaction delivery.</p>
-                    <div x-show="!status.accessibilityEnabled" x-cloak class="mt-3 rounded-2xl border border-amber-500/20 bg-amber-500/8 p-4">
+                    <button
+                        x-show="!status.accessibilityEnabled"
+                        x-cloak
+                        @click="openAccessibilitySettings()"
+                        class="mt-3 inline-flex items-center px-4 py-2.5 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95"
+                    >
+                        Open Accessibility
+                    </button>
+                    <div x-show="!status.accessibilityEnabled" x-cloak class="mt-2.5">
+                        <p class="text-[11px] text-zinc-500 leading-relaxed">
+                            On <strong class="text-zinc-300">Samsung</strong>, tap <strong class="text-zinc-300">Installed apps</strong>. On <strong class="text-zinc-300">other devices</strong>, look for <strong class="text-zinc-300">Downloaded apps</strong> or <strong class="text-zinc-300">Installed services</strong>. Select <strong class="text-zinc-300">Bingwa USSD Automation</strong> and turn it on.
+                        </p>
+                    </div>
+                    <div x-show="!status.accessibilityEnabled" x-cloak class="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/8 p-4">
                         <div class="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300">Restricted settings</div>
                         <p class="mt-2 text-[12px] leading-relaxed text-zinc-300">
-                            If Android hides this service, open app info first, allow restricted settings, then come back and enable Bingwa USSD Automation.
+                            If Android shows a "Restricted Setting" dialogue and blocks the service:
                         </p>
                         <ol class="mt-3 space-y-1.5 text-[11px] leading-relaxed text-zinc-400 list-decimal pl-4">
-                            <li>Open the app info screen.</li>
-                            <li>Tap <strong class="text-zinc-200">More</strong>.</li>
+                            <li>Tap <strong class="text-zinc-200">Open App Info</strong> below.</li>
+                            <li>Tap the three dots (<strong class="text-zinc-200">More</strong>) in the top-right corner.</li>
                             <li>Tap <strong class="text-zinc-200">Allow restricted settings</strong>.</li>
-                            <li>Return here and enable the service.</li>
+                            <li>Return here, open accessibility, and enable the service.</li>
                         </ol>
-                        <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+                        <div class="mt-4">
                             <button
                                 @click="openAppInfo()"
-                                class="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-zinc-950 transition active:scale-95"
+                                class="inline-flex items-center justify-center rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-white transition active:scale-95 hover:bg-zinc-800"
                             >
                                 Open App Info
                             </button>
-                            <button
-                                @click="openAccessibilitySettings()"
-                                class="inline-flex items-center justify-center rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-white transition active:scale-95 hover:bg-zinc-800"
-                            >
-                                Open Accessibility
-                            </button>
                         </div>
-                    </div>
-                    <div x-show="!status.accessibilityEnabled" x-cloak class="mt-3 space-y-2">
-                        <p class="text-[10px] text-zinc-500 leading-relaxed">
-                            After you allow restricted settings in app info, return here and enable <strong class="text-zinc-300">Autoreach Bingwa</strong>.
-                        </p>
                     </div>
                 </div>
             </div>

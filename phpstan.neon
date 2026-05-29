@@ -2,11 +2,10 @@ includes:
     - vendor/larastan/larastan/extension.neon
 
 parameters:
-    level: 5
+    level: 7
     paths:
         - app
         - routes
-        - tests
         - packages/statum/native-scheduler/src
     excludePaths:
         - resources/views

@@ -166,9 +166,7 @@ test('resuming transaction processing dispatches the queued processor', function
         'transaction_processing_enabled' => true,
     ]);
 
-    Bus::assertDispatched(ProcessBingwaQueuedTransactionsJob::class, function (ProcessBingwaQueuedTransactionsJob $job) use ($user): bool {
-        return $job->userId === $user->id;
-    });
+    Bus::assertDispatched(ProcessBingwaQueuedTransactionsJob::class);
 });
 
 test('operator identity can be updated with a plain post form', function () {

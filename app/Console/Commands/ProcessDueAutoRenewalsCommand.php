@@ -9,7 +9,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
-#[Signature('bingwa:process-auto-renewals {--user-id= : Restrict processing to a specific user ID}')]
+#[Signature('bingwa:process-auto-renewals')]
 #[Description('Convert due auto-renewal schedules into queued Bingwa transactions.')]
 class ProcessDueAutoRenewalsCommand extends Command
 {
@@ -18,13 +18,9 @@ class ProcessDueAutoRenewalsCommand extends Command
      */
     public function handle(ProcessDueAutoRenewals $processDueAutoRenewals): int
     {
-        $result = $processDueAutoRenewals->process(
-            $this->option('user-id') ? (int) $this->option('user-id') : null,
-        );
+        $result = $processDueAutoRenewals->process();
 
-        foreach ($result['users'] as $userId) {
-            app(DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) $userId);
-        }
+        app(DispatchBingwaQueuedTransactionsJob::class)->dispatch();
 
         Log::info('Auto-renewal processing command finished.', $result);
 

@@ -399,8 +399,14 @@ new #[Title('Dashboard')] class extends Component
             <flux:icon.exclamation-circle class="mt-0.5 size-4 shrink-0 text-red-500 animate-pulse" />
             <div class="min-w-0 flex-1">
                 <div class="text-xs font-black text-red-900 leading-tight">{{ __('Accessibility Service Off') }}</div>
-                <div class="mt-0.5 text-[11px] leading-snug text-red-800/90 font-medium">
-                    {{ __('USSD automated package delivery cannot run without the accessibility service. Please enable Autoreach Bingwa in settings.') }}
+                <div class="mt-1 text-[11px] leading-snug text-red-800/90 font-semibold">
+                    {{ __('USSD automated package delivery cannot run without the accessibility service.') }}
+                </div>
+                <div class="mt-1.5 text-[10px] leading-relaxed text-red-800/80">
+                    Tap <strong class="font-bold text-red-900">Enable Service</strong> below. On <strong class="font-bold text-red-900">Samsung</strong>, tap <strong class="font-bold text-red-900">Installed apps</strong>. On <strong class="font-bold text-red-900">other devices</strong>, look for <strong class="font-bold text-red-900">Downloaded apps / services</strong>. Turn on <strong class="font-bold text-red-900">Bingwa USSD Automation</strong>.
+                </div>
+                <div class="mt-1.5 text-[9.5px] leading-relaxed text-red-700/80 border-t border-red-500/10 pt-1.5">
+                    If blocked by a <strong class="font-bold text-red-900">"Restricted Setting"</strong> pop-up: Open App Info, tap the three dots (<strong class="font-bold text-red-900">More</strong>) in the top-right corner, select <strong class="font-bold text-red-900">"Allow restricted settings"</strong>, and then enable it.
                 </div>
                 <div class="mt-2 flex items-center gap-2">
                     <button

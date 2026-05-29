@@ -23,7 +23,6 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
     use SerializesModels;
 
     public function __construct(
-        public int $userId,
         public ?string $flowId = null,
     ) {}
 
@@ -45,11 +44,10 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
     ): void {
         $flowId = $this->flowId ??= (string) Str::uuid();
 
-        $user = User::query()->with('bingwaDeviceRegistration')->find($this->userId);
+        $user = User::query()->with('bingwaDeviceRegistration')->first();
 
         if (! $user instanceof User) {
             Log::warning('Bingwa FCM sync job skipped because the user could not be found.', [
-                'user_id' => $this->userId,
                 'flow_id' => $flowId,
             ]);
 
@@ -214,7 +212,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
 
             if (is_string($token) && $token !== '') {
                 Log::debug('Bingwa FCM token resolved in backend job.', [
-                    'user_id' => $this->userId,
+                    'user_id' => $this->userId(),
                     'flow_id' => $this->flowId,
                     'token_hash' => hash('sha256', $token),
                 ]);
@@ -223,7 +221,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
             return is_string($token) && $token !== '' ? $token : null;
         } catch (\Throwable $throwable) {
             Log::warning('Bingwa FCM token lookup failed in backend job.', [
-                'user_id' => $this->userId,
+                'user_id' => $this->userId(),
                 'flow_id' => $this->flowId,
                 'message' => $throwable->getMessage(),
             ]);
@@ -232,5 +230,12 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
 
             return null;
         }
+    }
+
+    private function userId(): int
+    {
+        $user = User::query()->first();
+
+        return $user ? $user->id : 0;
     }
 }

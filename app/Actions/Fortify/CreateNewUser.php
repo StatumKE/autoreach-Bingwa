@@ -8,7 +8,7 @@ use App\Concerns\ProfileValidationRules;
 use App\Jobs\SyncBingwaFcmTokenJob;
 use App\Models\DeviceSetting;
 use App\Models\User;
-use Illuminate\Cache\LockTimeoutException;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -112,7 +112,7 @@ class CreateNewUser implements CreatesNewUsers
                 'flow_id' => $flowId,
             ]);
 
-            SyncBingwaFcmTokenJob::dispatch($user->getKey(), $flowId);
+            SyncBingwaFcmTokenJob::dispatch($flowId);
 
             Log::debug('Bingwa FCM enrollment job dispatched to the queue.', [
                 'user_id' => $user->getKey(),

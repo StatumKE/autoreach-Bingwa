@@ -88,9 +88,7 @@ test('quick dial page queues an award transaction for the normal processor', fun
         'offer_local_id' => (string) $offer->id,
     ]);
 
-    Queue::assertPushed(ProcessBingwaQueuedTransactionsJob::class, function (ProcessBingwaQueuedTransactionsJob $job) use ($user): bool {
-        return $job->userId === $user->id;
-    });
+    Queue::assertPushed(ProcessBingwaQueuedTransactionsJob::class);
 });
 
 test('quick dial page normalizes the phone before queueing the award transaction', function () {

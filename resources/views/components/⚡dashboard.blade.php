@@ -339,7 +339,7 @@ new #[Title('Dashboard')] class extends Component
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
                     },
                     body: JSON.stringify({
                         method: 'CheckSetupStatus',
@@ -360,7 +360,7 @@ new #[Title('Dashboard')] class extends Component
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
                     },
                     body: JSON.stringify({
                         method: 'OpenAccessibilitySettings',
@@ -372,8 +372,8 @@ new #[Title('Dashboard')] class extends Component
             }
         }
     }"
-    x-init="checkAccessibility(); setInterval(() => checkAccessibility(), 10000);"
-    @visibilitychange.window="if (document.visibilityState === 'visible') checkAccessibility()"
+    x-init="checkAccessibility(); setInterval(() => $data.checkAccessibility(), 10000);"
+    @visibilitychange.window="if (document.visibilityState === 'visible') $data.checkAccessibility()"
 >
     <div class="mx-auto flex h-full max-w-[780px] flex-col gap-3 lg:h-auto">
         {{-- Greeting --}}

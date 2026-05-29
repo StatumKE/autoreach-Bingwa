@@ -92,7 +92,5 @@
                 };
             }
         </script>
-
-        @fluxScripts
     </body>
 </html>

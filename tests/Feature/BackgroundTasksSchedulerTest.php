@@ -8,10 +8,9 @@ it('registers the bingwa background tasks in the Laravel scheduler', function ()
 
     expect($console)
         ->toContain("Schedule::command('bingwa:heartbeat')->everyFifteenMinutes()->withoutOverlapping()")
-        ->toContain("Schedule::command('bingwa:sync-transactions')->everyFifteenMinutes()->withoutOverlapping()")
-        ->toContain("Schedule::command('bingwa:process-auto-renewals')->everyFifteenMinutes()->withoutOverlapping()")
-        ->toContain("Schedule::command('bingwa:fetch-airtime-balance')")
-        ->toContain("->cron('*/30 * * * *')")
+        ->toContain("Schedule::command('bingwa:sync-transactions')->everyFiveMinutes()->withoutOverlapping()")
+        ->toContain("Schedule::command('bingwa:process-auto-renewals')->everyFiveMinutes()->withoutOverlapping()")
+        ->toContain("Schedule::command('bingwa:fetch-airtime-balance')->everyFifteenMinutes()->withoutOverlapping()")
         ->not->toContain('->everyMinute()');
 });
 

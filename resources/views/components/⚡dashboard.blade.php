@@ -234,9 +234,7 @@ new #[Title('Dashboard')] class extends Component
     public function syncTransactions(): void
     {
         try {
-            \Illuminate\Support\Facades\Artisan::call('bingwa:sync-transactions', [
-                '--user-id' => Auth::id(),
-            ]);
+            \Illuminate\Support\Facades\Artisan::call('bingwa:sync-transactions');
 
             Cache::forget($this->dashboardMetricsCacheKey());
             $this->refreshTransactions();
@@ -260,7 +258,7 @@ new #[Title('Dashboard')] class extends Component
      */
     private function dashboardMetrics(): array
     {
-        return Cache::remember($this->dashboardMetricsCacheKey(), now()->addSeconds(30), function (): array {
+        return Cache::remember($this->dashboardMetricsCacheKey(), now()->addSeconds(5), function (): array {
             $userId = (int) Auth::id();
             $now = AppTimezone::now();
             $today = $now->toDateString();
@@ -423,7 +421,8 @@ new #[Title('Dashboard')] class extends Component
 
 
         {{-- Stat Cards --}}
-        <div class="grid grid-cols-3 gap-2">
+        @island
+        <div wire:poll.visible.5s class="grid grid-cols-3 gap-2">
 
         {{-- CALL_PHONE permission warning --}}
         @if ($this->callPhonePermissionDenied)
@@ -465,9 +464,11 @@ new #[Title('Dashboard')] class extends Component
                 </div>
             </a>
         </div>
+        @endisland
 
+        @island
         {{-- Airtime Row --}}
-        <div class="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-xl bg-[#f6f8f0] px-2 py-1.5 ring-1 ring-black/5">
+        <div wire:poll.visible.180s="refreshAirtimeBalance" class="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-xl bg-[#f6f8f0] px-2 py-1.5 ring-1 ring-black/5">
             <div class="flex flex-col items-center text-center">
                 <div class="text-[8px] font-bold uppercase tracking-wider text-zinc-500">{{ __('Airtime Used Today') }}</div>
                 <div class="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-zinc-800">
@@ -516,6 +517,7 @@ new #[Title('Dashboard')] class extends Component
                 <flux:icon.arrow-path class="size-4" />
             </button>
         </div>
+        @endisland
 
         {{-- Commission Chart --}}
         <div class="rounded-xl bg-[#f6f8f0] px-4 py-3 ring-1 ring-black/5">
@@ -581,7 +583,7 @@ new #[Title('Dashboard')] class extends Component
         </div>
 
         @island
-            <div wire:poll.visible.10s class="flex min-h-0 flex-1 flex-col gap-2">
+            <div wire:poll.visible.5s class="flex min-h-0 flex-1 flex-col gap-2">
                 {{-- Recent Transactions --}}
                 <div class="flex items-center justify-between px-1 pt-1">
                     <div class="text-xs font-bold text-zinc-900">{{ __('Recent Transactions') }}</div>

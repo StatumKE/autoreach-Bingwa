@@ -68,7 +68,7 @@ class PersistBingwaTransaction
 
         if (
             $existingTransaction !== null
-            && $existingTransaction->status === 'processing'
+            && in_array($existingTransaction->status, ['processing', 'completed', 'failed'], true)
         ) {
             return [
                 'transaction' => null,

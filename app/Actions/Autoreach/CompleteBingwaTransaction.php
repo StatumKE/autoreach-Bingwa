@@ -4,7 +4,9 @@ namespace App\Actions\Autoreach;
 
 use App\Jobs\SendAutoReplySmsJob;
 use App\Models\Transaction;
+use App\Support\AppTimezone;
 use App\Support\BingwaTransactionFailureCode;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -86,6 +88,9 @@ class CompleteBingwaTransaction
                 failureCode: BingwaTransactionFailureCode::fromStatusAndMessage($status, $message),
             );
         });
+
+        $cacheKey = 'dashboard:metrics:'.$transaction->user_id.':'.AppTimezone::now()->toDateString();
+        Cache::forget($cacheKey);
 
         return true;
     }

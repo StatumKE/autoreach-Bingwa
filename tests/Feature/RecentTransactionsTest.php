@@ -24,5 +24,5 @@ test('recent transactions render the latest records for the current user', funct
         ->assertSee('1 GB Data')
         ->assertSee('Transaction completed successfully.')
         ->assertSee('Ksh 19.00')
-        ->assertSee('wire:poll.visible.10s');
+        ->assertSee('wire:poll.visible.5s');
 });

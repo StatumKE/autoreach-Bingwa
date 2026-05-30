@@ -141,9 +141,7 @@ new #[Title('Transactions')] class extends Component
     public function syncTransactions(): void
     {
         try {
-            \Illuminate\Support\Facades\Artisan::call('bingwa:sync-transactions', [
-                '--user-id' => Auth::id(),
-            ]);
+            \Illuminate\Support\Facades\Artisan::call('bingwa:sync-transactions');
 
             $processingEnabled = DeviceSetting::isTransactionProcessingEnabledForUser((int) Auth::id());
 

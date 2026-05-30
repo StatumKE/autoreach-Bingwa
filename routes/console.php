@@ -10,6 +10,6 @@ Artisan::command('inspire', function () {
 
 // Heartbeat, transaction sync, and auto-renewal schedules
 Schedule::command('bingwa:heartbeat')->everyFifteenMinutes()->withoutOverlapping();
-Schedule::command('bingwa:sync-transactions')->everyFifteenMinutes()->withoutOverlapping();
-Schedule::command('bingwa:process-auto-renewals')->everyFifteenMinutes()->withoutOverlapping();
-Schedule::command('bingwa:fetch-airtime-balance')->cron('*/30 * * * *')->onAnyNetwork()->withoutOverlapping();
+Schedule::command('bingwa:sync-transactions')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('bingwa:process-auto-renewals')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('bingwa:fetch-airtime-balance')->everyFifteenMinutes()->withoutOverlapping();

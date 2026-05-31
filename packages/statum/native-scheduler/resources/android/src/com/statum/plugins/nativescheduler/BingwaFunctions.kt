@@ -121,7 +121,6 @@ object BingwaFunctions {
                 "phoneGranted" to isPhoneGranted(context),
                 "smsGranted" to isSmsGranted(context),
                 "incomingSmsGranted" to isIncomingSmsGranted(context),
-                "contactsGranted" to isContactsGranted(context),
                 "notificationsGranted" to isNotificationsGranted(context),
                 "batteryUnrestricted" to isBatteryUnrestricted(context),
                 "accessibilityEnabled" to isAccessibilityServiceEnabled(context),
@@ -167,9 +166,6 @@ object BingwaFunctions {
                 missing.add(Manifest.permission.RECEIVE_SMS)
                 missing.add(Manifest.permission.READ_PHONE_STATE)
             }
-            if (!isContactsGranted(activity)) {
-                missing.add(Manifest.permission.READ_CONTACTS)
-            }
             if (!isNotificationsGranted(activity)) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     missing.add(Manifest.permission.POST_NOTIFICATIONS)
@@ -181,7 +177,6 @@ object BingwaFunctions {
                     "requested" to false,
                     "phoneGranted" to true,
                     "smsGranted" to true,
-                    "contactsGranted" to true,
                     "notificationsGranted" to true,
                 )
             }
@@ -198,7 +193,6 @@ object BingwaFunctions {
                 "requested" to true,
                 "phoneGranted" to isPhoneGranted(activity),
                 "smsGranted" to isSmsGranted(activity),
-                "contactsGranted" to isContactsGranted(activity),
                 "notificationsGranted" to isNotificationsGranted(activity),
             )
         }
@@ -431,7 +425,6 @@ object BingwaFunctions {
             add(Manifest.permission.CALL_PHONE)
             add(Manifest.permission.SEND_SMS)
             add(Manifest.permission.RECEIVE_SMS)
-            add(Manifest.permission.READ_CONTACTS)
             add(Manifest.permission.READ_PHONE_STATE)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
@@ -452,10 +445,6 @@ object BingwaFunctions {
 
     private fun isIncomingSmsGranted(context: Context): Boolean {
         return ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun isContactsGranted(context: Context): Boolean {
-        return ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun isNotificationsGranted(context: Context): Boolean {

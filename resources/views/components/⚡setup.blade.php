@@ -20,14 +20,13 @@ class extends Component {
         status: {
             phoneGranted: false,
             smsGranted: false,
-            contactsGranted: false,
             notificationsGranted: false,
             batteryUnrestricted: false,
             accessibilityEnabled: false,
             overlayGranted: false,
         },
         get total() {
-            return 7;
+            return 6;
         },
         get grantedCount() {
             return Object.values(this.status).filter(Boolean).length;
@@ -52,7 +51,6 @@ class extends Component {
 
             this.status.phoneGranted = data.phoneGranted ?? false;
             this.status.smsGranted = data.smsGranted ?? false;
-            this.status.contactsGranted = data.contactsGranted ?? false;
             this.status.notificationsGranted = data.notificationsGranted ?? false;
             this.status.batteryUnrestricted = data.batteryUnrestricted ?? false;
             this.status.accessibilityEnabled = data.accessibilityEnabled ?? false;
@@ -210,39 +208,7 @@ class extends Component {
             </div>
         </div>
 
-        {{-- Contacts --}}
-        <div
-            class="rounded-2xl p-5 border transition-all duration-300"
-            :class="status.contactsGranted ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
-        >
-            <div class="flex items-start gap-4">
-                <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-colors duration-300"
-                    :class="status.contactsGranted ? 'bg-green-500/20' : 'bg-zinc-800'">
-                    <svg class="w-5 h-5 transition-colors duration-300" :class="status.contactsGranted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/>
-                    </svg>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                        <span class="font-black text-[15px]">Contacts</span>
-                        <span x-show="status.contactsGranted" class="text-[10px] font-black text-green-400 uppercase tracking-widest flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
-                            Granted
-                        </span>
-                    </div>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed">Read your device address book for customer lookup.</p>
-                    <button
-                        x-show="!status.contactsGranted"
-                        x-cloak
-                        @click="requestRuntimePermissions()"
-                        :disabled="requesting"
-                        class="mt-3 inline-flex items-center px-4 py-2 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
-                    >
-                        Grant Access
-                    </button>
-                </div>
-            </div>
-        </div>
+
 
         {{-- Notifications --}}
         <div

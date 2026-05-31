@@ -21,6 +21,14 @@ class DeviceSettingsController extends BaseController
 
     public function updateIdentity(Request $request): RedirectResponse
     {
+        $operatorIdentity = $request->route('operatorIdentity');
+
+        if ($operatorIdentity !== null) {
+            $request->merge([
+                'operator_identity' => $operatorIdentity,
+            ]);
+        }
+
         $validated = $request->validate([
             'operator_identity' => ['required', 'string', 'max:120'],
         ]);

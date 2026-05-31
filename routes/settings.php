@@ -10,6 +10,8 @@ Route::livewire('settings/profile', 'pages::settings.profile')->middleware(['aut
 Route::get('settings/device', [DeviceSettingsController::class, 'edit'])->middleware(['auth'])->name('device.edit');
 Route::get('settings/device/hardware', fn () => redirect()->route('device.edit'))->middleware(['auth'])->name('device.hardware.fallback');
 Route::get('settings/device/hardware/{primaryTransactionSim}/{smsAutoReplySim}', fn () => redirect()->route('device.edit'))->middleware(['auth'])->name('device.hardware.path.fallback');
+Route::get('settings/device/identity/{operatorIdentity?}', fn () => redirect()->route('device.edit'))->middleware(['auth'])->name('device.identity.path.fallback');
+Route::post('settings/device/identity/{operatorIdentity?}', [DeviceSettingsController::class, 'updateIdentity'])->middleware(['auth'])->name('device.identity.update.path');
 Route::post('settings/device', [DeviceSettingsController::class, 'updateIdentity'])->middleware(['auth'])->name('device.identity.update');
 Route::post('settings/device/hardware/{primaryTransactionSim}/{smsAutoReplySim}', [DeviceSettingsController::class, 'updateHardware'])->middleware(['auth'])->name('device.hardware.update.path');
 Route::post('settings/device/hardware', [DeviceSettingsController::class, 'updateHardware'])->middleware(['auth'])->name('device.hardware.update');

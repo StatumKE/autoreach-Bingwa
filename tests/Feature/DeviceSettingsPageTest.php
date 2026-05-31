@@ -186,6 +186,33 @@ test('operator identity can be updated with a plain post form', function () {
     ]);
 });
 
+test('operator identity can be updated when android drops the post body', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user);
+
+    $this->from(route('device.edit'))
+        ->post(route('device.identity.update.path', [
+            'operatorIdentity' => 'Bob Mwenda',
+        ]))
+        ->assertRedirect(route('device.edit'));
+
+    $this->assertDatabaseHas('device_settings', [
+        'user_id' => $user->id,
+        'operator_identity' => 'Bob Mwenda',
+    ]);
+});
+
+test('android fallback get after identity save redirects back to device settings', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get('/settings/device/identity')
+        ->assertRedirect(route('device.edit'));
+
+    $this->get('/settings/device/identity/Bob Mwenda')
+        ->assertRedirect(route('device.edit'));
+});
+
 test('sim slot mapping can be updated with a plain post form', function () {
     $user = User::factory()->create();
 

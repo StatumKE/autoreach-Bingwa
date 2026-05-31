@@ -35,7 +35,23 @@
             </div>
 
             <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-                <form id="form-device-identity" method="POST" action="{{ route('device.identity.update') }}" class="space-y-6">
+                <form
+                    id="form-device-identity"
+                    method="POST"
+                    action="{{ route('device.identity.update.path', ['operatorIdentity' => $operatorIdentity]) }}"
+                    class="space-y-6"
+                    data-identity-action-template="{{ url('/settings/device/identity/__OPERATOR_IDENTITY__') }}"
+                    oninput="
+                        const val = this.elements.operator_identity?.value || '';
+                        this.action = this.dataset.identityActionTemplate
+                            .replace('__OPERATOR_IDENTITY__', encodeURIComponent(val));
+                    "
+                    onsubmit="
+                        const val = this.elements.operator_identity?.value || '';
+                        this.action = this.dataset.identityActionTemplate
+                            .replace('__OPERATOR_IDENTITY__', encodeURIComponent(val));
+                    "
+                >
                     @csrf
 
                     <div class="flex items-center justify-between gap-4">

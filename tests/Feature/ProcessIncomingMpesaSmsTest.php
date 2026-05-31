@@ -185,6 +185,21 @@ it('ignores incoming M-Pesa SMS when no offer matches the amount and no auto rep
         ->and($transaction)->toBeNull();
 });
 
+it('saves a failed local transaction when there is no active plan', function (): void {
+    $user = registeredIncomingSmsUser();
+    // No plan created for $user
+
+    $result = app(ProcessIncomingMpesaSms::class)->process(incomingSmsPayload());
+    $transaction = Transaction::query()->where('mpesa_code', 'UBO817Y3ZG')->first();
+
+    expect($result['status'])->toBe('failed')
+        ->and($result['message'])->toBe('no_active_plan')
+        ->and($transaction)->not->toBeNull()
+        ->and($transaction->status)->toBe('failed')
+        ->and($transaction->status_desc)->toBe('No active subscription plan found.')
+        ->and($transaction->processed_at)->not->toBeNull();
+});
+
 it('rejects untrusted senders by default and accepts them when allow all is enabled', function (): void {
     $user = registeredIncomingSmsUser();
     Plan::factory()->for($user)->create(['is_active' => true, 'type' => 'time_unlimited']);

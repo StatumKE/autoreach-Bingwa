@@ -88,10 +88,6 @@ class ProcessIncomingMpesaSms
         $offer = $this->matchingOffer($user, $parsed);
 
         if (! $activePlan instanceof Plan) {
-            if (! $this->hasActiveAutoReply($user, 'failed_transaction')) {
-                return $this->ignored('no_active_plan_and_no_auto_reply');
-            }
-
             $transaction = $this->createFailedTransaction(
                 user: $user,
                 parsed: $parsed,

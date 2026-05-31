@@ -228,10 +228,6 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
 
     private function userId(): int
     {
-        if ($this->userId !== null) {
-            return $this->userId;
-        }
-
         $user = User::query()->first();
 
         return $user ? $user->id : 0;

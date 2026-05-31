@@ -5,6 +5,7 @@ namespace App\Actions\Autoreach;
 use App\Models\AutoRenewal;
 use App\Models\Offer;
 use App\Models\Transaction;
+use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -21,6 +22,9 @@ class ProcessDueAutoRenewals
      */
     public function process(?int $userId = null): array
     {
+        $user = User::query()->first();
+        $userId = $user ? $user->id : null;
+
         $lock = Cache::lock(self::LOCK_KEY, 55);
 
         if (! $lock->get()) {

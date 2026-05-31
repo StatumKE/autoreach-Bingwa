@@ -170,6 +170,9 @@ class AndroidRuntimeScheduler
 
     private function nextTickSeconds(int $userId, CarbonInterface $currentTime): int
     {
+        $user = User::query()->first();
+        $userId = $user ? $user->id : $userId;
+
         $hasQueued = Transaction::query()
             ->where('user_id', $userId)
             ->where('status', 'queued')

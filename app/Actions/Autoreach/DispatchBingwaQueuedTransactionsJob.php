@@ -12,10 +12,8 @@ class DispatchBingwaQueuedTransactionsJob
 {
     public function dispatch(?int $userId = null): bool
     {
-        if ($userId === null) {
-            $user = User::query()->first();
-            $userId = $user ? $user->id : 0;
-        }
+        $user = User::query()->first();
+        $userId = $user ? $user->id : 0;
 
         if ($userId === 0) {
             return false;

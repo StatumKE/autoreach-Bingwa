@@ -5,6 +5,7 @@ namespace App\Actions\Autoreach;
 use App\Models\DeviceSetting;
 use App\Models\Plan;
 use App\Models\Transaction;
+use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -27,23 +28,27 @@ class GetNextBingwaQueuedTransaction
     {
         $this->recoverStuckTransactions();
 
-        if ($userId !== null) {
-            // Use the caller-supplied flag when available; fall back to a
-            // Cache::memo() lookup so repeated calls within the same job
-            // execution hit memory instead of Redis/DB every time.
-            $enabled = $isProcessingEnabled ?? Cache::memo()->remember(
-                "user_{$userId}_transaction_processing_enabled",
-                300,
-                fn () => DeviceSetting::isTransactionProcessingEnabledForUser($userId),
-            );
+        $user = User::query()->first();
+        if ($user === null) {
+            return null;
+        }
+        $userId = $user->id;
 
-            if (! $enabled) {
-                Log::info('Bingwa USSD processor lookup skipped because processing is paused.', [
-                    'user_id' => $userId,
-                ]);
+        // Use the caller-supplied flag when available; fall back to a
+        // Cache::memo() lookup so repeated calls within the same job
+        // execution hit memory instead of Redis/DB every time.
+        $enabled = $isProcessingEnabled ?? Cache::memo()->remember(
+            "user_{$userId}_transaction_processing_enabled",
+            300,
+            fn () => DeviceSetting::isTransactionProcessingEnabledForUser($userId),
+        );
 
-                return null;
-            }
+        if (! $enabled) {
+            Log::info('Bingwa USSD processor lookup skipped because processing is paused.', [
+                'user_id' => $userId,
+            ]);
+
+            return null;
         }
 
         $transactionQuery = Transaction::query()

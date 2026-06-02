@@ -67,6 +67,45 @@ it('parses date-first M-Pesa SMS with a 01XXXXXXXX sender number', function (): 
         ->and($parsed->occurredAt->format('Y-m-d H:i'))->toBe('2026-05-17 19:38');
 });
 
+it('parses SMS with spelling mistake costt', function (): void {
+    $parsed = app(MpesaReceivedSmsParser::class)->parse(
+        'UEV456HTH2 Confirmed.on 31/5/26 at 8:24 PMKSH20.00 received from 254728430227 Kelvin Kiswili Mutua. New Account balance is KSH23,061.57. Transaction costt, KSH0.00.'
+    );
+
+    expect($parsed)->not->toBeNull()
+        ->and($parsed->code)->toBe('UEV456HTH2')
+        ->and($parsed->amount)->toBe('20.00')
+        ->and($parsed->senderName)->toBe('Kelvin Kiswili Mutua')
+        ->and($parsed->senderPhone)->toBe('0728430227')
+        ->and($parsed->occurredAt->format('Y-m-d H:i'))->toBe('2026-05-31 20:24');
+});
+
+it('parses SMS ending in Transaction co', function (): void {
+    $parsed = app(MpesaReceivedSmsParser::class)->parse(
+        'UEVKT5Y0TI Confirmed.on 31/5/26 at 8:24 PMKSH20.00 received from 254703329884 Yohana Mayungu Maikuba. New Account balance is KSH22,933.57. Transaction co KSH0.00.'
+    );
+
+    expect($parsed)->not->toBeNull()
+        ->and($parsed->code)->toBe('UEVKT5Y0TI')
+        ->and($parsed->amount)->toBe('20.00')
+        ->and($parsed->senderName)->toBe('Yohana Mayungu Maikuba')
+        ->and($parsed->senderPhone)->toBe('0703329884')
+        ->and($parsed->occurredAt->format('Y-m-d H:i'))->toBe('2026-05-31 20:24');
+});
+
+it('parses SMS with trailing question mark', function (): void {
+    $parsed = app(MpesaReceivedSmsParser::class)->parse(
+        'UEV8661DJ3 Confirmed.on 31/5/26 at 8:20 PMKSH20.00 received from 254719404225 NANCY NYAMVULA CHENGO. New Account balance is KSH23,178.57. Transaction cost, KSH0.00.?'
+    );
+
+    expect($parsed)->not->toBeNull()
+        ->and($parsed->code)->toBe('UEV8661DJ3')
+        ->and($parsed->amount)->toBe('20.00')
+        ->and($parsed->senderName)->toBe('NANCY NYAMVULA CHENGO')
+        ->and($parsed->senderPhone)->toBe('0719404225')
+        ->and($parsed->occurredAt->format('Y-m-d H:i'))->toBe('2026-05-31 20:20');
+});
+
 it('rejects unsupported bodies invalid phones and invalid dates', function (): void {
     $parser = app(MpesaReceivedSmsParser::class);
 

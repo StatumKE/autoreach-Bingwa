@@ -71,7 +71,6 @@
             "android.permission.CALL_PHONE",
             "android.permission.SEND_SMS",
             "android.permission.RECEIVE_SMS",
-            "android.permission.READ_CONTACTS",
             "android.permission.READ_PHONE_STATE",
             "android.permission.SYSTEM_ALERT_WINDOW",
             "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"

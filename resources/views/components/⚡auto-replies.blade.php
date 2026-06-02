@@ -402,7 +402,65 @@ new #[Title('Auto Replies')] class extends Component {
     }
 }; ?>
 
-<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3">
+<section
+    class="min-h-screen bg-app-bg px-4 pb-24 pt-3"
+    x-data="{
+        outboundSmsGranted: true,
+        requestingPermission: false,
+        async checkOutboundSms() {
+            try {
+                const res = await fetch('/_native/api/call', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+                    },
+                    body: JSON.stringify({ method: 'CheckSetupStatus', params: {} }),
+                });
+                if (!res.ok) { return; }
+                const envelope = await res.json();
+                const data = envelope?.data ?? null;
+                if (data) {
+                    this.outboundSmsGranted = data.outboundSmsGranted ?? true;
+                }
+            } catch {}
+        },
+        async requestOutboundSms() {
+            if (this.requestingPermission) { return; }
+            this.requestingPermission = true;
+            try {
+                const res = await fetch('/_native/api/call', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+                    },
+                    body: JSON.stringify({ method: 'RequestOutboundSmsPermission', params: {} }),
+                });
+                if (!res.ok) { return; }
+                const envelope = await res.json();
+                const data = envelope?.data ?? null;
+                if (data?.outboundSmsGranted) {
+                    this.outboundSmsGranted = true;
+                }
+            } catch {}
+            this.requestingPermission = false;
+        },
+        async toggleWithPermissionCheck(wireId) {
+            if (!this.outboundSmsGranted) {
+                await this.requestOutboundSms();
+                await new Promise(resolve => setTimeout(resolve, 600));
+                await this.checkOutboundSms();
+                if (!this.outboundSmsGranted) {
+                    return;
+                }
+            }
+            Livewire.find(wireId)?.call('toggleAutoReply', ...arguments);
+        },
+    }"
+    x-init="checkOutboundSms()"
+    @visibilitychange.window="if (document.visibilityState === 'visible') checkOutboundSms()"
+>
     @php
         $autoReplies = $this->loaded ? $this->autoReplies : collect();
     @endphp
@@ -431,6 +489,34 @@ new #[Title('Auto Replies')] class extends Component {
                 {{ $this->errorMessage }}
             </div>
         @endif
+
+        {{-- Outbound SMS permission warning --}}
+        <div
+            x-show="!outboundSmsGranted"
+            x-cloak
+            class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm"
+        >
+            <div class="flex items-start gap-3">
+                <div class="mt-0.5 shrink-0 text-amber-500">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-[11px] font-black uppercase tracking-widest text-amber-700">{{ __('SMS Permission Required') }}</div>
+                    <p class="mt-0.5 text-xs text-amber-600 leading-relaxed">{{ __('Auto-replies need permission to send SMS. Grant it to activate any reply.') }}</p>
+                    <button
+                        type="button"
+                        @click="requestOutboundSms()"
+                        :disabled="requestingPermission"
+                        class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition active:scale-95 disabled:opacity-50"
+                    >
+                        <span x-show="!requestingPermission">{{ __('Grant SMS Permission') }}</span>
+                        <span x-show="requestingPermission">{{ __('Requesting…') }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
 
         @if (! $this->loaded)
             <div class="flex flex-col gap-3">
@@ -495,7 +581,19 @@ new #[Title('Auto Replies')] class extends Component {
 
                             <button
                                 type="button"
-                                wire:click="toggleAutoReply({{ $autoReply->id }})"
+                                @click.prevent="
+                                    if (!$autoReply->is_active && !outboundSmsGranted) {
+                                        requestOutboundSms().then(() =>
+                                            checkOutboundSms().then(() => {
+                                                if (outboundSmsGranted) {
+                                                    $wire.toggleAutoReply({{ $autoReply->id }})
+                                                }
+                                            })
+                                        )
+                                    } else {
+                                        $wire.toggleAutoReply({{ $autoReply->id }})
+                                    }
+                                "
                                 class="flex h-10 w-16 items-center rounded-full ring-2 ring-inset transition {{ $autoReply->is_active ? 'justify-end bg-green-500/15 ring-green-500/35' : 'justify-start bg-zinc-100 ring-zinc-300' }}"
                                 aria-label="{{ $autoReply->is_active ? __('Disable auto reply') : __('Enable auto reply') }}"
                             >

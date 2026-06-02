@@ -50,6 +50,10 @@
         {
             "name": "OpenOverlaySettings",
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.OpenOverlaySettings"
+        },
+        {
+            "name": "RequestOutboundSmsPermission",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.RequestOutboundSmsPermission"
         }
     ],
     "assets": {

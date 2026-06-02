@@ -121,6 +121,7 @@ object BingwaFunctions {
                 "phoneGranted" to isPhoneGranted(context),
                 "smsGranted" to isSmsGranted(context),
                 "incomingSmsGranted" to isIncomingSmsGranted(context),
+                "outboundSmsGranted" to isOutboundSmsGranted(context),
                 "notificationsGranted" to isNotificationsGranted(context),
                 "batteryUnrestricted" to isBatteryUnrestricted(context),
                 "accessibilityEnabled" to isAccessibilityServiceEnabled(context),
@@ -162,7 +163,6 @@ object BingwaFunctions {
                 missing.add(Manifest.permission.READ_PHONE_STATE)
             }
             if (!isSmsGranted(activity)) {
-                missing.add(Manifest.permission.SEND_SMS)
                 missing.add(Manifest.permission.RECEIVE_SMS)
                 missing.add(Manifest.permission.READ_PHONE_STATE)
             }
@@ -194,6 +194,51 @@ object BingwaFunctions {
                 "phoneGranted" to isPhoneGranted(activity),
                 "smsGranted" to isSmsGranted(activity),
                 "notificationsGranted" to isNotificationsGranted(activity),
+            )
+        }
+    }
+
+    /**
+     * Request SEND_SMS permission on demand — only needed when the user activates
+     * an auto-reply rule. Not requested during initial app setup.
+     */
+    class RequestOutboundSmsPermission(private val activity: FragmentActivity) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            if (isOutboundSmsGranted(activity)) {
+                return mapOf(
+                    "requested" to false,
+                    "outboundSmsGranted" to true,
+                )
+            }
+
+            val permanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
+                activity,
+                Manifest.permission.SEND_SMS,
+            )
+
+            if (permanentlyDenied) {
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", activity.packageName, null)
+                }
+                activity.runOnUiThread {
+                    activity.startActivity(intent)
+                }
+                Log.i(TAG, "SEND_SMS permanently denied — opened App Settings")
+            } else {
+                activity.runOnUiThread {
+                    ActivityCompat.requestPermissions(
+                        activity,
+                        arrayOf(Manifest.permission.SEND_SMS),
+                        SETUP_PERMISSION_REQUEST_CODE,
+                    )
+                }
+                Log.i(TAG, "Requested SEND_SMS permission for outbound auto-reply")
+            }
+
+            return mapOf(
+                "requested" to true,
+                "outboundSmsGranted" to isOutboundSmsGranted(activity),
+                "openedSettings" to permanentlyDenied,
             )
         }
     }
@@ -423,7 +468,6 @@ object BingwaFunctions {
     private fun requiredRuntimePermissions(): List<String> {
         return buildList {
             add(Manifest.permission.CALL_PHONE)
-            add(Manifest.permission.SEND_SMS)
             add(Manifest.permission.RECEIVE_SMS)
             add(Manifest.permission.READ_PHONE_STATE)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -438,13 +482,16 @@ object BingwaFunctions {
     }
 
     private fun isSmsGranted(context: Context): Boolean {
-        return ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED &&
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun isIncomingSmsGranted(context: Context): Boolean {
         return ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun isOutboundSmsGranted(context: Context): Boolean {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun isNotificationsGranted(context: Context): Boolean {

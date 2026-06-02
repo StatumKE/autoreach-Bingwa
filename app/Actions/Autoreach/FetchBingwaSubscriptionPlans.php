@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class FetchBingwaSubscriptionPlans
 {
-    private const CACHE_TTL_MINUTES = 2;
+    private const CACHE_TTL_MINUTES = 60;
 
     /**
      * Fetch the available Bingwa subscription plans for the authenticated user.
@@ -29,11 +29,22 @@ class FetchBingwaSubscriptionPlans
 
         return Cache::flexible(
             $this->cacheKey($user->id, $deviceToken),
-            [30, 120],
+            [1800, 3600],
             function () use ($user, $deviceToken): array {
                 return $this->fetchFresh($user, $deviceToken);
             }
         );
+    }
+
+    /**
+     * Clear the cached plans for a user.
+     */
+    public function forget(User $user): void
+    {
+        $registration = $user->bingwaDeviceRegistration;
+        if ($registration !== null && filled($registration->device_token)) {
+            Cache::forget($this->cacheKey($user->id, $registration->device_token));
+        }
     }
 
     /**

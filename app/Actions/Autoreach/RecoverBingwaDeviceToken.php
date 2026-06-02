@@ -71,6 +71,10 @@ class RecoverBingwaDeviceToken
             'bhc_code' => is_string($bhcCode) && $bhcCode !== '' ? $bhcCode : $registration->bhc_code,
         ])->save();
 
+        if ($registration->user !== null) {
+            app(FetchBingwaSubscriptionPlans::class)->forget($registration->user);
+        }
+
         return $registration->refresh();
     }
 

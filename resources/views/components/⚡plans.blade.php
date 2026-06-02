@@ -274,6 +274,8 @@ new #[Title('Subscriptions')] class extends Component {
             (int) $this->activePlan->getKey(),
             filled($paymentReference) ? $paymentReference : null,
         );
+
+        app(FetchBingwaSubscriptionPlans::class)->forget($user);
         
         $this->selectedPlanId = null;
         $this->purchaseInFlight = false;

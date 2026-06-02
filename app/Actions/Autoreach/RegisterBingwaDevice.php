@@ -170,6 +170,8 @@ class RegisterBingwaDevice
             ],
         );
 
+        app(FetchBingwaSubscriptionPlans::class)->forget($user);
+
         return $record;
     }
 

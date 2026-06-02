@@ -71,3 +71,43 @@ it('does not clone the transaction if the failure message does not match', funct
     $clonesCount = Transaction::where('transaction_id', 'like', 'TXN54321-retry-%')->count();
     expect($clonesCount)->toBe(0);
 });
+
+it('processes auto-renewal clones optimally without N+1 issues', function () {
+    $user = User::factory()->create();
+    DeviceSetting::factory()->create([
+        'user_id' => $user->id,
+        'retry_tomorrow_at' => '14:30',
+        'auto_reschedule_rejected' => true,
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'queued',
+        'transaction_id' => 'TXN999',
+        'amount' => 10,
+    ]);
+
+    // Pre-load relations to simulate how GetNextBingwaQueuedTransaction passes the model
+    $transaction->load(['user.deviceSetting', 'user.bingwaDeviceRegistration']);
+
+    $action = app(CompleteBingwaTransaction::class);
+
+    // We expect a fixed, flat number of queries when completing the transaction.
+    // 1 DB Transaction Begin, 1 Update to original, 1 Insert for clone, 1 DB Transaction Commit.
+    // Plus maybe a couple for auto-replies or plan usage.
+
+    // Act & measure
+    DB::enableQueryLog();
+
+    $action->complete($transaction, 'failed', 'Recommendation failed. The customer 0700000000 has already been recommended.');
+
+    $queries = DB::getQueryLog();
+    DB::disableQueryLog();
+
+    // Verify it doesn't execute a runaway amount of queries
+    expect(count($queries))->toBeLessThan(15);
+
+    // Verify the clone still works exactly as expected
+    $clonesCount = Transaction::where('transaction_id', 'like', 'TXN999-retry-%')->count();
+    expect($clonesCount)->toBe(1);
+});

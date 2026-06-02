@@ -27,7 +27,7 @@ class ClaimUssdJobCommand extends Command
 
         $claimed = Transaction::query()
             ->whereKey($id)
-            ->where('status', 'queued')
+            ->whereIn('status', ['queued', 'failed'])
             ->update([
                 'status' => 'processing',
                 'status_desc' => __('USSD call in progress.'),

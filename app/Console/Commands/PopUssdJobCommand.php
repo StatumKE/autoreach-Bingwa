@@ -37,10 +37,18 @@ class PopUssdJobCommand extends Command
             $payload = DB::transaction(function () {
                 $transaction = Transaction::query()
                     ->with(['offer:id,ussd_code,ussd_mode', 'user.deviceSetting', 'user.bingwaDeviceRegistration', 'user.plans'])
-                    ->where('status', 'queued')
                     ->where(function ($query): void {
-                        $query->whereNull('next_attempt_at')
-                            ->orWhere('next_attempt_at', '<=', now());
+                        $query->where(function ($q) {
+                            $q->where('status', 'queued')
+                                ->where(function ($sq) {
+                                    $sq->whereNull('next_attempt_at')
+                                        ->orWhere('next_attempt_at', '<=', now());
+                                });
+                        })->orWhere(function ($q) {
+                            $q->where('status', 'failed')
+                                ->whereNotNull('next_attempt_at')
+                                ->where('next_attempt_at', '<=', now());
+                        });
                     })
                     ->whereNotNull('offer_id')
                     ->oldest('occurred_at')

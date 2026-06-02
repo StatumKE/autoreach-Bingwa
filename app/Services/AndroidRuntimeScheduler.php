@@ -175,10 +175,18 @@ class AndroidRuntimeScheduler
 
         $hasQueued = Transaction::query()
             ->where('user_id', $userId)
-            ->where('status', 'queued')
             ->where(function ($query) use ($currentTime): void {
-                $query->whereNull('next_attempt_at')
-                    ->orWhere('next_attempt_at', '<=', $currentTime);
+                $query->where(function ($q) use ($currentTime) {
+                    $q->where('status', 'queued')
+                        ->where(function ($sq) use ($currentTime) {
+                            $sq->whereNull('next_attempt_at')
+                                ->orWhere('next_attempt_at', '<=', $currentTime);
+                        });
+                })->orWhere(function ($q) use ($currentTime) {
+                    $q->where('status', 'failed')
+                        ->whereNotNull('next_attempt_at')
+                        ->where('next_attempt_at', '<=', $currentTime);
+                });
             })
             ->exists();
 

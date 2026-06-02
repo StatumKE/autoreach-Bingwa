@@ -8,7 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-it('clones a transaction and schedules it for tomorrow when daily limit is reached', function () {
+it('reschedules a transaction for tomorrow when daily limit is reached', function () {
     $user = User::factory()->create();
 
     // Create device settings that specify a retry time
@@ -30,18 +30,18 @@ it('clones a transaction and schedules it for tomorrow when daily limit is reach
     // Act
     $action->complete($transaction->id, 'failed', 'Recommendation failed. The customer 0700000000 has already been recommended.');
 
-    // Assert original transaction is failed with specific message
+    // Assert original transaction is failed with the actual USSD response message
     $originalTransaction = $transaction->fresh();
     expect($originalTransaction->status)->toBe('failed');
-    expect($originalTransaction->status_desc)->toBe('Failed (Daily limit reached). Marked for auto-renewal tomorrow at 14:30.');
+    expect($originalTransaction->status_desc)->toBe('Recommendation failed. The customer 0700000000 has already been recommended.');
 
-    // Assert cloned transaction is created and queued for tomorrow at 14:30
-    $clonedTransaction = Transaction::where('transaction_id', 'like', 'TXN12345-retry-%')->first();
-    expect($clonedTransaction)->not->toBeNull();
-    expect($clonedTransaction->status)->toBe('queued');
-
+    // Assert next_attempt_at is set for tomorrow at 14:30
     $expectedNextAttempt = now()->addDay()->setTimeFromTimeString('14:30');
-    expect($clonedTransaction->next_attempt_at->toDateTimeString())->toBe($expectedNextAttempt->toDateTimeString());
+    expect($originalTransaction->next_attempt_at->toDateTimeString())->toBe($expectedNextAttempt->toDateTimeString());
+
+    // Assert no cloned transaction is created
+    $clonedCount = Transaction::where('transaction_id', 'like', 'TXN12345-retry-%')->count();
+    expect($clonedCount)->toBe(0);
 });
 
 it('does not clone the transaction if the failure message does not match', function () {
@@ -72,7 +72,7 @@ it('does not clone the transaction if the failure message does not match', funct
     expect($clonesCount)->toBe(0);
 });
 
-it('processes auto-renewal clones optimally without N+1 issues', function () {
+it('processes auto-renewal reschedules optimally without N+1 issues', function () {
     $user = User::factory()->create();
     DeviceSetting::factory()->create([
         'user_id' => $user->id,
@@ -92,10 +92,6 @@ it('processes auto-renewal clones optimally without N+1 issues', function () {
 
     $action = app(CompleteBingwaTransaction::class);
 
-    // We expect a fixed, flat number of queries when completing the transaction.
-    // 1 DB Transaction Begin, 1 Update to original, 1 Insert for clone, 1 DB Transaction Commit.
-    // Plus maybe a couple for auto-replies or plan usage.
-
     // Act & measure
     DB::enableQueryLog();
 
@@ -107,7 +103,7 @@ it('processes auto-renewal clones optimally without N+1 issues', function () {
     // Verify it doesn't execute a runaway amount of queries
     expect(count($queries))->toBeLessThan(15);
 
-    // Verify the clone still works exactly as expected
+    // Verify no clones are created
     $clonesCount = Transaction::where('transaction_id', 'like', 'TXN999-retry-%')->count();
-    expect($clonesCount)->toBe(1);
+    expect($clonesCount)->toBe(0);
 });

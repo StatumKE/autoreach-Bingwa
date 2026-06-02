@@ -9,7 +9,6 @@ use App\Support\BingwaTransactionFailureCode;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class CompleteBingwaTransaction
 {
@@ -47,7 +46,7 @@ class CompleteBingwaTransaction
         };
 
         $isDailyLimitHit = $status === 'failed' && str_contains((string) $message, 'Recommendation failed. The customer');
-        $clonedTransaction = null;
+        $nextAttemptAt = null;
 
         if ($isDailyLimitHit) {
             $transaction->loadMissing('user.deviceSetting');
@@ -55,35 +54,10 @@ class CompleteBingwaTransaction
 
             if ($settings && $settings->retry_tomorrow_at) {
                 $nextAttemptAt = now()->addDay()->setTimeFromTimeString($settings->retry_tomorrow_at);
-                $statusDesc = __('Failed (Daily limit reached). Marked for auto-renewal tomorrow at :time.', ['time' => $settings->retry_tomorrow_at]);
-
-                $clonedTransaction = $transaction->replicate([
-                    'status',
-                    'status_desc',
-                    'processed_at',
-                    'auto_reply_id',
-                    'auto_reply_trigger_condition',
-                    'auto_reply_message',
-                    'auto_reply_recipient_phone',
-                    'auto_reply_status',
-                    'auto_reply_attempts',
-                    'auto_reply_sent_at',
-                    'auto_reply_failed_at',
-                    'auto_reply_failure_reason',
-                ]);
-                $clonedTransaction->transaction_id = substr($transaction->transaction_id, 0, 85).'-retry-'.Str::random(5);
-
-                if ($clonedTransaction->mpesa_code) {
-                    $clonedTransaction->mpesa_code = substr($clonedTransaction->mpesa_code, 0, 47).'-R';
-                }
-
-                $clonedTransaction->status = 'queued';
-                $clonedTransaction->status_desc = __('Auto-renewed attempt from previous failure.');
-                $clonedTransaction->next_attempt_at = $nextAttemptAt;
             }
         }
 
-        DB::transaction(function () use ($transaction, $status, $statusDesc, $message, $clonedTransaction): void {
+        DB::transaction(function () use ($transaction, $status, $statusDesc, $message, $nextAttemptAt): void {
             // Resolve auto-reply before the final UPDATE so both the core status
             // fields and the auto-reply fields are written in a single round-trip.
             $resolved = app(ResolveAutoReplyForTransaction::class)->resolve($transaction);
@@ -93,6 +67,7 @@ class CompleteBingwaTransaction
             $transaction->update([
                 'status' => $status,
                 'status_desc' => $statusDesc,
+                'next_attempt_at' => $nextAttemptAt,
                 'processed_at' => now(),
                 'auto_reply_id' => $resolved['auto_reply_id'],
                 'auto_reply_trigger_condition' => $resolved['trigger_condition'],
@@ -106,10 +81,6 @@ class CompleteBingwaTransaction
             ]);
 
             $this->incrementPlanUsage($transaction, $status);
-
-            if ($clonedTransaction) {
-                $clonedTransaction->save();
-            }
 
             if (! $autoReplyQueued) {
                 Log::info('Auto-reply skipped because no active rule matched the transaction outcome.', [

@@ -57,10 +57,18 @@ class GetNextBingwaQueuedTransaction
                 'user.deviceSetting',
                 'user.bingwaDeviceRegistration',
             ])
-            ->where('status', 'queued')
             ->where(function ($query): void {
-                $query->whereNull('next_attempt_at')
-                    ->orWhere('next_attempt_at', '<=', now());
+                $query->where(function ($q) {
+                    $q->where('status', 'queued')
+                        ->where(function ($sq) {
+                            $sq->whereNull('next_attempt_at')
+                                ->orWhere('next_attempt_at', '<=', now());
+                        });
+                })->orWhere(function ($q) {
+                    $q->where('status', 'failed')
+                        ->whereNotNull('next_attempt_at')
+                        ->where('next_attempt_at', '<=', now());
+                });
             });
 
         if ($userId !== null) {

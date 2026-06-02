@@ -255,6 +255,7 @@ new #[Title('Transactions')] class extends Component
                 'matched_offer',
                 'balance',
                 'occurred_at',
+                'next_attempt_at',
                 'status',
                 'status_desc',
                 'processed_at',
@@ -659,6 +660,12 @@ new #[Title('Transactions')] class extends Component
                                 ])>
                                     {{ blank($transaction->status) ? __('Pending') : $transaction->status }}
                                 </span>
+
+                                @if ($isFailed && $transaction->next_attempt_at)
+                                    <span class="inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+                                        {{ __('Rescheduled') }}
+                                    </span>
+                                @endif
                             </div>
 
                             <div class="flex items-center gap-2 text-xs font-medium text-zinc-700">
@@ -717,6 +724,13 @@ new #[Title('Transactions')] class extends Component
                         </div>
                     @endif
 
+                    @if ($isFailed && $transaction->next_attempt_at)
+                        <div class="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[10px] font-medium leading-snug ring-1 ring-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20">
+                            <span class="mr-2 text-[8px] font-black uppercase tracking-widest opacity-60 text-amber-800 dark:text-amber-300">{{ __('Rescheduled') }}</span>
+                            {{ __('Marked for auto-renewal tomorrow at :time.', ['time' => AppTimezone::format($transaction->next_attempt_at, 'H:i, M j')]) }}
+                        </div>
+                    @endif
+
 
                     @if ($canRetry)
                         <div class="mt-2 flex justify-end">
@@ -772,8 +786,21 @@ new #[Title('Transactions')] class extends Component
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
                         <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Status') }}</div>
-                        <div class="mt-1 text-sm font-bold text-zinc-900">{{ blank($selectedTransaction->status) ? __('Pending') : $selectedTransaction->status }}</div>
+                        <div class="mt-1 text-sm font-bold text-zinc-900">
+                            {{ blank($selectedTransaction->status) ? __('Pending') : $selectedTransaction->status }}
+                            @if ($selectedTransaction->status === 'failed' && $selectedTransaction->next_attempt_at)
+                                <span class="ml-2 inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber-600">
+                                    {{ __('Rescheduled') }}
+                                </span>
+                            @endif
+                        </div>
                     </div>
+                    @if ($selectedTransaction->next_attempt_at)
+                        <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
+                            <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Rescheduled For') }}</div>
+                            <div class="mt-1 text-sm font-bold text-zinc-900">{{ AppTimezone::format($selectedTransaction->next_attempt_at, 'H:i, M j, Y') }}</div>
+                        </div>
+                    @endif
                     <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
                         <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ __('Amount') }}</div>
                         <div class="mt-1 text-sm font-bold text-zinc-900">Ksh {{ number_format((float) $selectedTransaction->amount) }}</div>

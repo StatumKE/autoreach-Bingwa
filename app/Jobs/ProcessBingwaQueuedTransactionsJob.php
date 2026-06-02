@@ -175,7 +175,7 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
     {
         $claimed = Transaction::query()
             ->whereKey($transactionId)
-            ->where('status', 'queued')
+            ->whereIn('status', ['queued', 'failed'])
             ->update([
                 'status' => 'processing',
                 'status_desc' => __('USSD call in progress.'),

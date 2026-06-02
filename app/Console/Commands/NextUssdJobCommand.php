@@ -67,13 +67,7 @@ class NextUssdJobCommand extends Command
 
             // Final safety check: Does the user still have a valid plan?
             // This handles cases where the plan expired while the job was waiting in the local queue.
-            $activePlan = $transaction->user?->plans()
-                ->where('is_active', true)
-                ->where(function ($query) {
-                    $query->whereNull('expires_at')
-                        ->orWhere('expires_at', '>', now());
-                })
-                ->first();
+            $activePlan = $transaction->user?->activePlan();
 
             if (! $activePlan) {
                 $transaction->update([
@@ -83,20 +77,6 @@ class NextUssdJobCommand extends Command
                 Log::warning("🚫 Dispatch blocked for job #{$transaction->id}: No active plan found.");
 
                 return self::SUCCESS;
-            }
-
-            // Usage pack exhaustion check
-            if ($activePlan->type === 'usage_pack' && $activePlan->ussd_requests_included !== null) {
-                if ($activePlan->ussd_counter >= $activePlan->ussd_requests_included) {
-                    $activePlan->update(['is_active' => false]);
-                    $transaction->update([
-                        'status' => 'failed',
-                        'status_desc' => __('Subscription usage limit reached.'),
-                    ]);
-                    Log::warning("🚫 Dispatch blocked for job #{$transaction->id}: Plan usage limit reached.");
-
-                    return self::SUCCESS;
-                }
             }
 
             // Replace the PN placeholder with the actual recipient phone number

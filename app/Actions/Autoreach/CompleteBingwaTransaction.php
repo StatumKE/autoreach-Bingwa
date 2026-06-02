@@ -103,7 +103,7 @@ class CompleteBingwaTransaction
             return;
         }
 
-        $activePlan = $user->plans()->where('is_active', true)->first();
+        $activePlan = $user->activePlan();
         if (! $activePlan) {
             return;
         }

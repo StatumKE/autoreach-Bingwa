@@ -33,7 +33,7 @@ new #[Title('Subscriptions')] class extends Component {
         $user = Auth::user();
 
         $this->simSlot = $user->deviceSetting?->primary_transaction_sim === 'slot_2' ? 1 : 0;
-        $this->activePlan = $user->plans()->where('is_active', true)->first();
+        $this->activePlan = $user->activePlan();
 
         $cachedPlans = app(FetchBingwaSubscriptionPlans::class)->cached($user);
 
@@ -51,7 +51,7 @@ new #[Title('Subscriptions')] class extends Component {
     {
         \Illuminate\Support\Facades\Log::debug('⚡ Livewire: loadPlans triggered');
 
-        $this->activePlan = Auth::user()->plans()->where('is_active', true)->first();
+        $this->activePlan = Auth::user()->activePlan();
 
         $this->errorMessage = null;
 

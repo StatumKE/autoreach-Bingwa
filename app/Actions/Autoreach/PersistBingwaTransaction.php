@@ -45,22 +45,7 @@ class PersistBingwaTransaction
         }
 
         $activeOffers ??= $user->offers()->where('is_active', true)->get();
-        $activePlan ??= $user->plans()->where('is_active', true)->first();
-
-        if ($activePlan !== null) {
-            $shouldDeactivate = false;
-
-            if ($activePlan->type === 'time_unlimited' && $activePlan->expires_at && now()->isAfter($activePlan->expires_at)) {
-                $shouldDeactivate = true;
-            } elseif ($activePlan->type === 'usage_pack' && $activePlan->ussd_requests_included !== null && $activePlan->ussd_counter >= $activePlan->ussd_requests_included) {
-                $shouldDeactivate = true;
-            }
-
-            if ($shouldDeactivate) {
-                $activePlan->update(['is_active' => false]);
-                $activePlan = null;
-            }
-        }
+        $activePlan ??= $user->activePlan();
 
         $existingTransaction = Transaction::query()
             ->where('transaction_id', $transactionId)

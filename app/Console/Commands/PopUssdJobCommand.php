@@ -61,13 +61,7 @@ class PopUssdJobCommand extends Command
                 }
 
                 // 3. Subscription Validation (Business Logic Preservation)
-                $activePlan = $transaction->user?->plans()
-                    ->where('is_active', true)
-                    ->where(function ($query) {
-                        $query->whereNull('expires_at')
-                            ->orWhere('expires_at', '>', now());
-                    })
-                    ->first();
+                $activePlan = $transaction->user?->activePlan();
 
                 if (! $activePlan) {
                     $transaction->update([
@@ -76,18 +70,6 @@ class PopUssdJobCommand extends Command
                     ]);
 
                     return ['skip' => true, 'id' => $transaction->id];
-                }
-
-                if ($activePlan->type === 'usage_pack' && $activePlan->ussd_requests_included !== null) {
-                    if ($activePlan->ussd_counter >= $activePlan->ussd_requests_included) {
-                        $activePlan->update(['is_active' => false]);
-                        $transaction->update([
-                            'status' => 'failed',
-                            'status_desc' => __('Subscription usage limit reached.'),
-                        ]);
-
-                        return ['skip' => true, 'id' => $transaction->id];
-                    }
                 }
 
                 // 4. Claim the job

@@ -114,6 +114,31 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the active subscription plan, automatically deactivating it if expired or usage limit is reached.
+     */
+    public function activePlan(): ?Plan
+    {
+        $activePlan = $this->plans()->where('is_active', true)->first();
+
+        if ($activePlan !== null) {
+            $shouldDeactivate = false;
+
+            if ($activePlan->type === 'time_unlimited' && $activePlan->expires_at && now()->isAfter($activePlan->expires_at)) {
+                $shouldDeactivate = true;
+            } elseif ($activePlan->type === 'usage_pack' && $activePlan->ussd_requests_included !== null && $activePlan->ussd_counter >= $activePlan->ussd_requests_included) {
+                $shouldDeactivate = true;
+            }
+
+            if ($shouldDeactivate) {
+                $activePlan->update(['is_active' => false]);
+                $activePlan = null;
+            }
+        }
+
+        return $activePlan;
+    }
+
+    /**
      * Get the transactions owned by the user.
      */
     public function transactions(): HasMany

@@ -3,7 +3,6 @@
 namespace App\Actions\Autoreach;
 
 use App\Models\DeviceSetting;
-use App\Models\Plan;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
@@ -129,7 +128,7 @@ class GetNextBingwaQueuedTransaction
             return ['skip' => true, 'id' => $transaction->id];
         }
 
-        $activePlan = $this->activePlanForUser($transaction);
+        $activePlan = $transaction->user?->activePlan();
 
         if (! $activePlan) {
             $transaction->update([
@@ -148,28 +147,6 @@ class GetNextBingwaQueuedTransaction
             Log::warning("🚫 Dispatch blocked for job #{$transaction->id}: No active plan found.");
 
             return ['skip' => true, 'id' => $transaction->id];
-        }
-
-        if ($activePlan->type === 'usage_pack' && $activePlan->ussd_requests_included !== null) {
-            if ($activePlan->ussd_counter >= $activePlan->ussd_requests_included) {
-                $activePlan->update(['is_active' => false]);
-                $transaction->update([
-                    'status' => 'failed',
-                    'status_desc' => __('Subscription usage limit reached.'),
-                    'processed_at' => now(),
-                ]);
-
-                app(QueueRemoteTransactionStatusUpdate::class)->queue(
-                    $transaction,
-                    'failed',
-                    $transaction->status_desc,
-                    executedAt: now()->toIso8601String(),
-                );
-
-                Log::warning("🚫 Dispatch blocked for job #{$transaction->id}: Plan usage limit reached.");
-
-                return ['skip' => true, 'id' => $transaction->id];
-            }
         }
 
         $resolvedCode = str_replace('PN', $transaction->sender_phone, $transaction->offer->ussd_code);
@@ -196,23 +173,6 @@ class GetNextBingwaQueuedTransaction
         ]);
 
         return $payload;
-    }
-
-    /**
-     * Fetch the active, non-expired plan for the transaction's user.
-     *
-     * Kept as a dedicated helper so every call site consistently applies the
-     * same conditions (active flag + expiry check).
-     */
-    private function activePlanForUser(Transaction $transaction): ?Plan
-    {
-        return $transaction->user?->plans()
-            ->where('is_active', true)
-            ->where(function ($query): void {
-                $query->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            })
-            ->first();
     }
 
     private function recoverStuckTransactions(): int

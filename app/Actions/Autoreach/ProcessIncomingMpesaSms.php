@@ -84,7 +84,7 @@ class ProcessIncomingMpesaSms
 
         // Resolve the plan once and reuse it below — eliminates the second DB
         // call that previously happened inside createQueuedTransaction / createFailedTransaction.
-        $activePlan = $this->activePlan($user);
+        $activePlan = $user->activePlan();
         $offer = $this->matchingOffer($user, $parsed);
 
         if (! $activePlan instanceof Plan) {
@@ -145,34 +145,6 @@ class ProcessIncomingMpesaSms
                     });
             })
             ->first();
-    }
-
-    private function activePlan(User $user): ?Plan
-    {
-        $activePlan = $user->plans()
-            ->where('is_active', true)
-            ->where(function ($query): void {
-                $query->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            })
-            ->oldest('id')
-            ->first();
-
-        if (! $activePlan instanceof Plan) {
-            return null;
-        }
-
-        if (
-            $activePlan->type === 'usage_pack'
-            && $activePlan->ussd_requests_included !== null
-            && $activePlan->ussd_counter >= $activePlan->ussd_requests_included
-        ) {
-            $activePlan->update(['is_active' => false]);
-
-            return null;
-        }
-
-        return $activePlan;
     }
 
     private function matchingOffer(User $user, MpesaReceivedSms $parsed): ?Offer

@@ -76,7 +76,7 @@ new #[Title('Dashboard')] class extends Component
      */
     public function getActivePlanProperty(): ?Plan
     {
-        return Auth::user()->plans()->where('is_active', true)->first();
+        return Auth::user()->activePlan();
     }
 
     /**

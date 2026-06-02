@@ -360,41 +360,111 @@ new #[Title('Subscriptions')] class extends Component {
             <div class="flex flex-col gap-4">
                 
                 @if ($this->activePlan)
-                    <div class="relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-green-100">
-                        <div class="absolute inset-y-0 left-0 w-1.5 bg-green-500"></div>
-                        <div class="absolute top-0 right-0 p-6 opacity-10">
-                            <flux:icon.sparkles class="size-16 text-green-600" />
+                    @php
+                        $isTimePack = $this->activePlan->type === 'time_unlimited';
+                        $remainingTimeText = null;
+                        $progressPercent = 0;
+                        
+                        if ($isTimePack) {
+                            $created = $this->activePlan->created_at;
+                            $expires = $this->activePlan->expires_at;
+                            if ($created && $expires) {
+                                $totalSec = $created->diffInSeconds($expires);
+                                $elapsedSec = $created->diffInSeconds(now());
+                                $progressPercent = max(0, min(100, (1 - ($elapsedSec / max(1, $totalSec))) * 100));
+                                
+                                $diff = now()->diff($expires);
+                                if (now()->isAfter($expires)) {
+                                    $remainingTimeText = __('Expired');
+                                } else {
+                                    $parts = [];
+                                    if ($diff->d > 0) {
+                                        $parts[] = trans_choice(':count day|:count days', $diff->d, ['count' => $diff->d]);
+                                    }
+                                    if ($diff->h > 0) {
+                                        $parts[] = trans_choice(':count hr|:count hrs', $diff->h, ['count' => $diff->h]);
+                                    }
+                                    if ($diff->i > 0) {
+                                        $parts[] = trans_choice(':count min|:count mins', $diff->i, ['count' => $diff->i]);
+                                    }
+                                    $remainingTimeText = count($parts) > 0 ? implode(' ', array_slice($parts, 0, 2)) . ' ' . __('left') : __('Expires soon');
+                                }
+                            } else {
+                                $remainingTimeText = __('Never');
+                                $progressPercent = 100;
+                            }
+                        } else {
+                            $included = (int) $this->activePlan->ussd_requests_included;
+                            $counter = (int) $this->activePlan->ussd_counter;
+                            $remaining = max(0, $included - $counter);
+                            $progressPercent = max(0, min(100, ($remaining / max(1, $included)) * 100));
+                            $remainingTimeText = trans_choice(':count request left|:count requests left', $remaining, ['count' => $remaining]);
+                        }
+                    @endphp
+
+                    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/8 to-emerald-500/2 p-5 shadow-sm border border-emerald-100/60">
+                        <div class="absolute top-0 right-0 p-6 opacity-5">
+                            <flux:icon.sparkles class="size-20 text-emerald-600 animate-pulse" />
                         </div>
                         
-                        <div class="relative flex items-start justify-between">
-                            <div>
-                                <div class="text-[10px] font-bold uppercase tracking-widest text-green-700/70">{{ __('Active Subscription') }}</div>
-                                <div class="mt-1 text-base font-bold text-zinc-900">{{ $this->activePlan->name }}</div>
+                        <div class="relative flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-700 shadow-inner">
+                                    @if ($isTimePack)
+                                        <flux:icon.clock class="size-5 text-emerald-600" />
+                                    @else
+                                        <flux:icon.banknotes class="size-5 text-emerald-600" />
+                                    @endif
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">{{ __('Active Subscription') }}</span>
+                                        <span class="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+                                    </div>
+                                    <h3 class="text-lg font-black text-zinc-900 mt-0.5 leading-tight">{{ $this->activePlan->name }}</h3>
+                                </div>
                             </div>
-                            <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-green-50 text-green-700 ring-1 ring-green-100">
-                                <flux:icon.check class="size-5" />
+                            <div class="rounded-xl bg-white px-3 py-1 text-[9px] font-black uppercase tracking-widest text-zinc-500 shadow-xs ring-1 ring-zinc-200">
+                                {{ str_replace('_', ' ', $this->activePlan->type) }}
                             </div>
                         </div>
 
-                        <div class="relative mt-6 flex gap-4">
-                            <div class="flex-1 rounded-2xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
-                                <div class="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-500">{{ __('Started') }}</div>
-                                <div class="mt-1 text-[11px] font-black text-zinc-950">
+                        <!-- Progress Bar Section -->
+                        <div class="relative mt-6">
+                            <div class="flex items-center justify-between text-xs font-bold text-zinc-700 mb-2">
+                                <span>{{ $isTimePack ? __('Time remaining') : __('Usage tokens remaining') }}</span>
+                                <span class="text-emerald-700 font-extrabold">{{ $remainingTimeText }}</span>
+                            </div>
+                            <div class="h-2 w-full rounded-full bg-zinc-100 overflow-hidden ring-1 ring-zinc-200/50">
+                                <div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-green-600 transition-all duration-500" style="width: {{ $progressPercent }}%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div class="relative mt-5 grid grid-cols-2 gap-4 border-t border-emerald-100/40 pt-4">
+                            <div>
+                                <div class="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400">{{ __('Started') }}</div>
+                                <div class="mt-1 text-xs font-extrabold text-zinc-900">
                                     {{ $this->activePlan->created_at ? AppTimezone::format($this->activePlan->created_at, 'd M, H:i') : __('N/A') }}
                                 </div>
                             </div>
 
-                            <div class="flex-1 rounded-2xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
-                                <div class="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-500">{{ __('Expires') }}</div>
-                                <div class="mt-1 text-[11px] font-black text-zinc-950">
-                                    {{ $this->activePlan->expires_at ? AppTimezone::format($this->activePlan->expires_at, 'd M, H:i') : __('Never') }}
+                            <div>
+                                <div class="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400">{{ $isTimePack ? __('Expires') : __('Usage limit') }}</div>
+                                <div class="mt-1 text-xs font-extrabold text-zinc-900">
+                                    @if ($isTimePack)
+                                        {{ $this->activePlan->expires_at ? AppTimezone::format($this->activePlan->expires_at, 'd M, H:i') : __('Never') }}
+                                    @else
+                                        {{ number_format((int) $this->activePlan->ussd_requests_included) }} {{ __('requests') }} ({{ number_format((int) $this->activePlan->ussd_counter) }} {{ __('used') }})
+                                    @endif
                                 </div>
                             </div>
                         </div>
 
-                        <p class="mt-4 text-[11px] font-medium leading-relaxed text-zinc-500">
-                            {{ __('The current catalog stays visible for reference, but purchasing stays locked until this plan expires.') }}
-                        </p>
+                        <div class="mt-4 flex items-center gap-2 text-[10px] font-bold leading-normal text-zinc-500">
+                            <flux:icon.lock-closed class="size-3.5 shrink-0 text-zinc-400" />
+                            <span>{{ __('Purchasing remains locked until your active subscription plan expires or is fully depleted.') }}</span>
+                        </div>
                     </div>
                 @endif
 

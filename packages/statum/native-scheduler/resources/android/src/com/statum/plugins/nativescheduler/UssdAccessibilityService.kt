@@ -38,6 +38,9 @@ class UssdAccessibilityService : AccessibilityService() {
         @Volatile
         var instance: UssdAccessibilityService? = null
 
+        @Volatile
+        var activeSimSlot: Int? = null
+
         /**
          * One-way channel: Service → UssdExecutor.
          * Sends the USSD dialog text when detected. Unlimited capacity prevents drops.
@@ -107,6 +110,12 @@ class UssdAccessibilityService : AccessibilityService() {
 
         // A USSD dialog is identifiable by the presence of a Send/OK button.
         if (findSendButton(root) == null) {
+            // Check if it's a SIM chooser dialog before ignoring the window
+            findSimButton(root, activeSimSlot)?.let { simBtn ->
+                Log.d(TAG, "SIM chooser detected, clicking SIM slot $activeSimSlot")
+                simBtn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                return
+            }
             return
         }
 
@@ -169,6 +178,30 @@ class UssdAccessibilityService : AccessibilityService() {
      */
     fun dismiss() {
         lastSentDialogText = null
+        closeDialog()
+    }
+
+    /**
+     * Attempts to physically close the system dialog.
+     */
+    fun closeDialog() {
+        handler.post {
+            val root = rootInActiveWindow ?: run {
+                Log.w(TAG, "closeDialog: no active window to dismiss")
+                return@post
+            }
+            
+            // Try to click cancel/close first
+            val cancelBtn = findCancelButton(root)
+            if (cancelBtn != null) {
+                cancelBtn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                Log.d(TAG, "closeDialog: clicked cancel button")
+            } else {
+                // Fallback to global back
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                Log.d(TAG, "closeDialog: performed global back action")
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -254,5 +287,54 @@ class UssdAccessibilityService : AccessibilityService() {
         }
 
         return fallbackButton
+    }
+
+    private fun findSimButton(root: AccessibilityNodeInfo, simSlot: Int?): AccessibilityNodeInfo? {
+        if (simSlot == null) return null
+        // simSlot is typically 0 or 1.
+        val targetNumber = (simSlot + 1).toString()
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+
+        while (queue.isNotEmpty()) {
+            val node = queue.removeFirst()
+            val text = node.text?.toString()?.lowercase()?.trim() ?: ""
+            if (text.contains("sim $targetNumber") || text.contains("sim$targetNumber") || text.contains("slot $targetNumber")) {
+                if (node.isClickable) {
+                    return node
+                } else {
+                    // Try to find an ancestor that is clickable
+                    var parent = node.parent
+                    while (parent != null) {
+                        if (parent.isClickable) return parent
+                        parent = parent.parent
+                    }
+                }
+            }
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { queue.add(it) }
+            }
+        }
+        return null
+    }
+
+    private fun findCancelButton(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        val cancelLabels = setOf("cancel", "close", "dismiss", "abort")
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+
+        while (queue.isNotEmpty()) {
+            val node = queue.removeFirst()
+            val className = node.className?.toString().orEmpty()
+            if (className.contains("Button", ignoreCase = true)) {
+                if (node.text?.toString()?.lowercase()?.trim() in cancelLabels) {
+                    return node
+                }
+            }
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { queue.add(it) }
+            }
+        }
+        return null
     }
 }

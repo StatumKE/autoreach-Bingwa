@@ -21,6 +21,7 @@
         packages/statum/native-scheduler/resources/android/res/xml/ussd_accessibility_service_config.xml
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application>
         <service
             android:name="com.statum.plugins.nativescheduler.UssdAccessibilityService"

@@ -85,7 +85,7 @@ class UssdExecutor(private val context: Context) {
         val timeoutMs = timeoutSeconds.coerceAtLeast(1) * 1000L
         return withTimeoutOrNull(timeoutMs) {
             when (mode) {
-                "advanced" -> runAdvanced(code, subId, timeoutMs)
+                "advanced" -> runAdvanced(code, subId, simSlot, timeoutMs)
                 else -> runExpress(code, subId)
             }
         } ?: UssdResult(success = false, message = "USSD timed out after ${timeoutSeconds}s")
@@ -227,7 +227,7 @@ class UssdExecutor(private val context: Context) {
      * - The injectInput() call goes to the main handler inside UssdAccessibilityService,
      *   so it is safe to call it from a coroutine running on Dispatchers.IO.
      */
-    private suspend fun runAdvanced(code: String, subId: Int, timeoutMs: Long): UssdResult {
+    private suspend fun runAdvanced(code: String, subId: Int, simSlot: Int, timeoutMs: Long): UssdResult {
         val service = awaitAccessibilityService()
         if (service == null) {
             Log.w(TAG, "Accessibility service not active — redirecting user to Settings")
@@ -254,8 +254,21 @@ class UssdExecutor(private val context: Context) {
             "Advanced USSD flow parsed: base=${parsedFlow.baseDialCode}, replies=${parsedFlow.replies}"
         )
 
-        // Dial only the base USSD code — replies are submitted step-by-step after the dialog opens.
-        dialUssd(parsedFlow.baseDialCode, subId)
+        // Pass active sim slot to the accessibility service to handle dual-sim chooser dialogs
+        UssdAccessibilityService.activeSimSlot = simSlot
+
+        // Acquire WakeLock to wake the screen and keep CPU running
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        @Suppress("DEPRECATION")
+        val wakeLock = powerManager?.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+            "Bingwa:UssdWakeLock"
+        )
+        wakeLock?.acquire(timeoutMs + 5000L) // Add 5s padding
+
+        try {
+            // Dial only the base USSD code — replies are submitted step-by-step after the dialog opens.
+            dialUssd(parsedFlow.baseDialCode, subId)
 
         val dialogTimeoutMs = dialogTimeoutMs(timeoutMs)
         val dialogText = awaitDialogText(timeoutMs = dialogTimeoutMs)
@@ -290,12 +303,18 @@ class UssdExecutor(private val context: Context) {
         }
 
         UssdAccessibilityService.responseChannel.tryReceive()
-        service.dismiss()
-
+        
         return UssdResult(
             success = isPurchaseSuccessMessage(resolvedDialogText),
             message = resolvedDialogText,
         )
+        } finally {
+            service.dismiss()
+            if (wakeLock?.isHeld == true) {
+                wakeLock.release()
+                Log.d(TAG, "Advanced USSD released WakeLock")
+            }
+        }
     }
 
     /**

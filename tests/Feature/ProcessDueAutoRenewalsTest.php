@@ -3,11 +3,19 @@
 use App\Actions\Autoreach\ProcessDueAutoRenewals;
 use App\Jobs\ProcessBingwaQueuedTransactionsJob;
 use App\Models\AutoRenewal;
+use App\Models\BingwaDeviceRegistration;
 use App\Models\Offer;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Native\Mobile\Facades\Device;
+
+beforeEach(function (): void {
+    Cache::flush();
+    Device::shouldReceive('getId')->andReturn('HW-12345');
+});
 
 it('converts due auto renewals into queued transactions', function (): void {
     $user = User::factory()->create();
@@ -124,6 +132,13 @@ it('dispatches the existing transaction processor after queueing due auto renewa
     $user = User::factory()->create();
     $offer = Offer::factory()->for($user)->create(['is_active' => true]);
 
+    BingwaDeviceRegistration::query()->create([
+        'user_id' => $user->id,
+        'hardware_id' => 'HW-12345',
+        'device_token' => 'raw-device-token',
+        'bhc_code' => 'BHC-ZXCVB',
+    ]);
+
     AutoRenewal::factory()->for($user)->for($offer)->create([
         'scheduled_for' => now()->subMinute(),
         'status' => 'scheduled',
@@ -132,5 +147,7 @@ it('dispatches the existing transaction processor after queueing due auto renewa
     $this->artisan('bingwa:process-auto-renewals')
         ->assertExitCode(0);
 
-    Queue::assertPushed(ProcessBingwaQueuedTransactionsJob::class);
+    Queue::assertPushed(ProcessBingwaQueuedTransactionsJob::class, function (ProcessBingwaQueuedTransactionsJob $job) use ($user): bool {
+        return $job->userId === $user->id;
+    });
 });

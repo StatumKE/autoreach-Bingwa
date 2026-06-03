@@ -4,10 +4,15 @@ use App\Jobs\SendHeartbeatJob;
 use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use Native\Mobile\Facades\Device;
 
 beforeEach(function (): void {
+    Cache::flush();
+    Device::shouldReceive('getId')->andReturn('HW-12345');
+
     $this->user = User::factory()->create();
 
     BingwaDeviceRegistration::query()->create([
@@ -26,7 +31,9 @@ test('bingwa heartbeat command queues background job', function (): void {
 
     expect($exitCode)->toBe(0);
 
-    Queue::assertPushed(SendHeartbeatJob::class);
+    Queue::assertPushed(SendHeartbeatJob::class, function (SendHeartbeatJob $job): bool {
+        return $job->userId === $this->user->id;
+    });
 
     Log::shouldHaveReceived('info')
         ->with('Bingwa heartbeat job queued.')

@@ -26,6 +26,7 @@ class PersistBingwaTransaction
         ?Plan $activePlan = null,
         ?string $fallbackOfferType = null,
     ): array {
+        $user = $user->fresh(['bingwaDeviceRegistration']) ?? $user;
         $registration = $user->bingwaDeviceRegistration;
 
         if ($registration === null || blank($registration->device_token)) {

@@ -17,6 +17,7 @@ class SyncBingwaFcmToken
      */
     public function sync(User $user, string $fcmToken, ?string $flowId = null): bool
     {
+        $user = $user->fresh(['bingwaDeviceRegistration']) ?? $user;
         $registration = $user->bingwaDeviceRegistration;
 
         if ($registration === null || blank($registration->device_token)) {

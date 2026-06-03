@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Jobs\SyncBingwaTransactionsJob;
-use App\Models\BingwaDeviceRegistration;
+use App\Services\BingwaDeviceContext;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -16,13 +16,13 @@ class SyncBingwaTransactions extends Command
     /**
      * Execute the console command.
      */
-    public function handle(): int
+    public function handle(BingwaDeviceContext $deviceContext): int
     {
         Log::info('🔄 Starting Bingwa transactions sync...');
 
-        $registration = BingwaDeviceRegistration::query()->first();
+        $registration = $deviceContext->registration();
 
-        if (! $registration) {
+        if ($registration === null || $registration->user === null) {
             $this->warn('No Bingwa device registration found. Skipping sync.');
 
             Log::debug('Bingwa transactions sync skipped because no registration was found.');
@@ -32,7 +32,7 @@ class SyncBingwaTransactions extends Command
 
         Log::debug('Bingwa transactions sync dispatching background job.');
 
-        SyncBingwaTransactionsJob::dispatch();
+        SyncBingwaTransactionsJob::dispatch($registration->user->getKey());
 
         $data = [
             'queued' => true,

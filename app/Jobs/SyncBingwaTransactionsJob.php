@@ -24,6 +24,7 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
     use SerializesModels;
 
     public function __construct(
+        public int $userId,
         public array $pushData = [],
     ) {}
 
@@ -43,7 +44,9 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
     public function handle(
         FetchNextBingwaJobs $fetchNextBingwaJobs,
     ): void {
-        $user = User::query()->first();
+        $user = User::query()
+            ->with('bingwaDeviceRegistration')
+            ->find($this->userId);
 
         if (! $user instanceof User) {
             Log::warning('Bingwa transaction sync job skipped because no user was found.');
@@ -90,15 +93,14 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
                 'user_id' => $user->id,
             ]);
 
-            ProcessBingwaQueuedTransactionsJob::dispatchSync((string) Str::uuid(), $user->id);
+            ProcessBingwaQueuedTransactionsJob::dispatchSync($user->id, (string) Str::uuid());
         }
     }
 
     public function failed(Throwable $exception): void
     {
-        $user = User::query()->first();
         Log::error('Bingwa transaction sync job marked as failed.', [
-            'user_id' => $user?->id,
+            'user_id' => $this->userId,
             'message' => $exception->getMessage(),
             'exception' => $exception::class,
         ]);

@@ -3,31 +3,26 @@
 namespace App\Console\Commands;
 
 use App\Jobs\RefreshAirtimeBalanceJob;
-use App\Models\BingwaDeviceRegistration;
+use App\Services\BingwaDeviceContext;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 #[Signature('bingwa:fetch-airtime-balance')]
-#[Description('Fetch the latest airtime balance for all registered devices.')]
+#[Description('Fetch the latest airtime balance for the registered device.')]
 class FetchAirtimeBalanceCommand extends Command
 {
     /**
      * Execute the console command.
      */
-    public function handle(): int
+    public function handle(BingwaDeviceContext $deviceContext): int
     {
         Log::info('Starting automated airtime balance refresh command...');
 
-        $registration = BingwaDeviceRegistration::query()
-            ->where(function ($query) {
-                $query->where('status', '!=', 'stopped')
-                    ->orWhereNull('status');
-            })
-            ->first();
+        $registration = $deviceContext->registration();
 
-        if (! $registration) {
+        if ($registration === null || $registration->user === null || $registration->status === 'stopped') {
             Log::warning('Fetch airtime balance command skipped because no active device registration was found.');
             $this->warn('No active device registration found.');
 
@@ -35,7 +30,7 @@ class FetchAirtimeBalanceCommand extends Command
         }
 
         Log::info('Dispatching RefreshAirtimeBalanceJob.');
-        RefreshAirtimeBalanceJob::dispatch();
+        RefreshAirtimeBalanceJob::dispatch($registration->user->getKey());
 
         $this->info('Dispatched airtime balance refresh job.');
 

@@ -112,7 +112,7 @@ class CreateNewUser implements CreatesNewUsers
                 'flow_id' => $flowId,
             ]);
 
-            SyncBingwaFcmTokenJob::dispatch($flowId);
+            SyncBingwaFcmTokenJob::dispatch($user->getKey(), $flowId);
 
             Log::debug('Bingwa FCM enrollment job dispatched to the queue.', [
                 'user_id' => $user->getKey(),

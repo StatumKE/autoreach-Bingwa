@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class RefreshAirtimeBalanceJob implements ShouldBeUnique, ShouldQueue
 {
@@ -18,28 +19,27 @@ class RefreshAirtimeBalanceJob implements ShouldBeUnique, ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public function __construct() {}
+    public function __construct(
+        public int $userId,
+    ) {}
 
     public function uniqueId(): string
     {
         return 'refresh-airtime-balance';
     }
 
-    public function handle(): void
+    public function handle(RefreshAirtimeBalance $refreshAirtimeBalance): void
     {
-        $users = User::query()
-            ->whereHas('bingwaDeviceRegistration', function ($query) {
-                $query->whereNotNull('device_token')
-                    ->where('device_token', '!=', '')
-                    ->where(function ($query) {
-                        $query->whereNull('status')
-                            ->orWhere('status', '!=', 'stopped');
-                    });
-            })
-            ->get();
+        $user = User::query()->find($this->userId);
 
-        foreach ($users as $user) {
-            app(RefreshAirtimeBalance::class)->refresh($user);
+        if ($user === null) {
+            Log::warning('Airtime balance refresh job skipped because no user was found.', [
+                'user_id' => $this->userId,
+            ]);
+
+            return;
         }
+
+        $refreshAirtimeBalance->refresh($user);
     }
 }

@@ -30,6 +30,7 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
         public readonly ?float $airtimeUsed,
         public readonly ?int $executionTimeMs,
         public readonly string $executedAt,
+        public readonly int $userId,
         public readonly ?string $failureCode = null,
     ) {}
 
@@ -42,7 +43,7 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
 
         $user = User::query()
             ->with('bingwaDeviceRegistration')
-            ->first();
+            ->find($this->userId);
 
         if (! $user instanceof User) {
             throw new RuntimeException("Unable to update remote transaction status {$this->remoteTransactionId}: no user was found.");

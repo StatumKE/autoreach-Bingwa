@@ -4,7 +4,6 @@ namespace App\Actions\Autoreach;
 
 use App\Models\DeviceSetting;
 use App\Models\Transaction;
-use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -23,15 +22,9 @@ class GetNextBingwaQueuedTransaction
      *                                          via Cache::memo() (memory-first).
      * @return array<string, mixed>|null
      */
-    public function next(?int $userId = null, ?bool $isProcessingEnabled = null): ?array
+    public function next(int $userId, ?bool $isProcessingEnabled = null): ?array
     {
         $this->recoverStuckTransactions();
-
-        $user = User::query()->first();
-        if ($user === null) {
-            return null;
-        }
-        $userId = $user->id;
 
         // Use the caller-supplied flag when available; fall back to a
         // Cache::memo() lookup so repeated calls within the same job
@@ -71,9 +64,7 @@ class GetNextBingwaQueuedTransaction
                 });
             });
 
-        if ($userId !== null) {
-            $transactionQuery->where('user_id', $userId);
-        }
+        $transactionQuery->where('user_id', $userId);
 
         // ORDER BY id ASC — id is a monotonically increasing surrogate key, so it
         // reliably processes transactions in arrival order. It is always unique (no

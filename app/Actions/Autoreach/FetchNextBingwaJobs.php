@@ -35,6 +35,7 @@ class FetchNextBingwaJobs
      */
     public function sync(User $user, int $limit = 10, ?string $onlyService = null): array
     {
+        $user = $user->fresh(['bingwaDeviceRegistration']) ?? $user;
         $limit = $this->normalizeLimit($limit);
         $registration = $user->bingwaDeviceRegistration;
 

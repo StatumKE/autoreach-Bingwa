@@ -15,6 +15,7 @@ class SendBingwaHeartbeat
      */
     public function send(User $user): bool
     {
+        $user = $user->fresh(['bingwaDeviceRegistration']) ?? $user;
         $registration = $user->bingwaDeviceRegistration;
 
         if ($registration === null || blank($registration->device_token)) {

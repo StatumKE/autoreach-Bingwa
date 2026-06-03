@@ -3,9 +3,7 @@
 namespace App\Services;
 
 use App\Actions\Autoreach\SendBingwaHeartbeat;
-use App\Models\BingwaDeviceRegistration;
 use App\Models\Transaction;
-use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
@@ -22,6 +20,7 @@ class AndroidRuntimeScheduler
 
     public function __construct(
         private SendBingwaHeartbeat $sendBingwaHeartbeat,
+        private BingwaDeviceContext $deviceContext,
     ) {}
 
     public static function transactionSyncKey(int $userId): string
@@ -52,7 +51,7 @@ class AndroidRuntimeScheduler
         }
 
         try {
-            $user = $this->registeredUser();
+            $user = $this->deviceContext->user();
 
             if ($user === null) {
                 Log::debug('Bingwa runtime tick skipped — no registered user found.', [
@@ -129,32 +128,6 @@ class AndroidRuntimeScheduler
         }
     }
 
-    private function registeredUser(): ?User
-    {
-        $registration = BingwaDeviceRegistration::query()
-            ->whereNotNull('device_token')
-            ->where('device_token', '!=', '')
-            ->where(function ($query): void {
-                $query->whereNull('status')
-                    ->orWhere('status', '!=', 'stopped');
-            })
-            ->first();
-
-        if (! $registration) {
-            return null;
-        }
-
-        $user = User::query()->first();
-
-        if ($user) {
-            $user->setRelation('bingwaDeviceRegistration', $registration);
-
-            return $user;
-        }
-
-        return null;
-    }
-
     /**
      * @return array{ran: bool, heartbeat: bool, transaction_sync: bool, next_tick_seconds: int}
      */
@@ -170,9 +143,6 @@ class AndroidRuntimeScheduler
 
     private function nextTickSeconds(int $userId, CarbonInterface $currentTime): int
     {
-        $user = User::query()->first();
-        $userId = $user ? $user->id : $userId;
-
         $hasQueued = Transaction::query()
             ->where('user_id', $userId)
             ->where(function ($query) use ($currentTime): void {

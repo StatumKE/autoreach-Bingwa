@@ -20,7 +20,9 @@ class SendHeartbeatJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public function __construct() {}
+    public function __construct(
+        public int $userId,
+    ) {}
 
     public function uniqueId(): string
     {
@@ -32,10 +34,14 @@ class SendHeartbeatJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
      */
     public function handle(SendBingwaHeartbeat $sendBingwaHeartbeat): void
     {
-        $user = User::query()->first();
+        $user = User::query()
+            ->with('bingwaDeviceRegistration')
+            ->find($this->userId);
 
-        if (! $user instanceof User) {
-            Log::warning('Bingwa heartbeat job skipped because no user was found.');
+        if ($user === null) {
+            Log::warning('Bingwa heartbeat job skipped because no user was found.', [
+                'user_id' => $this->userId,
+            ]);
 
             return;
         }
@@ -62,9 +68,8 @@ class SendHeartbeatJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        $user = User::query()->first();
         Log::error('Bingwa heartbeat job marked as failed.', [
-            'user_id' => $user?->id,
+            'user_id' => $this->userId,
             'message' => $exception->getMessage(),
             'exception' => $exception::class,
         ]);

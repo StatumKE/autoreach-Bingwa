@@ -5,7 +5,6 @@ namespace App\Actions\Autoreach;
 use App\Models\AutoRenewal;
 use App\Models\Offer;
 use App\Models\Transaction;
-use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -20,11 +19,8 @@ class ProcessDueAutoRenewals
      *
      * @return array{queued: int, rescheduled: int, failed: int, users: array<int, int>}
      */
-    public function process(?int $userId = null): array
+    public function process(int $userId): array
     {
-        $user = User::query()->first();
-        $userId = $user ? $user->id : null;
-
         $lock = Cache::lock(self::LOCK_KEY, 55);
 
         if (! $lock->get()) {
@@ -50,7 +46,7 @@ class ProcessDueAutoRenewals
     /**
      * @return array{queued: int, rescheduled: int, failed: int, users: array<int, int>}
      */
-    private function processWithLock(?int $userId = null): array
+    private function processWithLock(int $userId): array
     {
         $query = AutoRenewal::query()
             ->with(['offer', 'user'])
@@ -59,9 +55,7 @@ class ProcessDueAutoRenewals
             ->oldest('scheduled_for')
             ->oldest('id');
 
-        if ($userId !== null) {
-            $query->where('user_id', $userId);
-        }
+        $query->where('user_id', $userId);
 
         $queued = 0;
         $rescheduled = 0;

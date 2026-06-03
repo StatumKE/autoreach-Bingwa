@@ -21,6 +21,7 @@ class FetchBingwaSubscriptionPlans
      */
     public function fetch(User $user, bool $forceRefresh = false): array
     {
+        $user = $this->freshUser($user);
         $deviceToken = $this->resolveDeviceToken($user);
 
         if ($forceRefresh) {
@@ -41,6 +42,7 @@ class FetchBingwaSubscriptionPlans
      */
     public function forget(User $user): void
     {
+        $user = $this->freshUser($user);
         $registration = $user->bingwaDeviceRegistration;
         if ($registration !== null && filled($registration->device_token)) {
             Cache::forget($this->cacheKey($user->id, $registration->device_token));
@@ -54,6 +56,7 @@ class FetchBingwaSubscriptionPlans
      */
     public function cached(User $user): ?array
     {
+        $user = $this->freshUser($user);
         $deviceToken = $this->resolveDeviceToken($user);
         $cachedPlans = Cache::get($this->cacheKey($user->id, $deviceToken));
 
@@ -181,5 +184,10 @@ class FetchBingwaSubscriptionPlans
     private function cacheKey(int $userId, string $deviceToken): string
     {
         return sprintf('autoreach.subscription_plans.%d.%s', $userId, sha1($deviceToken));
+    }
+
+    private function freshUser(User $user): User
+    {
+        return $user->fresh(['bingwaDeviceRegistration']) ?? $user;
     }
 }

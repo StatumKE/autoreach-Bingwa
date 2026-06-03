@@ -138,7 +138,7 @@ class DeviceSettingsController extends BaseController
         ]);
 
         if ($next) {
-            app(DispatchBingwaQueuedTransactionsJob::class)->dispatch();
+            app(DispatchBingwaQueuedTransactionsJob::class)->dispatch($userId);
         }
 
         return redirect()

@@ -18,7 +18,7 @@ class QueueRemoteTransactionStatusUpdate
         ?string $executedAt = null,
         ?string $failureCode = null,
     ): void {
-        $transaction->loadMissing('user.bingwaDeviceRegistration');
+        $transaction->load('user.bingwaDeviceRegistration');
 
         $remoteTransactionId = $transaction->transaction_id;
         $deviceToken = $transaction->user?->bingwaDeviceRegistration?->device_token;
@@ -36,6 +36,7 @@ class QueueRemoteTransactionStatusUpdate
             $airtimeUsed,
             $executionTimeMs,
             $executedAt ?? AppTimezone::now()->toIso8601String(),
+            $transaction->user_id,
             $failureCode ?? BingwaTransactionFailureCode::fromStatusAndMessage($status, $message),
         );
     }

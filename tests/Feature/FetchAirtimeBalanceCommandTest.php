@@ -4,7 +4,14 @@ use App\Jobs\RefreshAirtimeBalanceJob;
 use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
+use Native\Mobile\Facades\Device;
+
+beforeEach(function (): void {
+    Cache::flush();
+    Device::shouldReceive('getId')->andReturn('HW-12345');
+});
 
 test('it dispatches refresh airtime balance job for active registered users', function (): void {
     Queue::fake();
@@ -22,7 +29,9 @@ test('it dispatches refresh airtime balance job for active registered users', fu
     $exitCode = Artisan::call('bingwa:fetch-airtime-balance');
 
     expect($exitCode)->toBe(0);
-    Queue::assertPushed(RefreshAirtimeBalanceJob::class);
+    Queue::assertPushed(RefreshAirtimeBalanceJob::class, function (RefreshAirtimeBalanceJob $job) use ($user): bool {
+        return $job->userId === $user->id;
+    });
 });
 
 test('it does not dispatch job when there are no active registered users', function (): void {

@@ -14,8 +14,7 @@ test('fcm token sync posts the latest token to the external backend', function (
     $deviceToken = (string) Str::uuid();
     $fcmToken = 'fcm-token-'.Str::uuid()->toString();
 
-    $registration = new BingwaDeviceRegistration;
-    $registration->forceFill([
+    BingwaDeviceRegistration::query()->create([
         'user_id' => $user->id,
         'hardware_id' => (string) Str::uuid(),
         'device_token' => $deviceToken,
@@ -23,7 +22,15 @@ test('fcm token sync posts the latest token to the external backend', function (
         'bhc_code' => 'BHC123',
     ]);
 
-    $user->setRelation('bingwaDeviceRegistration', $registration);
+    $staleRegistration = new BingwaDeviceRegistration;
+    $staleRegistration->forceFill([
+        'user_id' => $user->id,
+        'hardware_id' => (string) Str::uuid(),
+        'device_token' => 'stale-device-token',
+        'backend_device_id' => 999,
+        'bhc_code' => 'STALE123',
+    ]);
+    $user->setRelation('bingwaDeviceRegistration', $staleRegistration);
 
     Http::fake([
         'https://backend.example.test/api/v1/auth/device/fcm-token' => Http::response([
@@ -54,8 +61,7 @@ test('fcm token sync recovers the backend device token on unauthorized responses
     $recoveredToken = 'new-device-token-401';
     $fcmToken = 'fcm-token-'.Str::uuid()->toString();
 
-    $registration = new BingwaDeviceRegistration;
-    $registration->forceFill([
+    BingwaDeviceRegistration::query()->create([
         'user_id' => $user->id,
         'hardware_id' => (string) Str::uuid(),
         'device_token' => $deviceToken,
@@ -63,7 +69,15 @@ test('fcm token sync recovers the backend device token on unauthorized responses
         'bhc_code' => 'BHC123',
     ]);
 
-    $user->setRelation('bingwaDeviceRegistration', $registration);
+    $staleRegistration = new BingwaDeviceRegistration;
+    $staleRegistration->forceFill([
+        'user_id' => $user->id,
+        'hardware_id' => (string) Str::uuid(),
+        'device_token' => 'stale-device-token',
+        'backend_device_id' => 999,
+        'bhc_code' => 'STALE123',
+    ]);
+    $user->setRelation('bingwaDeviceRegistration', $staleRegistration);
 
     Http::fake(function ($request) use ($deviceToken, $recoveredToken) {
         if ($request->url() === 'https://backend.example.test/api/v1/auth/device/token/recover') {

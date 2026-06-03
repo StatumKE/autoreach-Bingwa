@@ -10,18 +10,20 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Mockery\MockInterface;
+use Native\Mobile\Facades\Device;
 
 beforeEach(function (): void {
     Cache::flush();
+    Device::shouldReceive('getId')->andReturn('HW-RUNTIME-12345');
 });
 
-function createRuntimeRegisteredUser(?CarbonInterface $lastSeenAt = null): User
+function createRuntimeRegisteredUser(?CarbonInterface $lastSeenAt = null, ?string $hardwareId = null): User
 {
     $user = User::factory()->create();
 
     BingwaDeviceRegistration::query()->create([
         'user_id' => $user->getKey(),
-        'hardware_id' => 'HW-'.fake()->unique()->numerify('######'),
+        'hardware_id' => $hardwareId ?? 'HW-RUNTIME-12345',
         'device_token' => 'raw-device-token',
         'backend_device_id' => 42,
         'last_seen_at' => $lastSeenAt,
@@ -108,8 +110,8 @@ it('runs transaction sync when transaction sync is due', function (): void {
 });
 
 it('stores the transaction sync throttle per registered user', function (): void {
-    $firstUser = createRuntimeRegisteredUser(now());
-    $secondUser = createRuntimeRegisteredUser(now());
+    $firstUser = createRuntimeRegisteredUser(now(), 'HW-RUNTIME-0001');
+    $secondUser = createRuntimeRegisteredUser(now(), 'HW-RUNTIME-0002');
 
     Cache::forever(AndroidRuntimeScheduler::transactionSyncKey($firstUser->getKey()), now()->toIso8601String());
 

@@ -14,7 +14,6 @@ use App\Support\MpesaReceivedSms;
 use App\Support\MpesaReceivedSmsParser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class ProcessIncomingMpesaSms
 {
@@ -119,7 +118,7 @@ class ProcessIncomingMpesaSms
 
         $transaction = $this->createQueuedTransaction($user, $parsed, $offer, $payload, $simSlot);
 
-        app()->call([(new ProcessBingwaQueuedTransactionsJob((string) Str::uuid(), $user->getKey())), 'handle']);
+        app()->call([(new ProcessBingwaQueuedTransactionsJob($user->getKey())), 'handle']);
 
         $transaction->refresh();
 

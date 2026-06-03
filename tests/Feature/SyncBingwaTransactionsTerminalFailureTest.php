@@ -66,9 +66,10 @@ it('queues a remote status update when a backend transaction fails during sync',
     expect($transaction?->processed_at)->not->toBeNull();
     expect($transaction?->status_desc)->toBe('No active subscription plan found.');
 
-    Queue::assertPushed(UpdateRemoteTransactionStatusJob::class, function (UpdateRemoteTransactionStatusJob $job): bool {
+    Queue::assertPushed(UpdateRemoteTransactionStatusJob::class, function (UpdateRemoteTransactionStatusJob $job) use ($user): bool {
         return $job->remoteTransactionId === '91'
             && $job->status === 'failed'
-            && $job->failureCode === 'SYSTEM_ERROR';
+            && $job->failureCode === 'SYSTEM_ERROR'
+            && $job->userId === $user->id;
     });
 });

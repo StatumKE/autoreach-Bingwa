@@ -4,22 +4,26 @@ namespace App\Actions\Autoreach;
 
 use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
+use App\Services\BingwaDeviceContext;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Native\Mobile\Facades\Device;
 
 class RegisterBingwaDevice
 {
+    public function __construct(
+        private BingwaDeviceContext $deviceContext,
+    ) {}
+
     /**
      * Register the current device with the Autoreach backend.
      */
     public function registerOnBackend(User $user): array
     {
-        $hardwareId = $this->resolveHardwareId();
+        $hardwareId = $this->deviceContext->hardwareIdOrCreate();
 
         $payload = [
             'hardware_id' => $hardwareId,
@@ -137,7 +141,7 @@ class RegisterBingwaDevice
      */
     public function persistRegistration(User $user, array $backendRegistration): BingwaDeviceRegistration
     {
-        $hardwareId = $backendRegistration['hardware_id'] ?? $this->resolveHardwareId();
+        $hardwareId = $backendRegistration['hardware_id'] ?? $this->deviceContext->hardwareIdOrCreate();
 
         $deviceToken = $backendRegistration['device_token'] ?? null;
         $bhcCode = $backendRegistration['bhc_code'] ?? null;
@@ -175,19 +179,6 @@ class RegisterBingwaDevice
         return $record;
     }
 
-    private function resolveHardwareId(): string
-    {
-        $hardwareId = $this->nativeHardwareId();
-
-        if (is_string($hardwareId) && $hardwareId !== '') {
-            return $hardwareId;
-        }
-
-        return cache()->rememberForever('autoreach.hardware_id', function (): string {
-            return (string) Str::uuid();
-        });
-    }
-
     /**
      * Call a NativePHP bridge function when available.
      */
@@ -198,43 +189,6 @@ class RegisterBingwaDevice
         }
 
         return nativephp_call($functionName, $payload);
-    }
-
-    private function nativeHardwareId(): ?string
-    {
-        Log::debug('Bingwa native hardware id bridge probe.', [
-            'nativephp_call_available' => function_exists('nativephp_call'),
-        ]);
-
-        $rawHardwareId = $this->nativeBridgeCall('Device.GetId', '{}');
-
-        Log::debug('Bingwa native hardware id raw response.', [
-            'response' => is_string($rawHardwareId) ? $rawHardwareId : null,
-        ]);
-
-        if (is_string($rawHardwareId) && $rawHardwareId !== '') {
-            $decodedResponse = json_decode($rawHardwareId, true);
-
-            if (is_array($decodedResponse)) {
-                $bridgeHardwareId = $decodedResponse['data']['id'] ?? null;
-
-                if (is_string($bridgeHardwareId) && $bridgeHardwareId !== '' && $bridgeHardwareId !== 'unknown') {
-                    Log::debug('Bingwa native hardware id resolved from bridge.', [
-                        'hardware_id' => $bridgeHardwareId,
-                    ]);
-
-                    return $bridgeHardwareId;
-                }
-            }
-        }
-
-        $hardwareId = Device::getId();
-
-        if (is_string($hardwareId) && $hardwareId !== '' && $hardwareId !== 'unknown') {
-            return $hardwareId;
-        }
-
-        return null;
     }
 
     /**

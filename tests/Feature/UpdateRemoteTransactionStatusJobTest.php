@@ -53,6 +53,7 @@ it('recovers the backend device token when updating remote transaction status re
         airtimeUsed: null,
         executionTimeMs: null,
         executedAt: now()->toIso8601String(),
+        userId: $user->id,
     ))->handle();
 
     expect($user->refresh()->bingwaDeviceRegistration?->device_token)->toBe('new-device-token-401');

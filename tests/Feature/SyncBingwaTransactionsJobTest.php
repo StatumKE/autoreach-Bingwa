@@ -32,9 +32,11 @@ it('fetches jobs and dispatches the queued processor when synced transactions ex
             ->andReturn(['synced' => 1, 'skipped' => 0, 'failed' => 0]);
     });
 
-    app()->call([(new SyncBingwaTransactionsJob), 'handle']);
+    app()->call([(new SyncBingwaTransactionsJob($user->id)), 'handle']);
 
-    Bus::assertDispatchedSync(ProcessBingwaQueuedTransactionsJob::class);
+    Bus::assertDispatchedSync(ProcessBingwaQueuedTransactionsJob::class, function (ProcessBingwaQueuedTransactionsJob $job) use ($user): bool {
+        return $job->userId === $user->id;
+    });
 
     Log::shouldHaveReceived('debug')
         ->with(
@@ -66,7 +68,7 @@ it('skips dispatch when there are no synced or queued transactions', function ()
 
     expect(Transaction::query()->where('status', 'queued')->exists())->toBeFalse();
 
-    app()->call([(new SyncBingwaTransactionsJob), 'handle']);
+    app()->call([(new SyncBingwaTransactionsJob($user->id)), 'handle']);
 
     Bus::assertNotDispatchedSync(ProcessBingwaQueuedTransactionsJob::class);
 });
@@ -81,7 +83,7 @@ it('skips the sync when user has no bingwa device registration', function (): vo
         $mock->shouldNotReceive('sync');
     });
 
-    app()->call([(new SyncBingwaTransactionsJob), 'handle']);
+    app()->call([(new SyncBingwaTransactionsJob($user->id)), 'handle']);
 });
 
 it('skips the sync when user does not exist', function (): void {
@@ -91,5 +93,5 @@ it('skips the sync when user does not exist', function (): void {
         $mock->shouldNotReceive('sync');
     });
 
-    app()->call([(new SyncBingwaTransactionsJob), 'handle']);
+    app()->call([(new SyncBingwaTransactionsJob(999999)), 'handle']);
 });

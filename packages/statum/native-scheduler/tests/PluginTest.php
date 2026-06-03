@@ -208,7 +208,8 @@ describe('Lifecycle Hooks', function () {
 
         expect($manifest['android']['permissions'] ?? [])
             ->toContain('android.permission.SEND_SMS')
-            ->toContain('android.permission.RECEIVE_SMS');
+            ->toContain('android.permission.RECEIVE_SMS')
+            ->toContain('android.permission.RECEIVE_BOOT_COMPLETED');
     });
 
     it('declares workmanager and the protected incoming sms receiver', function () {

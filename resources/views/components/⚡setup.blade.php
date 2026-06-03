@@ -125,7 +125,7 @@ class extends Component {
     {{-- Progress bar --}}
     <div class="px-6 mb-6">
         <div class="flex items-center justify-between mb-2">
-            <span class="text-[10px] font-black uppercase tracking-widest text-zinc-500">Setup Progress</span>
+            <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Setup Progress</span>
             <span class="text-[10px] font-black text-green-400" x-text="`${grantedCount} of ${total} granted`"></span>
         </div>
         <div class="h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
@@ -307,8 +307,8 @@ class extends Component {
                         Open Accessibility
                     </button>
                     <div x-show="!status.accessibilityEnabled" x-cloak class="mt-2.5">
-                        <p class="text-[11px] text-zinc-500 leading-relaxed">
-                            On <strong class="text-zinc-300">Samsung</strong>, tap <strong class="text-zinc-300">Installed apps</strong>. On <strong class="text-zinc-300">other devices</strong>, look for <strong class="text-zinc-300">Downloaded apps</strong> or <strong class="text-zinc-300">Installed services</strong>. Select <strong class="text-zinc-300">Bingwa USSD Automation</strong> and turn it on.
+                        <p class="text-[11px] text-zinc-300 leading-relaxed">
+                            On <strong class="text-white">Samsung</strong>: tap <strong class="text-white">Installed apps</strong>. On <strong class="text-white">Xiaomi, Oppo, Realme, Tecno, Infinix & Pixel</strong>: look for <strong class="text-white">Downloaded apps</strong>, <strong class="text-white">Downloaded services</strong> or <strong class="text-white">Installed services</strong>. Select <strong class="text-green-400">Bingwa USSD Automation</strong> and turn it on.
                         </p>
                     </div>
                     <div x-show="!status.accessibilityEnabled" x-cloak class="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/8 p-4">
@@ -374,7 +374,7 @@ class extends Component {
     <div class="fixed inset-x-0 bottom-0 bg-zinc-950/95 backdrop-blur-lg border-t border-zinc-800/80 px-5 py-5 z-10">
         <p
             class="text-center text-[11px] mb-3 transition-colors duration-300"
-            :class="allCriticalGranted ? 'text-green-400 font-black' : 'text-zinc-500'"
+            :class="allCriticalGranted ? 'text-green-400 font-black' : 'text-zinc-400'"
             x-text="allCriticalGranted
                 ? '✓ All required permissions granted — you\'re ready!'
                 : 'Phone, Notifications, Battery, Accessibility and Display Over Apps are required.'"

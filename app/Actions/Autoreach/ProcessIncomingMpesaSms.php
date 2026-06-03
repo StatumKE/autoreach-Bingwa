@@ -14,6 +14,7 @@ use App\Support\MpesaReceivedSms;
 use App\Support\MpesaReceivedSmsParser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ProcessIncomingMpesaSms
 {

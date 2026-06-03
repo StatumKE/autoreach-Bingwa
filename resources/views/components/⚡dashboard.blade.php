@@ -368,6 +368,23 @@ new #[Title('Dashboard')] class extends Component
             } catch (e) {
                 console.error(e);
             }
+        },
+        async openAppInfo() {
+            try {
+                await fetch('/_native/api/call', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                    },
+                    body: JSON.stringify({
+                        method: 'OpenAppInfo',
+                        params: {},
+                    }),
+                });
+            } catch (e) {
+                console.error(e);
+            }
         }
     }"
     x-init="checkAccessibility(); const timer = setInterval(() => checkAccessibility(), 10000); $cleanup(() => clearInterval(timer));"
@@ -401,7 +418,7 @@ new #[Title('Dashboard')] class extends Component
                     {{ __('USSD automated package delivery cannot run without the accessibility service.') }}
                 </div>
                 <div class="mt-1.5 text-[10px] leading-relaxed text-red-800/80">
-                    Tap <strong class="font-bold text-red-900">Enable Service</strong> below. On <strong class="font-bold text-red-900">Samsung</strong>, tap <strong class="font-bold text-red-900">Installed apps</strong>. On <strong class="font-bold text-red-900">other devices</strong>, look for <strong class="font-bold text-red-900">Downloaded apps / services</strong>. Turn on <strong class="font-bold text-red-900">Bingwa USSD Automation</strong>.
+                    Tap <strong class="font-bold text-red-900">Enable Service</strong> below. On <strong class="font-bold text-red-900">Samsung</strong>: tap <strong class="font-bold text-red-900">Installed apps</strong>. On <strong class="font-bold text-red-900">Xiaomi, Oppo, Realme, Tecno, Infinix & Pixel</strong>: look for <strong class="font-bold text-red-900">Downloaded apps</strong>, <strong class="font-bold text-red-900">Downloaded services</strong> or <strong class="font-bold text-red-900">Installed services</strong>. Turn on <strong class="font-bold text-red-900">Bingwa USSD Automation</strong>.
                 </div>
                 <div class="mt-1.5 text-[9.5px] leading-relaxed text-red-700/80 border-t border-red-500/10 pt-1.5">
                     If blocked by a <strong class="font-bold text-red-900">"Restricted Setting"</strong> pop-up: Open App Info, tap the three dots (<strong class="font-bold text-red-900">More</strong>) in the top-right corner, select <strong class="font-bold text-red-900">"Allow restricted settings"</strong>, and then enable it.
@@ -414,6 +431,14 @@ new #[Title('Dashboard')] class extends Component
                         class="rounded-lg bg-red-600 text-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition hover:bg-red-700 active:scale-95 shadow-sm hover:shadow"
                     >
                         {{ __('Enable Service') }}
+                    </button>
+                    <button
+                        type="button"
+                        id="btn-open-app-info"
+                        @click="openAppInfo"
+                        class="rounded-lg bg-zinc-800 text-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700 active:scale-95 shadow-sm hover:shadow"
+                    >
+                        {{ __('Open App Info') }}
                     </button>
                 </div>
             </div>

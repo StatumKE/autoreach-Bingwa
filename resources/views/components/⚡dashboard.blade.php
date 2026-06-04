@@ -345,8 +345,9 @@ new #[Title('Dashboard')] class extends Component
                     }),
                 });
                 const result = await response.json();
-                if (result && typeof result.accessibilityEnabled !== 'undefined') {
-                    this.accessibilityEnabled = result.accessibilityEnabled;
+                const data = result?.data ?? result;
+                if (data && typeof data.accessibilityEnabled !== 'undefined') {
+                    this.accessibilityEnabled = data.accessibilityEnabled;
                 }
             } catch (e) {
                 console.error(e);

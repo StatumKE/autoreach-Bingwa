@@ -89,7 +89,15 @@ class UssdExecutor(private val context: Context) {
                 "advanced" -> runAdvanced(code, subId, simSlot, timeoutMs)
                 else -> runExpress(code, subId)
             }
-        } ?: UssdResult(success = false, message = "USSD timed out after ${timeoutSeconds}s")
+        } ?: run {
+            val isAccessibilityEnabled = UssdAccessibilityService.instance != null
+            val hint = if (!isAccessibilityEnabled) {
+                " (Accessibility service is not active; please enable 'Bingwa USSD Automation' in Settings)"
+            } else {
+                ""
+            }
+            UssdResult(success = false, message = "USSD timed out after ${timeoutSeconds}s$hint")
+        }
     }
 
     private fun resolveSubscriptionId(simSlot: Int): Int {

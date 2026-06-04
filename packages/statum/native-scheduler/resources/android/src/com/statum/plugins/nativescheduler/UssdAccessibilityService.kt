@@ -47,7 +47,7 @@ class UssdAccessibilityService : AccessibilityService() {
          */
         val responseChannel = Channel<String>(Channel.UNLIMITED)
 
-        private val CONFIRM_LABELS = setOf("send", "ok", "okay", "reply", "tuma", "confirm", "yes")
+        private val CONFIRM_LABELS = setOf("send", "ok", "okay", "reply", "tuma", "confirm", "yes", "close", "dismiss", "cancel")
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -218,6 +218,8 @@ class UssdAccessibilityService : AccessibilityService() {
             || lowerPackage.contains("telephony")
             || lowerPackage.contains("contacts") // Xiaomi, Huawei, etc. dialer package
             || lowerPackage.contains("sim")
+            || lowerPackage.contains("systemui") // Samsung, system alert dialogs
+            || lowerPackage == "android" // generic android/system dialogs
             || lowerClassName.contains("ussd")
             || lowerClassName.contains("mmi")
             || lowerClassName.contains("dialog")
@@ -274,9 +276,12 @@ class UssdAccessibilityService : AccessibilityService() {
         while (queue.isNotEmpty()) {
             val node = queue.removeFirst()
             val className = node.className?.toString().orEmpty()
-            if (className.contains("Button", ignoreCase = true)) {
+            val text = node.text?.toString()?.lowercase()?.trim() ?: ""
+            val isButton = className.contains("Button", ignoreCase = true) || (node.isClickable && text.isNotEmpty())
+
+            if (isButton) {
                 fallbackButton = node
-                if (node.text?.toString()?.lowercase()?.trim() in CONFIRM_LABELS) {
+                if (text in CONFIRM_LABELS) {
                     return node
                 }
             }
@@ -326,8 +331,11 @@ class UssdAccessibilityService : AccessibilityService() {
         while (queue.isNotEmpty()) {
             val node = queue.removeFirst()
             val className = node.className?.toString().orEmpty()
-            if (className.contains("Button", ignoreCase = true)) {
-                if (node.text?.toString()?.lowercase()?.trim() in cancelLabels) {
+            val text = node.text?.toString()?.lowercase()?.trim() ?: ""
+            val isButton = className.contains("Button", ignoreCase = true) || (node.isClickable && text.isNotEmpty())
+
+            if (isButton) {
+                if (text in cancelLabels) {
                     return node
                 }
             }

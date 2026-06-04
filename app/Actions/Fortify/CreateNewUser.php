@@ -65,7 +65,7 @@ class CreateNewUser implements CreatesNewUsers
                             'app_interface_mode' => 'express',
                             'auto_reschedule_rejected' => true,
                             'retry_tomorrow_at' => '12:00 AM',
-                            'ussd_timeout_seconds' => 60,
+                            'ussd_timeout_seconds' => 90,
                             'intelligent_auto_retry' => true,
                             'retry_interval_minutes' => 1,
                             'max_attempts' => 2,

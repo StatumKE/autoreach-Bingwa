@@ -289,6 +289,7 @@ class UssdExecutor(private val context: Context) {
         Log.d(TAG, "Advanced USSD dialog text: $dialogText")
 
         var resolvedDialogText = dialogText
+        var lastCompletedStep = 0
 
         for ((index, reply) in parsedFlow.replies.withIndex()) {
             Log.d(
@@ -308,14 +309,25 @@ class UssdExecutor(private val context: Context) {
             }
 
             resolvedDialogText = nextDialogText
+            lastCompletedStep = index + 1
             Log.d(TAG, "Advanced USSD dialog after reply step ${index + 1}: $resolvedDialogText")
         }
 
         UssdAccessibilityService.responseChannel.tryReceive()
         
+        val finalMessage = if (lastCompletedStep < parsedFlow.replies.size) {
+            val replyOption = parsedFlow.replies[lastCompletedStep]
+            val replyNum = lastCompletedStep + 1
+            val totalReplies = parsedFlow.replies.size
+            val cleanMenu = cleanMenuMessage(resolvedDialogText)
+            "USSD session interrupted after selecting option '$replyOption' (Reply step $replyNum of $totalReplies). Response: $cleanMenu"
+        } else {
+            resolvedDialogText
+        }
+
         return UssdResult(
-            success = isPurchaseSuccessMessage(resolvedDialogText),
-            message = resolvedDialogText,
+            success = isPurchaseSuccessMessage(finalMessage),
+            message = finalMessage,
         )
         } finally {
             service.dismiss()
@@ -459,5 +471,11 @@ class UssdExecutor(private val context: Context) {
         TelephonyManager.USSD_RETURN_FAILURE -> "Network returned a general failure"
         TelephonyManager.USSD_ERROR_SERVICE_UNAVAIL -> "USSD service unavailable on this network"
         else -> "Unknown USSD failure code: $code"
+    }
+
+    private fun cleanMenuMessage(message: String): String {
+        val lines = message.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        if (lines.isEmpty()) return ""
+        return lines.first()
     }
 }

@@ -50,7 +50,7 @@ class UssdExecutor(private val context: Context) {
     companion object {
         private const val TAG = "UssdExecutor"
         private const val MIN_DIALOG_TIMEOUT_MS = 10_000L
-        private const val MAX_DIALOG_TIMEOUT_MS = 25_000L
+        private const val MAX_DIALOG_TIMEOUT_MS = 45_000L
     }
 
     /**

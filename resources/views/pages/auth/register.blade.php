@@ -66,7 +66,7 @@
                             type="text"
                             required
                             autocomplete="off"
-                            :placeholder="__('Enter your Connect ID from the app')"
+                            :placeholder="__('Enter your Connect ID from Autoreach Connect app')"
                         />
                         <flux:text class="mt-2 text-xs font-medium text-zinc-500">
                             {{ __('Enter the Connect ID from your Autoreach Connect App.') }}

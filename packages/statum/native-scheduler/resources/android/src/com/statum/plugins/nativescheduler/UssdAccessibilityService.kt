@@ -43,9 +43,12 @@ class UssdAccessibilityService : AccessibilityService() {
 
         /**
          * One-way channel: Service → UssdExecutor.
-         * Sends the USSD dialog text when detected. Unlimited capacity prevents drops.
+         * CONFLATED capacity: only the latest dialog text is buffered. Since the consumer
+         * (UssdExecutor) only ever needs the current dialog state, intermediate duplicate
+         * events from the same dialog are automatically discarded. This prevents unbounded
+         * memory accumulation under high accessibility event rates.
          */
-        val responseChannel = Channel<String>(Channel.UNLIMITED)
+        val responseChannel = Channel<String>(Channel.CONFLATED)
 
         private val CONFIRM_LABELS = setOf("send", "ok", "okay", "reply", "tuma", "confirm", "yes", "close", "dismiss", "cancel")
     }
@@ -212,18 +215,28 @@ class UssdAccessibilityService : AccessibilityService() {
         val lowerPackage = eventPackage.lowercase()
         val lowerClassName = className?.lowercase().orEmpty()
 
-        return lowerPackage.contains("phone")
+        // Fast accept: package name unambiguously identifies a telephony/dialer window.
+        // These covers AOSP (com.android.phone), Google Dialer, and most OEM variants.
+        if (lowerPackage.contains("phone")
             || lowerPackage.contains("dialer")
             || lowerPackage.contains("telecom")
             || lowerPackage.contains("telephony")
-            || lowerPackage.contains("contacts") // Xiaomi, Huawei, etc. dialer package
+            || lowerPackage.contains("contacts") // Xiaomi, Huawei dialer package
             || lowerPackage.contains("sim")
-            || lowerPackage.contains("systemui") // Samsung, system alert dialogs
-            || lowerPackage == "android" // generic android/system dialogs
-            || lowerClassName.contains("ussd")
-            || lowerClassName.contains("mmi")
-            || lowerClassName.contains("dialog")
-            || lowerClassName.contains("alert")
+        ) return true
+
+        // Accept by class name when the class is specifically USSD/MMI related.
+        if (lowerClassName.contains("ussd") || lowerClassName.contains("mmi")) return true
+
+        // Broad system packages ("android", "systemui"): only accept when the class is
+        // specifically an AlertDialog — NOT permission dialogs, notification shade, etc.
+        // This prevents the service from accidentally interacting with system permission
+        // dialogs (e.g. com.android.packageinstaller) or the volume overlay.
+        val isSystemPackage = lowerPackage.contains("systemui") || lowerPackage == "android"
+        val isAlertDialogClass = lowerClassName == "android.app.alertdialog"
+            || lowerClassName.endsWith(".alertdialog")
+            || lowerClassName.endsWith(".ussdresponsedialog")
+        return isSystemPackage && isAlertDialogClass
     }
 
     private fun findEditTextNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {

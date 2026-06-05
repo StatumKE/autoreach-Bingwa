@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class GetNextBingwaQueuedTransaction
 {
-    private const STUCK_THRESHOLD_MINUTES = 45;
+    private const STUCK_THRESHOLD_MINUTES = 10;
 
     /**
      * Find the next queued Bingwa transaction and prepare its USSD payload.

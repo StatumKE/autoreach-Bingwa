@@ -46,7 +46,9 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
             ->find($this->userId);
 
         if (! $user instanceof User) {
-            throw new RuntimeException("Unable to update remote transaction status {$this->remoteTransactionId}: no user was found.");
+            Log::info("Skipping remote status update for transaction {$this->remoteTransactionId}: user #{$this->userId} no longer exists.");
+
+            return;
         }
 
         $registration = $user->bingwaDeviceRegistration;

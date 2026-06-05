@@ -208,6 +208,12 @@ class UssdExecutor(private val context: Context) {
             }
         }
 
+        // Drain any accessibility response that wasn't consumed by the select above.
+        // If the telephony callback won the race, the accessibility service may have already
+        // buffered a dialog text that will never be read. Clear it now so it doesn't
+        // contaminate the next advanced-mode session's first dialog read.
+        while (UssdAccessibilityService.responseChannel.tryReceive().isSuccess) { /* drain */ }
+
         return result
     }
 

@@ -57,7 +57,12 @@ class CompleteBingwaTransaction
             }
         }
 
-        DB::transaction(function () use ($transaction, $status, $statusDesc, $message, $nextAttemptAt): void {
+        // Capture notification parameters before the transaction so they are available
+        // inside the afterCommit callback without re-querying the (now-closed) connection.
+        $remoteStatus = $status === 'completed' ? 'successful' : 'failed';
+        $failureCode = BingwaTransactionFailureCode::fromStatusAndMessage($status, $message);
+
+        DB::transaction(function () use ($transaction, $status, $statusDesc, $nextAttemptAt): void {
             // Resolve auto-reply before the final UPDATE so both the core status
             // fields and the auto-reply fields are written in a single round-trip.
             $resolved = app(ResolveAutoReplyForTransaction::class)->resolve($transaction);
@@ -91,14 +96,19 @@ class CompleteBingwaTransaction
             } else {
                 SendAutoReplySmsJob::dispatch($transaction->id)->afterCommit();
             }
+        });
 
+        // Notify the Autoreach backend AFTER the transaction commits successfully.
+        // Running this inside DB::transaction held row-level locks for up to 30 s and
+        // caused split-brain state when an HTTP timeout triggered a DB rollback.
+        DB::afterCommit(function () use ($transaction, $remoteStatus, $message, $failureCode): void {
             app(QueueRemoteTransactionStatusUpdate::class)->queue(
                 $transaction,
-                $status === 'completed' ? 'successful' : 'failed',
+                $remoteStatus,
                 $message,
                 executionTimeMs: $transaction->updated_at ? (int) abs(now()->diffInMilliseconds($transaction->updated_at)) : null,
                 executedAt: now()->toIso8601String(),
-                failureCode: BingwaTransactionFailureCode::fromStatusAndMessage($status, $message),
+                failureCode: $failureCode,
             );
         });
 

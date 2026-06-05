@@ -20,15 +20,22 @@ internal fun parseAdvancedUssdFlow(code: String): AdvancedUssdFlow {
     val tokens = normalized
         .split('*')
         .map { it.trim() }
-        .filter { it.isNotEmpty() }
+    // Note: empty strings between consecutive ** (e.g. *100**1#) are preserved intentionally.
+    // An empty token represents a "send nothing / confirm" step in the USSD menu tree.
+    // Filtering them out would silently skip a required menu navigation step.
 
-    if (tokens.isEmpty()) {
+    if (tokens.isEmpty() || tokens.all { it.isEmpty() }) {
         val fallback = code.trim()
         return AdvancedUssdFlow(baseDialCode = fallback, replies = emptyList())
     }
 
-    val baseDialCode = "*${tokens.first()}#"
-    val replies = tokens.drop(1)
+    val firstNonEmpty = tokens.indexOfFirst { it.isNotEmpty() }
+    val baseDialCode = "*${tokens[firstNonEmpty]}#"
+    val replies = tokens.drop(firstNonEmpty + 1)
+
+    if (replies.any { it.isEmpty() }) {
+        android.util.Log.w("UssdFlowParser", "USSD code contains empty reply step (consecutive **): $code")
+    }
 
     return AdvancedUssdFlow(
         baseDialCode = baseDialCode,

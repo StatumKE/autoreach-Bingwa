@@ -38,7 +38,11 @@ internal class UssdStatusReporter(
             .writeTimeout(10, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .callTimeout(30, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
+            // Disabled: the repeat(MAX_ATTEMPTS) loop above already handles transient
+            // failures with backoff. OkHttp's silent retry is redundant for PATCH
+            // requests and risks delivering a duplicate status update to the backend,
+            // because the ByteString-backed request body is repeatable (re-sendable).
+            .retryOnConnectionFailure(false)
             .build()
     }
 

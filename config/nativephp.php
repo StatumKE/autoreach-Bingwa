@@ -46,7 +46,21 @@ return [
     ],
 
     'runtime' => [
-        'mode' => env('NATIVEPHP_RUNTIME_MODE', 'classic'),
+        'mode' => env('NATIVEPHP_RUNTIME_MODE', 'persistent'),
+
+        /**
+         * Clear resolved facade instances between each persistent dispatch.
+         * Keeps true so each Livewire request gets a clean service-container slate
+         * without the ~200ms full-boot cost.
+         */
+        'reset_instances' => true,
+
+        /**
+         * Run PHP's garbage collector between persistent dispatches.
+         * Enable this if you observe memory growth over time in long-running sessions.
+         * Adds a small overhead per request; leave false unless needed.
+         */
+        'gc_between_dispatches' => false,
     ],
 
     'android' => [

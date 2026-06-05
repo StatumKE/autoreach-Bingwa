@@ -44,7 +44,14 @@ object BingwaFunctions {
 
     class ExecuteUssd(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
-            return executeUssd(context, parameters, defaultMode = "express", defaultIsSambaza = false, runAsync = true)
+            val runAsyncVal = parameters["runAsync"] ?: parameters["run_async"]
+            val runAsync = when (runAsyncVal) {
+                is Boolean -> runAsyncVal
+                is String -> runAsyncVal.trim().lowercase() == "true" || runAsyncVal.trim() == "1"
+                is Number -> runAsyncVal.toInt() != 0
+                else -> true
+            }
+            return executeUssd(context, parameters, defaultMode = "express", defaultIsSambaza = false, runAsync = runAsync)
         }
     }
 
@@ -405,7 +412,12 @@ object BingwaFunctions {
         defaultIsSambaza: Boolean,
         runAsync: Boolean = true
     ): Map<String, Any> {
-        val id = (parameters["id"] as? Number)?.toInt()
+        val idVal = parameters["id"]
+        val id = when (idVal) {
+            is Number -> idVal.toInt()
+            is String -> idVal.toIntOrNull()
+            else -> null
+        }
         if (runAsync && id == null) {
             throw BridgeError.InvalidParameters("Missing 'id' parameter for async execution")
         }
@@ -413,14 +425,31 @@ object BingwaFunctions {
         val code = parameters["code"] as? String
             ?: throw BridgeError.InvalidParameters("Missing 'code' parameter")
 
-        val simSlot = (parameters["simSlot"] as? Number)?.toInt() ?: 0
+        val simSlotVal = parameters["simSlot"] ?: parameters["sim_slot"]
+        val simSlot = when (simSlotVal) {
+            is Number -> simSlotVal.toInt()
+            is String -> simSlotVal.toIntOrNull() ?: 0
+            else -> 0
+        }
+
         val mode = (parameters["mode"] as? String)
             ?.takeIf { it == "express" || it == "advanced" }
             ?: defaultMode
-        val isSambaza = (parameters["isSambaza"] as? Boolean) ?: defaultIsSambaza
-        val timeoutSeconds = ((parameters["timeoutSeconds"] as? Number)?.toInt() ?: 30)
-            .takeIf { it > 0 }
-            ?: 30
+
+        val isSambazaVal = parameters["isSambaza"] ?: parameters["is_sambaza"]
+        val isSambaza = when (isSambazaVal) {
+            is Boolean -> isSambazaVal
+            is String -> isSambazaVal.trim().lowercase() == "true" || isSambazaVal.trim() == "1"
+            is Number -> isSambazaVal.toInt() != 0
+            else -> defaultIsSambaza
+        }
+
+        val timeoutVal = parameters["timeoutSeconds"] ?: parameters["timeout_seconds"] ?: parameters["timeout"]
+        val timeoutSeconds = when (timeoutVal) {
+            is Number -> timeoutVal.toInt()
+            is String -> timeoutVal.toIntOrNull() ?: 30
+            else -> 30
+        }.takeIf { it > 0 } ?: 30
 
         if (runAsync) {
             // Asynchronously run USSD on background thread pool
@@ -510,50 +539,66 @@ object BingwaFunctions {
         val command = "bingwa:complete-transaction --transaction-id=$id --result=$status --message-base64=$encodedMessage"
 
         var executedInstantly = false
-        synchronized(com.nativephp.mobile.bridge.PHPBridge.phpLock) {
+
+        val phpBridge = com.nativephp.mobile.bridge.PHPBridge(context.applicationContext)
+
+        // ── Tier 1: Persistent runtime ─────────────────────────────────────────────────
+        // Fastest path (~5–30 ms). Reuses already-warm PHP kernel.
+        // Thread-safe: runPersistentArtisan() dispatches through phpExecutor (single-thread executor),
+        // so no TSRM collisions.
+        if (phpBridge.isPersistentMode()) {
             try {
-                if (!com.nativephp.mobile.bridge.BridgeFunctionRegistry.shared.exists("ExecuteUssd")) {
-                    com.nativephp.mobile.bridge.plugins.registerContextOnlyBridgeFunctions(context.applicationContext)
-                }
-
-                val environment = com.nativephp.mobile.bridge.LaravelEnvironment(context.applicationContext)
-                environment.initializeForBackground()
-
-                val phpBridge = com.nativephp.mobile.bridge.PHPBridge(context.applicationContext)
-                val booted = phpBridge.nativeEphemeralBoot(
-                    "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
-                )
-
-                if (booted == 0) {
-                    try {
-                        val output = phpBridge.nativeEphemeralArtisan(command)
-                        Log.i(TAG, "USSD callback processed instantly: ${output.take(200)}")
-                        executedInstantly = true
-                    } finally {
-                        phpBridge.nativeEphemeralShutdown()
-                    }
-                }
+                val output = phpBridge.runPersistentArtisan(command)
+                Log.i(TAG, "USSD callback via persistent runtime (~5ms): ${output.take(200)}")
+                executedInstantly = true
             } catch (e: Exception) {
-                Log.e(TAG, "Instant PHP bridge callback failed", e)
+                Log.w(TAG, "Persistent runtime execution failed for USSD callback: ${e.message}")
             }
         }
 
+        // ── Tier 2: Ephemeral runtime ──────────────────────────────────────────────────
+        // Medium path (~200 ms cold boot). Works even when app is fully backgrounded.
+        // Uses a dedicated TSRM context (separate from persistent runtime) so it never
+        // blocks or interferes with WebView/Livewire requests.
+        // Only run this if persistent mode is NOT active to avoid Zend engine thread conflict.
+        if (!executedInstantly && !phpBridge.isPersistentMode()) {
+            synchronized(com.nativephp.mobile.bridge.PHPBridge.phpLock) {
+                try {
+                    if (!com.nativephp.mobile.bridge.BridgeFunctionRegistry.shared.exists("ExecuteUssd")) {
+                        com.nativephp.mobile.bridge.plugins.registerContextOnlyBridgeFunctions(context.applicationContext)
+                    }
+
+                    val environment = com.nativephp.mobile.bridge.LaravelEnvironment(context.applicationContext)
+                    environment.initializeForBackground()
+
+                    val booted = phpBridge.nativeEphemeralBoot(
+                        "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
+                    )
+
+                    if (booted == 0) {
+                        try {
+                            val output = phpBridge.nativeEphemeralArtisan(command)
+                            Log.i(TAG, "USSD callback via ephemeral runtime (~200ms): ${output.take(200)}")
+                            executedInstantly = true
+                        } finally {
+                            phpBridge.nativeEphemeralShutdown()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Ephemeral PHP bridge callback failed", e)
+                }
+            }
+        }
+
+        // ── Tier 3: Background Fallback ────────────────────────────────────────────────────────
+        // Guaranteed path. Persists to SQLite, survives process death & device reboot.
+        // Retries with exponential backoff until it succeeds.
         if (!executedInstantly) {
-            Log.w(TAG, "Instant USSD callback failed. Enqueuing WorkManager fallback for transaction #$id")
-            val inputData = androidx.work.Data.Builder()
-                .putInt(UssdCallbackWorker.KEY_ID, id)
-                .putBoolean(UssdCallbackWorker.KEY_SUCCESS, success)
-                .putString(UssdCallbackWorker.KEY_MESSAGE, message)
-                .build()
-
-            val workRequest = androidx.work.OneTimeWorkRequestBuilder<UssdCallbackWorker>()
-                .setInputData(inputData)
-                .build()
-
-            androidx.work.WorkManager.getInstance(context).enqueue(workRequest)
-            Log.i(TAG, "Enqueued USSD callback for transaction #$id")
+            Log.w(TAG, "Both instant tiers failed — enqueuing background fallback for transaction #$id")
+            UssdCallbackWorker.enqueueFallback(context, id, success, message)
         }
     }
+
 
 
 

@@ -58,6 +58,10 @@ class RefreshAirtimeBalance
         ]);
         $deviceSettings->save();
 
+        // Refresh the in-memory relation so subsequent cached() calls on the same
+        // user object return the newly saved values, not the stale Eloquent instance.
+        $user->setRelation('deviceSetting', $deviceSettings);
+
         Log::debug('Bingwa airtime balance refreshed.', [
             'user_id' => $user->id,
             'sim_slot' => $simSlot,

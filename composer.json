@@ -79,7 +79,7 @@
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi",
-            "@php scripts/apply-nativephp-hotfixes.php"
+            "@php -r \"if (file_exists('scripts/apply-nativephp-hotfixes.php')) { require 'scripts/apply-nativephp-hotfixes.php'; }\""
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
@@ -98,7 +98,14 @@
     },
     "extra": {
         "laravel": {
-            "dont-discover": []
+            "dont-discover": [
+                "laravel/boost",
+                "laravel/pail",
+                "laravel/sail",
+                "nunomaduro/collision",
+                "nunomaduro/phpinsights",
+                "pestphp/pest-plugin-laravel"
+            ]
         },
         "patches": {
             "nativephp/mobile": {

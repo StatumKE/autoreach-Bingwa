@@ -27,6 +27,19 @@ class BingwaIncomingSmsWorker(
         )
         val command = "bingwa:process-incoming-sms --payload=$encodedPayload"
 
+        val phpBridge = PHPBridge(applicationContext)
+        if (phpBridge.isPersistentMode()) {
+            try {
+                val output = phpBridge.runPersistentArtisan(command)
+                Log.i(TAG, "Incoming SMS processing via persistent runtime completed: ${output.take(200)}")
+                return Result.success()
+            } catch (e: Exception) {
+                Log.w(TAG, "Persistent runtime execution failed for incoming SMS: ${e.message}")
+                return Result.retry()
+            }
+        }
+
+        // Cold boot fallback
         return synchronized(PHPBridge.phpLock) {
             try {
                 if (!BridgeFunctionRegistry.shared.exists("ExecuteUssd")) {
@@ -36,7 +49,6 @@ class BingwaIncomingSmsWorker(
                 val environment = LaravelEnvironment(applicationContext)
                 environment.initializeForBackground()
 
-                val phpBridge = PHPBridge(applicationContext)
                 val booted = phpBridge.nativeEphemeralBoot(
                     "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
                 )

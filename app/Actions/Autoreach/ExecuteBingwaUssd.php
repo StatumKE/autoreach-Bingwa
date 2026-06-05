@@ -2,8 +2,6 @@
 
 namespace App\Actions\Autoreach;
 
-use App\Exceptions\UssdModemBusyException;
-use App\Support\BingwaUssdResponse;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -54,6 +52,7 @@ class ExecuteBingwaUssd
         }
 
         $bridgePayload = json_encode([
+            'id' => $payload['id'] ?? null,
             'code' => $code,
             'mode' => $mode,
             'simSlot' => $simSlot,
@@ -61,7 +60,7 @@ class ExecuteBingwaUssd
             'timeoutSeconds' => $timeoutSeconds,
         ]);
 
-        Log::info('📡 [BRIDGE DISPATCH] Sending USSD to Android Hardware', [
+        Log::info('📡 [BRIDGE DISPATCH] Sending USSD to Android Hardware (Async)', [
             'transaction_id' => $payload['id'] ?? null,
             'code' => $code,
             'sim_slot' => $simSlot,
@@ -70,33 +69,7 @@ class ExecuteBingwaUssd
         ]);
 
         try {
-            $rawResponse = $this->ussdModemLock->run(
-                callback: fn (): mixed => nativephp_call('ExecuteUssd', $bridgePayload),
-                operation: 'queued-transaction',
-                waitSeconds: 2,
-                leaseSeconds: $timeoutSeconds + 15,
-                context: [
-                    'flow_id' => $flowId,
-                    'transaction_id' => $payload['backend_transaction_id'] ?? null,
-                    'id' => $payload['id'] ?? null,
-                    'mode' => $mode,
-                    'sim_slot' => $simSlot,
-                ],
-            );
-        } catch (UssdModemBusyException $exception) {
-            Log::info('Bingwa USSD execution skipped because the modem is busy.', [
-                'flow_id' => $flowId,
-                'transaction_id' => $payload['backend_transaction_id'] ?? null,
-                'id' => $payload['id'] ?? null,
-                'mode' => $mode,
-                'sim_slot' => $simSlot,
-            ]);
-
-            return [
-                'success' => false,
-                'message' => $exception->getMessage(),
-                'raw_response' => null,
-            ];
+            $rawResponse = nativephp_call('ExecuteUssd', $bridgePayload);
         } catch (Throwable $throwable) {
             Log::warning('Bingwa USSD execution threw an exception.', [
                 'flow_id' => $flowId,
@@ -114,7 +87,7 @@ class ExecuteBingwaUssd
             ];
         }
 
-        Log::debug('Bingwa USSD execution raw response received.', [
+        Log::debug('Bingwa USSD dispatch response received.', [
             'flow_id' => $flowId,
             'transaction_id' => $payload['backend_transaction_id'] ?? null,
             'id' => $payload['id'] ?? null,
@@ -139,36 +112,21 @@ class ExecuteBingwaUssd
             ];
         }
 
-        $parsedResponse = BingwaUssdResponse::parseDecodedNativePayload($decoded);
-        $success = $parsedResponse['success'];
-        $message = $parsedResponse['message'];
-        $bridgeError = $parsedResponse['bridge_error'];
+        $success = (bool) ($decoded['success'] ?? false);
+        $message = trim((string) ($decoded['message'] ?? ''));
 
-        if ($bridgeError !== null && $bridgeError !== '' && ! $success) {
+        if (! $success) {
             return [
                 'success' => false,
-                'message' => $bridgeError,
+                'message' => $message ?: __('USSD request dispatch failed.'),
                 'raw_response' => $rawResponse,
             ];
         }
 
-        if ($message === '') {
-            $message = $success
-                ? __('USSD request completed.')
-                : __('USSD request failed.');
-        }
-
-        Log::debug('Bingwa USSD execution processed.', [
-            'flow_id' => $flowId,
-            'transaction_id' => $payload['backend_transaction_id'] ?? null,
-            'id' => $payload['id'] ?? null,
-            'success' => $success,
-            'message' => $message,
-        ]);
-
         return [
-            'success' => $success,
-            'message' => $message,
+            'success' => true,
+            'async' => true,
+            'message' => __('USSD call dispatched to hardware.'),
             'raw_response' => $rawResponse,
         ];
     }

@@ -155,6 +155,18 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
                 ];
             }
 
+            if (isset($result['async']) && $result['async'] === true) {
+                Log::debug('Bingwa USSD processor dispatched transaction asynchronously.', [
+                    'user_id' => $userId,
+                    'flow_id' => $flowId,
+                    'transaction_id' => $transactionId,
+                ]);
+                $processed++;
+                // Break out of the loop: because USSD operations are serial, we must wait for
+                // the callback before processing the next transaction.
+                break;
+            }
+
             $this->completeQueuedTransaction($completeBingwaTransaction, $transactionId, $result, $flowId);
             $processed++;
 

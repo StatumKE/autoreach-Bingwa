@@ -30,6 +30,11 @@ static pthread_mutex_t g_php_request_mutex = PTHREAD_MUTEX_INITIALIZER;
 static jobject g_callback_obj = NULL;
 static jmethodID g_callback_method = NULL;
 
+// The kernel thread ID (TID) of the thread that called php_embed_init (via native_persistent_boot).
+// native_persistent_dispatch is only safe to call from THIS thread — the ZTS TSRM
+// context is thread-local and NULL on any other thread, causing SIGSEGV via SG().
+static pid_t g_persistent_boot_tid = 0;
+
 // ── Persistent boot gate ─────────────────────────────────────────────────
 // Without this gate, two threads can concurrently call php_embed_init():
 // one from native_persistent_boot (holding g_php_request_mutex), another from
@@ -297,18 +302,23 @@ char* run_php_request(const char* scriptPath, const char* method, const char* ur
     }
 
     // Full init per request — registers host functions
-    setup_embed_module();
-    if (php_embed_init(0, NULL) != SUCCESS) {
-        LOGE("run_php_request: php_embed_init() FAILED");
-        pthread_mutex_unlock(&g_php_request_mutex);
-        return strdup("HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nPHP init failed.");
+    int initialized_by_us = 0;
+    if (php_initialized) {
+        LOGI("run_php_request: PHP already initialized globally. Skipping php_embed_init.");
+    } else {
+        setup_embed_module();
+        if (php_embed_init(0, NULL) != SUCCESS) {
+            LOGE("run_php_request: php_embed_init() FAILED");
+            pthread_mutex_unlock(&g_php_request_mutex);
+            return strdup("HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nPHP init failed.");
+        }
+        php_initialized = 1;
+        initialized_by_us = 1;
     }
     sapi_module.header_handler = android_header_handler;
-    php_initialized = 1;
 
     // Per-request setup and execution
     zend_first_try {
-                zend_activate_modules();
 
                 if (strlen(query_string) > 0) {
                     zend_string *query = zend_string_init(query_string, strlen(query_string), 0);
@@ -336,8 +346,10 @@ char* run_php_request(const char* scriptPath, const char* method, const char* ur
     char *collected = get_collected_output();
     char *response = collected ? strdup(collected) : strdup("");
 
-    safe_php_embed_shutdown();
-    php_initialized = 0;
+    if (initialized_by_us) {
+        safe_php_embed_shutdown();
+        php_initialized = 0;
+    }
 
     LOGI("run_php_request: releasing mutex (uri=%s)", uri);
     pthread_mutex_unlock(&g_php_request_mutex);
@@ -372,6 +384,11 @@ JNIEXPORT jint JNICALL native_persistent_boot(JNIEnv *env, jobject thiz, jstring
         return 0;
     }
 
+    // Record which thread is doing the boot — only this thread's TSRM context
+    // will be valid. We use this in dispatch to detect thread replacement.
+    g_persistent_boot_tid = gettid();
+    LOGI("persistent_boot: boot thread tid = %d", g_persistent_boot_tid);
+
     const char *bootstrapPath = (*env)->GetStringUTFChars(env, jBootstrapPath, NULL);
     LOGI("persistent_boot: initializing with bootstrap=%s", bootstrapPath);
 
@@ -399,7 +416,6 @@ JNIEXPORT jint JNICALL native_persistent_boot(JNIEnv *env, jobject thiz, jstring
 
     // Execute the persistent bootstrap script (boots Laravel, stores kernel globally)
     zend_first_try {
-        zend_activate_modules();
         zend_file_handle fileHandle;
         zend_stream_init_filename(&fileHandle, bootstrapPath);
         php_execute_script(&fileHandle);
@@ -422,7 +438,18 @@ JNIEXPORT jint JNICALL native_persistent_boot(JNIEnv *env, jobject thiz, jstring
 
 /**
  * Dispatch a request through the persistent interpreter.
- * Sets env vars, calls Runtime::dispatch() via zend_eval_string, captures output.
+ *
+ * SAFETY: All SG() / ZTS TSRM accesses have been removed from this function.
+ * SG() returns a per-thread pointer that is NULL on any thread that did not
+ * call php_embed_init(). The Java SingleThreadExecutor silently replaces its
+ * worker thread after a crash, so any new thread would crash instantly on
+ * SG() access (SIGSEGV write to NULL+0x119). Instead, we:
+ *   1. Detect thread replacement via g_persistent_boot_thread comparison and
+ *      return a 503 reboot signal to Kotlin so it can re-boot the runtime.
+ *   2. Inject POST data as a hex-encoded literal in the eval string, avoiding
+ *      SG(request_info).request_body / php://input entirely.
+ *   3. Build the Laravel Request via Request::createFromBase(Request::create())
+ *      so the raw body is passed directly without any SAPI plumbing.
  */
 JNIEXPORT jstring JNICALL native_persistent_dispatch(
         JNIEnv *env, jobject thiz,
@@ -433,31 +460,56 @@ JNIEXPORT jstring JNICALL native_persistent_dispatch(
     if (!persistent_initialized) {
         LOGE("persistent_dispatch: runtime not initialized!");
         pthread_mutex_unlock(&g_php_request_mutex);
-        return (*env)->NewStringUTF(env, "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nPersistent runtime not initialized.");
+        return (*env)->NewStringUTF(env, "X-Native-Reboot-Needed: true");
+    }
+
+    // ── Thread-replacement guard ──────────────────────────────────────────────
+    // Java's SingleThreadExecutor silently creates a NEW worker thread after
+    // the previous one dies (e.g. due to an unhandled native exception). The
+    // new thread has no TSRM context — every SG() macro call would crash with
+    // SIGSEGV (write to NULL+offset). Detect this and signal Kotlin to reboot.
+    // Use gettid() instead of pthread_self() because the OS frequently reuses
+    // thread structure memory addresses, causing pthread_self() to collision-match.
+    if (g_persistent_boot_tid != 0 && gettid() != g_persistent_boot_tid) {
+        LOGE("persistent_dispatch: thread mismatch! boot_tid=%d dispatch_tid=%d — "
+             "executor thread was replaced. Signalling Kotlin to reboot.",
+             g_persistent_boot_tid,
+             gettid());
+        // Reset flags so native_persistent_boot will re-initialize on the new thread.
+        persistent_initialized = 0;
+        php_initialized = 0;
+        g_persistent_boot_tid = 0;
+        set_persistent_boot_state(PERSISTENT_BOOT_NEVER_STARTED);
+        pthread_mutex_unlock(&g_php_request_mutex);
+        return (*env)->NewStringUTF(env,
+            "HTTP/1.1 503 Service Unavailable\r\n"
+            "Content-Type: text/plain\r\n"
+            "X-Native-Reboot-Needed: true\r\n"
+            "\r\nPHP runtime thread replaced. Reboot triggered.");
     }
 
     const char *method = (*env)->GetStringUTFChars(env, jMethod, NULL);
-    const char *uri = (*env)->GetStringUTFChars(env, jUri, NULL);
-    const char *post = jPostData ? (*env)->GetStringUTFChars(env, jPostData, NULL) : "";
-    const char *path = (*env)->GetStringUTFChars(env, jScriptPath, NULL);
+    const char *uri    = (*env)->GetStringUTFChars(env, jUri, NULL);
+    const char *post   = jPostData ? (*env)->GetStringUTFChars(env, jPostData, NULL) : "";
+    const char *path   = (*env)->GetStringUTFChars(env, jScriptPath, NULL);
 
     LOGI("persistent_dispatch: %s %s", method, uri);
 
     clear_collected_output();
 
-    // Set env vars for this request
-    setenv("REQUEST_URI", uri, 1);
-    setenv("REQUEST_METHOD", method, 1);
-    setenv("SCRIPT_FILENAME", path, 1);
-    setenv("PHP_SELF", "/native.php", 1);
-    setenv("HTTP_HOST", "127.0.0.1", 1);
-    setenv("APP_URL", "http://127.0.0.1", 1);
-    setenv("ASSET_URL", "http://127.0.0.1/_assets/", 1);
-    setenv("NATIVEPHP_RUNNING", "true", 1);
+    // Set env vars for this request (setenv is process-global and safe on any thread)
+    setenv("REQUEST_URI",      uri,             1);
+    setenv("REQUEST_METHOD",   method,          1);
+    setenv("SCRIPT_FILENAME",  path,            1);
+    setenv("PHP_SELF",         "/native.php",   1);
+    setenv("HTTP_HOST",        "127.0.0.1",     1);
+    setenv("APP_URL",          "http://127.0.0.1", 1);
+    setenv("ASSET_URL",        "http://127.0.0.1/_assets/", 1);
+    setenv("NATIVEPHP_RUNNING","true",          1);
 
     // Set QUERY_STRING
-    const char* query_string = "";
-    const char* query_start = strchr(uri, '?');
+    const char *query_string = "";
+    const char *query_start  = strchr(uri, '?');
     if (query_start && strlen(query_start + 1) > 0) {
         query_string = query_start + 1;
         setenv("QUERY_STRING", query_string, 1);
@@ -465,51 +517,46 @@ JNIEXPORT jstring JNICALL native_persistent_dispatch(
         unsetenv("QUERY_STRING");
     }
 
-    // Reset SAPI state from previous dispatch.
-    SG(headers_sent) = 0;
-    SG(post_read) = 0;
-    SG(read_post_bytes) = 0;
-    SG(request_info).request_method = method;
-    SG(request_info).request_uri = (char *)uri;
-    SG(request_info).proto_num = 1001; // HTTP/1.1
+    // ── Hex-encode POST body ──────────────────────────────────────────────────
+    // We inject the POST body as a hex literal in the eval string. This avoids
+    // any need for SG(request_info).request_body / php://input, which require
+    // TSRM to be registered for the calling thread.
+    size_t post_len = post ? strlen(post) : 0;
 
-    // Reset SAPI headers for fresh response
-    memset(&SG(sapi_headers), 0, sizeof(sapi_headers_struct));
-    SG(sapi_headers).http_response_code = 200;
-    zend_llist_init(&SG(sapi_headers).headers, sizeof(sapi_header_struct), NULL, 0);
-
-    if (post && strlen(post) > 0) {
-        // Create a memory stream with the POST data for php://input
-        php_stream *post_stream = php_stream_memory_create(TEMP_STREAM_DEFAULT);
-        if (post_stream) {
-            php_stream_write(post_stream, post, strlen(post));
-            php_stream_seek(post_stream, 0, SEEK_SET);
-
-            if (SG(request_info).request_body) {
-                php_stream_close(SG(request_info).request_body);
-            }
-            SG(request_info).request_body = post_stream;
-            SG(request_info).content_length = strlen(post);
-
-            const char *content_type = getenv("CONTENT_TYPE");
-            if (!content_type) content_type = getenv("HTTP_CONTENT_TYPE");
-            if (content_type && strstr(content_type, "json")) {
-                SG(request_info).content_type = "application/json";
-            } else {
-                SG(request_info).content_type = "application/x-www-form-urlencoded";
-            }
-        }
-    } else {
-        if (SG(request_info).request_body) {
-            php_stream_close(SG(request_info).request_body);
-            SG(request_info).request_body = NULL;
-        }
-        SG(request_info).content_length = 0;
+    // Cap injected POST at 256 KB to keep eval_code inside stack limits.
+    // Larger bodies (file uploads) should use multipart handling separately.
+    const size_t MAX_INJECTED_POST = 256 * 1024;
+    if (post_len > MAX_INJECTED_POST) {
+        LOGE("persistent_dispatch: POST body %zu bytes exceeds 256 KB cap — truncating", post_len);
+        post_len = MAX_INJECTED_POST;
     }
 
-    // Build the dispatch call — Runtime::dispatch() handles everything
-    char eval_code[8192];
-    snprintf(eval_code, sizeof(eval_code),
+    char *hex_post = (char *)malloc(post_len * 2 + 1);
+    if (hex_post) {
+        for (size_t i = 0; i < post_len; i++) {
+            sprintf(hex_post + i * 2, "%02x", (unsigned char)post[i]);
+        }
+        hex_post[post_len * 2] = '\0';
+    }
+
+    // ── Build eval string ─────────────────────────────────────────────────────
+    // Allocate on heap: post body can be large and 8 KB stack buffer is too small.
+    size_t eval_size = post_len * 2 + 8192; // hex + PHP boilerplate
+    char *eval_code = (char *)malloc(eval_size);
+    if (!eval_code) {
+        LOGE("persistent_dispatch: failed to allocate eval_code buffer");
+        if (hex_post) free(hex_post);
+        (*env)->ReleaseStringUTFChars(env, jMethod, method);
+        (*env)->ReleaseStringUTFChars(env, jUri, uri);
+        if (jPostData) (*env)->ReleaseStringUTFChars(env, jPostData, post);
+        (*env)->ReleaseStringUTFChars(env, jScriptPath, path);
+        pthread_mutex_unlock(&g_php_request_mutex);
+        return (*env)->NewStringUTF(env,
+            "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n"
+            "\r\nOut of memory allocating dispatch buffer.");
+    }
+
+    snprintf(eval_code, eval_size,
         "try {\n"
         "    // Clean PHP output buffers from previous dispatch\n"
         "    while (ob_get_level() > 0) { ob_end_clean(); }\n"
@@ -577,22 +624,42 @@ JNIEXPORT jstring JNICALL native_persistent_dispatch(
         "        parse_str($_SERVER['QUERY_STRING'], $_GET);\n"
         "    }\n"
         "\n"
-        "    // Parse POST body into $_POST for form-urlencoded requests\n"
-        "    // php://input is set up by the C layer but $_POST was cleared above\n"
-        "    if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'PATCH'])) {\n"
-        "        $__rawInput = file_get_contents('php://input');\n"
-        "        if ($__rawInput !== false && $__rawInput !== '') {\n"
-        "            $__ct = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';\n"
-        "            if (stripos($__ct, 'application/x-www-form-urlencoded') !== false) {\n"
-        "                parse_str($__rawInput, $_POST);\n"
-        "            }\n"
-        "            $_REQUEST = array_merge($_GET, $_POST, $_COOKIE);\n"
+        "    // ── POST body injection ──────────────────────────────────────────\n"
+        "    // The raw POST body is hex-encoded and injected directly as a PHP\n"
+        "    // literal. This avoids php://input (which requires SG TSRM setup).\n"
+        "    // We build the Symfony/Laravel Request explicitly with the raw body\n"
+        "    // so JSON and form-urlencoded bodies both work correctly.\n"
+        "    $__rawInput = strlen('%s') > 0 ? hex2bin('%s') : '';\n"
+        "    if ($__rawInput !== '' && $__rawInput !== false) {\n"
+        "        $__ct = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';\n"
+        "        if (stripos($__ct, 'application/x-www-form-urlencoded') !== false) {\n"
+        "            parse_str($__rawInput, $_POST);\n"
         "        }\n"
+        "        $_REQUEST = array_merge($_GET, $_POST, $_COOKIE);\n"
         "    }\n"
         "\n"
-        "    $__response = \\Native\\Mobile\\Runtime::dispatch(\n"
-        "        \\Illuminate\\Http\\Request::capture()\n"
+        "    // Build Laravel Request directly from components, passing raw body\n"
+        "    // explicitly. This bypasses Request::capture() / php://input entirely.\n"
+        "    $__sfRequest = \\Symfony\\Component\\HttpFoundation\\Request::create(\n"
+        "        $_SERVER['REQUEST_URI'],\n"
+        "        $_SERVER['REQUEST_METHOD'],\n"
+        "        [],              // parsed params (Laravel reads from body/query)\n"
+        "        $_COOKIE,\n"
+        "        [],              // $_FILES\n"
+        "        $_SERVER,\n"
+        "        $__rawInput      // raw body — Symfony stores this and returns from getContent()\n"
         "    );\n"
+        "    // For form-urlencoded, populate the Symfony request bag from $_POST\n"
+        "    if (!empty($_POST)) {\n"
+        "        $__sfRequest->request->replace($_POST);\n"
+        "    }\n"
+        "    // For query string, populate the query bag from $_GET\n"
+        "    if (!empty($_GET)) {\n"
+        "        $__sfRequest->query->replace($_GET);\n"
+        "    }\n"
+        "    $__request = \\Illuminate\\Http\\Request::createFromBase($__sfRequest);\n"
+        "\n"
+        "    $__response = \\Native\\Mobile\\Runtime::dispatch($__request);\n"
         "    $__code = $__response->getStatusCode();\n"
         "    $__status = \\Symfony\\Component\\HttpFoundation\\Response::$statusTexts[$__code] ?? 'OK';\n"
         "    echo \"HTTP/1.1 {$__code} {$__status}\\r\\n\";\n"
@@ -609,11 +676,28 @@ JNIEXPORT jstring JNICALL native_persistent_dispatch(
         "    echo 'Persistent dispatch error: ' . $e->getMessage() . \"\\n\";\n"
         "    echo $e->getTraceAsString();\n"
         "}\n",
-        method, uri, path);
+        method, uri, path,
+        hex_post ? hex_post : "",
+        hex_post ? hex_post : "");
+
+    if (hex_post) {
+        free(hex_post);
+    }
 
     zend_first_try {
         zend_eval_string(eval_code, NULL, "persistent_dispatch");
+    } zend_catch {
+        LOGE("persistent_dispatch: PHP engine bailed out (fatal error or exit). Marking runtime as corrupted.");
+        persistent_initialized = 0;
+        php_initialized = 0;
+        g_persistent_boot_tid = 0;
+        set_persistent_boot_state(PERSISTENT_BOOT_NEVER_STARTED);
+        free(eval_code);
+        pthread_mutex_unlock(&g_php_request_mutex);
+        return (*env)->NewStringUTF(env, "X-Native-Reboot-Needed: true");
     } zend_end_try();
+
+    free(eval_code);
 
     char *dispatch_output = get_collected_output();
     char *response = dispatch_output ? strdup(dispatch_output) : strdup("");
@@ -640,7 +724,22 @@ JNIEXPORT jstring JNICALL native_persistent_artisan(JNIEnv *env, jobject thiz, j
     if (!persistent_initialized) {
         LOGE("persistent_artisan: runtime not initialized!");
         pthread_mutex_unlock(&g_php_request_mutex);
-        return (*env)->NewStringUTF(env, "Persistent runtime not initialized.");
+        return (*env)->NewStringUTF(env, "X-Native-Reboot-Needed: true");
+    }
+
+    // Thread-replacement guard: Ensure the calling thread matches the boot thread.
+    // Executing zend_eval_string on a mismatched thread will cause a SIGSEGV crash.
+    if (g_persistent_boot_tid != 0 && gettid() != g_persistent_boot_tid) {
+        LOGE("persistent_artisan: thread mismatch! boot_tid=%d artisan_tid=%d — "
+             "executor thread was replaced. Signalling Kotlin to reboot.",
+             g_persistent_boot_tid,
+             gettid());
+        persistent_initialized = 0;
+        php_initialized = 0;
+        g_persistent_boot_tid = 0;
+        set_persistent_boot_state(PERSISTENT_BOOT_NEVER_STARTED);
+        pthread_mutex_unlock(&g_php_request_mutex);
+        return (*env)->NewStringUTF(env, "Artisan error: PHP runtime thread replaced. Reboot triggered.");
     }
 
     const char *command = (*env)->GetStringUTFChars(env, jCommand, NULL);
@@ -661,6 +760,14 @@ JNIEXPORT jstring JNICALL native_persistent_artisan(JNIEnv *env, jobject thiz, j
 
     zend_first_try {
         zend_eval_string(eval_code, NULL, "persistent_artisan");
+    } zend_catch {
+        LOGE("persistent_artisan: PHP engine bailed out (fatal error or exit). Marking runtime as corrupted.");
+        persistent_initialized = 0;
+        php_initialized = 0;
+        g_persistent_boot_tid = 0;
+        set_persistent_boot_state(PERSISTENT_BOOT_NEVER_STARTED);
+        pthread_mutex_unlock(&g_php_request_mutex);
+        return (*env)->NewStringUTF(env, "X-Native-Reboot-Needed: true");
     } zend_end_try();
 
     setenv("APP_RUNNING_IN_CONSOLE", "false", 1);
@@ -682,6 +789,19 @@ JNIEXPORT void JNICALL native_persistent_shutdown(JNIEnv *env, jobject thiz) {
 
     if (!persistent_initialized) {
         LOGI("persistent_shutdown: not initialized, nothing to do");
+        pthread_mutex_unlock(&g_php_request_mutex);
+        return;
+    }
+
+    // Thread-replacement guard: If called on a mismatched thread, skip native shutdown
+    // to avoid crashing the process during cleanup.
+    if (g_persistent_boot_tid != 0 && gettid() != g_persistent_boot_tid) {
+        LOGE("persistent_shutdown: thread mismatch! boot_tid=%d shutdown_tid=%d — skipping native shutdown",
+             g_persistent_boot_tid,
+             gettid());
+        php_initialized = 0;
+        persistent_initialized = 0;
+        set_persistent_boot_state(PERSISTENT_BOOT_NEVER_STARTED);
         pthread_mutex_unlock(&g_php_request_mutex);
         return;
     }
@@ -752,6 +872,7 @@ JNIEXPORT jstring JNICALL native_run_artisan_command(JNIEnv *env, jobject thiz, 
     // ephemeral runtime while artisan commands are running (and vice versa).
     // runArtisanCommand does php_embed_init/shutdown which destroys global
     // state that ephemeral hot path would be using.
+    pthread_mutex_lock(&g_php_request_mutex);
     pthread_mutex_lock(&g_ephemeral_mutex);
 
     clear_collected_output();
@@ -763,18 +884,25 @@ JNIEXPORT jstring JNICALL native_run_artisan_command(JNIEnv *env, jobject thiz, 
     const char *cLaravelPath = (*env)->GetStringUTFChars(env, jLaravelPath, NULL);
 
     // Full init per artisan command
-    setup_embed_module();
-    php_embed_module.ini_entries = "display_errors=1\nimplicit_flush=1\noutput_buffering=0\n";
-    if (php_embed_init(0, NULL) != SUCCESS) {
-        LOGE("Failed to initialize PHP for artisan");
-        pthread_mutex_unlock(&g_ephemeral_mutex);
-        (*env)->ReleaseStringUTFChars(env, jcommand, command);
-        (*env)->ReleaseStringUTFChars(env, jLaravelPath, cLaravelPath);
-        (*env)->DeleteLocalRef(env, jLaravelPath);
-        return (*env)->NewStringUTF(env, "");
+    int initialized_by_us = 0;
+    if (php_initialized) {
+        LOGI("runArtisanCommand: PHP already initialized globally. Skipping php_embed_init.");
+    } else {
+        setup_embed_module();
+        php_embed_module.ini_entries = "display_errors=1\nimplicit_flush=1\noutput_buffering=0\n";
+        if (php_embed_init(0, NULL) != SUCCESS) {
+            LOGE("Failed to initialize PHP for artisan");
+            pthread_mutex_unlock(&g_ephemeral_mutex);
+            pthread_mutex_unlock(&g_php_request_mutex);
+            (*env)->ReleaseStringUTFChars(env, jcommand, command);
+            (*env)->ReleaseStringUTFChars(env, jLaravelPath, cLaravelPath);
+            (*env)->DeleteLocalRef(env, jLaravelPath);
+            return (*env)->NewStringUTF(env, "");
+        }
+        php_initialized = 1;
+        initialized_by_us = 1;
     }
     sapi_module.header_handler = android_header_handler;
-    php_initialized = 1;
 
     char artisanPath[1024];
     snprintf(artisanPath, sizeof(artisanPath), "%s/../artisan.php", cLaravelPath);
@@ -822,10 +950,13 @@ JNIEXPORT jstring JNICALL native_run_artisan_command(JNIEnv *env, jobject thiz, 
     zend_stream_init_filename(&file_handle, artisanPath);
     php_execute_script(&file_handle);
 
-    safe_php_embed_shutdown();
-    php_initialized = 0;
+    if (initialized_by_us) {
+        safe_php_embed_shutdown();
+        php_initialized = 0;
+    }
 
     pthread_mutex_unlock(&g_ephemeral_mutex);
+    pthread_mutex_unlock(&g_php_request_mutex);
 
     (*env)->ReleaseStringUTFChars(env, jcommand, command);
     (*env)->ReleaseStringUTFChars(env, jLaravelPath, cLaravelPath);
@@ -1036,11 +1167,13 @@ JNIEXPORT jint JNICALL native_worker_boot(JNIEnv *env, jobject thiz, jstring jBo
         return -1;
     }
 
+    pthread_mutex_lock(&g_php_request_mutex);
     pthread_mutex_lock(&g_worker_mutex);
 
     if (worker_initialized) {
         LOGI("worker_boot: already initialized, skipping");
         pthread_mutex_unlock(&g_worker_mutex);
+        pthread_mutex_unlock(&g_php_request_mutex);
         return 0;
     }
 
@@ -1057,12 +1190,12 @@ JNIEXPORT jint JNICALL native_worker_boot(JNIEnv *env, jobject thiz, jstring jBo
         LOGE("worker_boot: worker_embed_init() FAILED");
         (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);
         pthread_mutex_unlock(&g_worker_mutex);
+        pthread_mutex_unlock(&g_php_request_mutex);
         return -1;
     }
 
     // Execute the persistent bootstrap script to boot Laravel on worker thread
     zend_first_try {
-        zend_activate_modules();
         zend_file_handle fileHandle;
         zend_stream_init_filename(&fileHandle, bootstrapPath);
         php_execute_script(&fileHandle);
@@ -1078,6 +1211,7 @@ JNIEXPORT jint JNICALL native_worker_boot(JNIEnv *env, jobject thiz, jstring jBo
 
     (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);
     pthread_mutex_unlock(&g_worker_mutex);
+    pthread_mutex_unlock(&g_php_request_mutex);
     return 0;
 }
 
@@ -1086,11 +1220,13 @@ JNIEXPORT jint JNICALL native_worker_boot(JNIEnv *env, jobject thiz, jstring jBo
  * Uses the worker's own TSRM context — does not touch the main thread's mutex.
  */
 JNIEXPORT jstring JNICALL native_worker_artisan(JNIEnv *env, jobject thiz, jstring jCommand) {
+    pthread_mutex_lock(&g_php_request_mutex);
     pthread_mutex_lock(&g_worker_mutex);
 
     if (!worker_initialized) {
         LOGE("worker_artisan: worker not initialized!");
         pthread_mutex_unlock(&g_worker_mutex);
+        pthread_mutex_unlock(&g_php_request_mutex);
         return (*env)->NewStringUTF(env, "Worker runtime not initialized.");
     }
 
@@ -1124,6 +1260,7 @@ JNIEXPORT jstring JNICALL native_worker_artisan(JNIEnv *env, jobject thiz, jstri
     char *worker_output = get_collected_output();
     jstring result = (*env)->NewStringUTF(env, worker_output ? worker_output : "");
     pthread_mutex_unlock(&g_worker_mutex);
+    pthread_mutex_unlock(&g_php_request_mutex);
     return result;
 }
 
@@ -1132,11 +1269,13 @@ JNIEXPORT jstring JNICALL native_worker_artisan(JNIEnv *env, jobject thiz, jstri
  * Called when the queue worker thread is stopping.
  */
 JNIEXPORT void JNICALL native_worker_shutdown(JNIEnv *env, jobject thiz) {
+    pthread_mutex_lock(&g_php_request_mutex);
     pthread_mutex_lock(&g_worker_mutex);
 
     if (!worker_initialized) {
         LOGI("worker_shutdown: not initialized, nothing to do");
         pthread_mutex_unlock(&g_worker_mutex);
+        pthread_mutex_unlock(&g_php_request_mutex);
         return;
     }
 
@@ -1152,6 +1291,7 @@ JNIEXPORT void JNICALL native_worker_shutdown(JNIEnv *env, jobject thiz) {
 
     LOGI("worker_shutdown: done");
     pthread_mutex_unlock(&g_worker_mutex);
+    pthread_mutex_unlock(&g_php_request_mutex);
 }
 
 // ============================================================================
@@ -1230,12 +1370,17 @@ static void ephemeral_embed_shutdown(void) {
 }
 
 JNIEXPORT jint JNICALL native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring jBootstrapPath) {
+    // g_php_request_mutex is NOT held across the ephemeral lifetime — we only
+    // need it briefly during boot to prevent concurrent persistent/ephemeral init.
+    // Holding it for the entire lifetime (and unlocking from a different thread in
+    // native_ephemeral_shutdown) was undefined behaviour that corrupted the mutex.
     pthread_mutex_lock(&g_php_request_mutex);
     pthread_mutex_lock(&g_ephemeral_mutex);
 
     if (ephemeral_initialized) {
         LOGI("ephemeral_boot: already initialized, skipping");
         pthread_mutex_unlock(&g_ephemeral_mutex);
+        pthread_mutex_unlock(&g_php_request_mutex);
         return 0;
     }
 
@@ -1253,7 +1398,6 @@ JNIEXPORT jint JNICALL native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring 
     }
 
     zend_first_try {
-        zend_activate_modules();
         zend_file_handle fileHandle;
         zend_stream_init_filename(&fileHandle, bootstrapPath);
         php_execute_script(&fileHandle);
@@ -1269,15 +1413,20 @@ JNIEXPORT jint JNICALL native_ephemeral_boot(JNIEnv *env, jobject thiz, jstring 
 
     (*env)->ReleaseStringUTFChars(env, jBootstrapPath, bootstrapPath);
     pthread_mutex_unlock(&g_ephemeral_mutex);
+    // Release the request mutex now — we must not hold it across boot lifetime.
+    // native_ephemeral_shutdown uses only g_ephemeral_mutex.
+    pthread_mutex_unlock(&g_php_request_mutex);
     return 0;
 }
 
 JNIEXPORT jstring JNICALL native_ephemeral_artisan(JNIEnv *env, jobject thiz, jstring jCommand) {
+    pthread_mutex_lock(&g_php_request_mutex);
     pthread_mutex_lock(&g_ephemeral_mutex);
 
     if (!ephemeral_initialized) {
         LOGE("ephemeral_artisan: ephemeral runtime not initialized!");
         pthread_mutex_unlock(&g_ephemeral_mutex);
+        pthread_mutex_unlock(&g_php_request_mutex);
         return (*env)->NewStringUTF(env, "Ephemeral runtime not initialized.");
     }
 
@@ -1311,15 +1460,18 @@ JNIEXPORT jstring JNICALL native_ephemeral_artisan(JNIEnv *env, jobject thiz, js
     char *ephemeral_output = get_collected_output();
     jstring result = (*env)->NewStringUTF(env, ephemeral_output ? ephemeral_output : "");
     pthread_mutex_unlock(&g_ephemeral_mutex);
+    pthread_mutex_unlock(&g_php_request_mutex);
     return result;
 }
 
 JNIEXPORT void JNICALL native_ephemeral_shutdown(JNIEnv *env, jobject thiz) {
+    pthread_mutex_lock(&g_php_request_mutex);
     pthread_mutex_lock(&g_ephemeral_mutex);
 
     if (!ephemeral_initialized) {
         LOGI("ephemeral_shutdown: not initialized, nothing to do");
         pthread_mutex_unlock(&g_ephemeral_mutex);
+        pthread_mutex_unlock(&g_php_request_mutex);
         return;
     }
 
@@ -1345,7 +1497,7 @@ static JNINativeMethod gMethods[] = {
         {"nativeRuntimeInit", "()V", (void *) native_runtime_init},
         {"nativeRuntimeShutdown", "()V", (void *) native_runtime_shutdown},
         {"setRequestInfo", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", (void *) native_set_request_info},
-        {"runArtisanCommand", "(Ljava/lang/String;)Ljava/lang/String;", (void *) native_run_artisan_command},
+        {"nativeRunArtisanCommand", "(Ljava/lang/String;)Ljava/lang/String;", (void *) native_run_artisan_command},
         {"getLaravelPublicPath", "()Ljava/lang/String;", (void *) native_get_laravel_public_path},
         {"getLaravelRootPath", "()Ljava/lang/String;", (void *) native_get_laravel_root_path},
 

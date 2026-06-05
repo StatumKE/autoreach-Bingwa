@@ -290,21 +290,25 @@ class UssdExecutor(private val context: Context) {
 
         var resolvedDialogText = dialogText
         var lastCompletedStep = 0
+        // Tracks whether the carrier returned a terminal response on the final reply step
+        // (no follow-up dialog expected — the session ended normally from the carrier side).
+        var carrierTerminatedOnFinalStep = false
 
         for ((index, reply) in parsedFlow.replies.withIndex()) {
-            Log.d(
-                TAG,
-                "Advanced USSD reply step ${index + 1}/${parsedFlow.replies.size}: $reply"
-            )
+            val stepNum = index + 1
+            val totalReplies = parsedFlow.replies.size
+            Log.d(TAG, "Advanced USSD reply step $stepNum/$totalReplies: $reply")
 
             service.injectInput(reply)
 
             val nextDialogText = awaitFollowUpDialog(resolvedDialogText, dialogTimeoutMs)
             if (nextDialogText.isNullOrBlank()) {
-                Log.w(
-                    TAG,
-                    "No follow-up USSD dialog detected after reply step ${index + 1}: $reply"
-                )
+                Log.w(TAG, "No follow-up USSD dialog after reply step $stepNum/$totalReplies: $reply")
+                // If this was the last reply step, the absence of a follow-up dialog is expected —
+                // the carrier closed the session after processing the final input.
+                if (stepNum == totalReplies) {
+                    carrierTerminatedOnFinalStep = true
+                }
                 break
             }
 
@@ -314,15 +318,24 @@ class UssdExecutor(private val context: Context) {
         }
 
         UssdAccessibilityService.responseChannel.tryReceive()
-        
-        val finalMessage = if (lastCompletedStep < parsedFlow.replies.size) {
-            val replyOption = parsedFlow.replies[lastCompletedStep]
-            val replyNum = lastCompletedStep + 1
-            val totalReplies = parsedFlow.replies.size
-            val cleanMenu = cleanMenuMessage(resolvedDialogText)
-            "USSD session interrupted after selecting option '$replyOption' (Reply step $replyNum of $totalReplies). Response: $cleanMenu"
-        } else {
-            resolvedDialogText
+
+        // Use the raw carrier message when:
+        //   (a) all reply steps completed and a final dialog was received, or
+        //   (b) the carrier closed the session immediately after the last reply step.
+        // Only wrap with the "interrupted" message when the session genuinely dropped
+        // before all reply steps could be submitted.
+        val finalMessage = when {
+            lastCompletedStep >= parsedFlow.replies.size || carrierTerminatedOnFinalStep -> {
+                Log.d(TAG, "Advanced USSD carrier terminal response: $resolvedDialogText")
+                resolvedDialogText
+            }
+            else -> {
+                val replyOption = parsedFlow.replies[lastCompletedStep]
+                val replyNum = lastCompletedStep + 1
+                val totalReplies = parsedFlow.replies.size
+                val cleanMenu = cleanMenuMessage(resolvedDialogText)
+                "USSD session interrupted after selecting option '$replyOption' (Reply step $replyNum of $totalReplies). Response: $cleanMenu"
+            }
         }
 
         return UssdResult(

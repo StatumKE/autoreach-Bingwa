@@ -541,7 +541,8 @@ JNIEXPORT jstring JNICALL native_persistent_dispatch(
 
     // ── Build eval string ─────────────────────────────────────────────────────
     // Allocate on heap: post body can be large and 8 KB stack buffer is too small.
-    size_t eval_size = post_len * 2 + 8192; // hex + PHP boilerplate
+    // We inject hex_post TWICE in the string, so we need post_len * 4.
+    size_t eval_size = (post_len * 4) + 8192; 
     char *eval_code = (char *)malloc(eval_size);
     if (!eval_code) {
         LOGE("persistent_dispatch: failed to allocate eval_code buffer");

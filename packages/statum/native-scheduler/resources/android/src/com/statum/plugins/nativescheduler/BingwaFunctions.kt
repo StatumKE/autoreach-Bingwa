@@ -502,18 +502,57 @@ object BingwaFunctions {
     }
 
     private fun postCallback(context: Context, id: Int, success: Boolean, message: String) {
-        val inputData = androidx.work.Data.Builder()
-            .putInt(UssdCallbackWorker.KEY_ID, id)
-            .putBoolean(UssdCallbackWorker.KEY_SUCCESS, success)
-            .putString(UssdCallbackWorker.KEY_MESSAGE, message)
-            .build()
+        val status = if (success) "completed" else "failed"
+        val encodedMessage = android.util.Base64.encodeToString(
+            message.toByteArray(Charsets.UTF_8),
+            android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING
+        )
+        val command = "bingwa:complete-transaction --transaction-id=$id --result=$status --message-base64=$encodedMessage"
 
-        val workRequest = androidx.work.OneTimeWorkRequestBuilder<UssdCallbackWorker>()
-            .setInputData(inputData)
-            .build()
+        var executedInstantly = false
+        synchronized(com.nativephp.mobile.bridge.PHPBridge.phpLock) {
+            try {
+                if (!com.nativephp.mobile.bridge.BridgeFunctionRegistry.shared.exists("ExecuteUssd")) {
+                    com.nativephp.mobile.bridge.plugins.registerContextOnlyBridgeFunctions(context.applicationContext)
+                }
 
-        androidx.work.WorkManager.getInstance(context).enqueue(workRequest)
-        Log.i(TAG, "Enqueued USSD callback for transaction #$id")
+                val environment = com.nativephp.mobile.bridge.LaravelEnvironment(context.applicationContext)
+                environment.initializeForBackground()
+
+                val phpBridge = com.nativephp.mobile.bridge.PHPBridge(context.applicationContext)
+                val booted = phpBridge.nativeEphemeralBoot(
+                    "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
+                )
+
+                if (booted == 0) {
+                    try {
+                        val output = phpBridge.nativeEphemeralArtisan(command)
+                        Log.i(TAG, "USSD callback processed instantly: ${output.take(200)}")
+                        executedInstantly = true
+                    } finally {
+                        phpBridge.nativeEphemeralShutdown()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Instant PHP bridge callback failed", e)
+            }
+        }
+
+        if (!executedInstantly) {
+            Log.w(TAG, "Instant USSD callback failed. Enqueuing WorkManager fallback for transaction #$id")
+            val inputData = androidx.work.Data.Builder()
+                .putInt(UssdCallbackWorker.KEY_ID, id)
+                .putBoolean(UssdCallbackWorker.KEY_SUCCESS, success)
+                .putString(UssdCallbackWorker.KEY_MESSAGE, message)
+                .build()
+
+            val workRequest = androidx.work.OneTimeWorkRequestBuilder<UssdCallbackWorker>()
+                .setInputData(inputData)
+                .build()
+
+            androidx.work.WorkManager.getInstance(context).enqueue(workRequest)
+            Log.i(TAG, "Enqueued USSD callback for transaction #$id")
+        }
     }
 
 

@@ -50,7 +50,7 @@ class UssdAccessibilityService : AccessibilityService() {
          */
         val responseChannel = Channel<String>(Channel.CONFLATED)
 
-        private val CONFIRM_LABELS = setOf("send", "ok", "okay", "reply", "tuma", "confirm", "yes", "close", "dismiss", "cancel")
+        private val CONFIRM_LABELS = setOf("send", "ok", "okay", "reply", "tuma", "confirm", "yes")
     }
 
     private val handler = Handler(Looper.getMainLooper())

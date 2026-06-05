@@ -128,7 +128,10 @@
         {
             "name": "native-scheduler",
             "type": "path",
-            "url": "packages/statum/native-scheduler"
+            "url": "packages/statum/native-scheduler",
+            "options": {
+                "symlink": false
+            }
         }
     ]
 }

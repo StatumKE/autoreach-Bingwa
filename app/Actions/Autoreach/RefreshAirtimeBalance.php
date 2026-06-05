@@ -127,10 +127,12 @@ class RefreshAirtimeBalance
         }
 
         $payload = json_encode([
+            'id' => -1, // Use a negative/dummy ID to bypass non-null async check (though we want it sync)
             'code' => '*144#',
             'mode' => 'express',
             'simSlot' => $simSlot,
             'timeoutSeconds' => max(1, $timeoutSeconds),
+            'runAsync' => false,
         ]);
 
         try {

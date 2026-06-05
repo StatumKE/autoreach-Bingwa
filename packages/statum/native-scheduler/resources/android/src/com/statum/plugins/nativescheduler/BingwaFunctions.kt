@@ -38,13 +38,13 @@ object BingwaFunctions {
 
     class TriggerSambaza(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
-            return executeUssd(context, parameters, defaultMode = "express", defaultIsSambaza = true)
+            return executeUssd(context, parameters, defaultMode = "express", defaultIsSambaza = true, runAsync = false)
         }
     }
 
     class ExecuteUssd(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
-            return executeUssd(context, parameters, defaultMode = "express", defaultIsSambaza = false)
+            return executeUssd(context, parameters, defaultMode = "express", defaultIsSambaza = false, runAsync = true)
         }
     }
 
@@ -402,10 +402,13 @@ object BingwaFunctions {
         context: Context,
         parameters: Map<String, Any>,
         defaultMode: String,
-        defaultIsSambaza: Boolean
+        defaultIsSambaza: Boolean,
+        runAsync: Boolean = true
     ): Map<String, Any> {
         val id = (parameters["id"] as? Number)?.toInt()
-            ?: throw BridgeError.InvalidParameters("Missing 'id' parameter")
+        if (runAsync && id == null) {
+            throw BridgeError.InvalidParameters("Missing 'id' parameter for async execution")
+        }
 
         val code = parameters["code"] as? String
             ?: throw BridgeError.InvalidParameters("Missing 'code' parameter")
@@ -419,73 +422,98 @@ object BingwaFunctions {
             .takeIf { it > 0 }
             ?: 30
 
-        // Asynchronously run USSD on background thread pool
-        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Default) {
-            val executor = UssdExecutor(context)
-            val lockAcquired = withTimeoutOrNull(USSD_LOCK_WAIT_MS) {
-                ussdMutex.lock()
-                true
-            } ?: false
+        if (runAsync) {
+            // Asynchronously run USSD on background thread pool
+            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                val executor = UssdExecutor(context)
+                val lockAcquired = withTimeoutOrNull(USSD_LOCK_WAIT_MS) {
+                    ussdMutex.lock()
+                    true
+                } ?: false
 
-            if (!lockAcquired) {
-                Log.w(TAG, "USSD bridge busy: mode=$mode simSlot=$simSlot timeoutSeconds=$timeoutSeconds")
-                postCallback(id, false, "Another USSD session is already in progress. Try again shortly.")
-                return@launch
-            }
+                if (!lockAcquired) {
+                    Log.w(TAG, "USSD bridge busy: mode=$mode simSlot=$simSlot timeoutSeconds=$timeoutSeconds")
+                    postCallback(context, id!!, false, "Another USSD session is already in progress. Try again shortly.")
+                    return@launch
+                }
 
-            try {
-                Log.i(TAG, "USSD bridge acquired modem guard: mode=$mode simSlot=$simSlot timeoutSeconds=$timeoutSeconds")
-                val result = executor.execute(
-                    code = code,
-                    mode = mode,
-                    simSlot = simSlot,
-                    isSambaza = isSambaza,
-                    timeoutSeconds = timeoutSeconds,
-                )
-                postCallback(id, result.success, result.message)
-            } catch (e: Exception) {
-                Log.e(TAG, "Async USSD execution failed", e)
-                postCallback(id, false, e.message ?: "Async USSD execution failed")
-            } finally {
-                ussdMutex.unlock()
-                Log.i(TAG, "USSD bridge released modem guard: mode=$mode simSlot=$simSlot")
-            }
-        }
-
-        return mapOf(
-            "success" to true,
-            "message" to "Dispatched to hardware"
-        )
-    }
-
-    private fun postCallback(id: Int, success: Boolean, message: String) {
-        val client = okhttp3.OkHttpClient()
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-
-        val payload = org.json.JSONObject()
-            .put("id", id)
-            .put("success", success)
-            .put("message", message)
-
-        val requestBody = payload.toString().toRequestBody(mediaType)
-        // NativePHP Android local server runs on port 8080 or custom port.
-        // We will hit local host API callback endpoint
-        val request = okhttp3.Request.Builder()
-            .url("http://127.0.0.1:8080/api/v1/native/ussd/callback")
-            .post(requestBody)
-            .build()
-
-        try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    Log.e(TAG, "Failed to deliver callback status code: ${response.code}")
-                } else {
-                    Log.i(TAG, "Callback delivered successfully for transaction #$id")
+                try {
+                    Log.i(TAG, "USSD bridge acquired modem guard: mode=$mode simSlot=$simSlot timeoutSeconds=$timeoutSeconds")
+                    val result = executor.execute(
+                        code = code,
+                        mode = mode,
+                        simSlot = simSlot,
+                        isSambaza = isSambaza,
+                        timeoutSeconds = timeoutSeconds,
+                    )
+                    postCallback(context, id!!, result.success, result.message)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Async USSD execution failed", e)
+                    postCallback(context, id!!, false, e.message ?: "Async USSD execution failed")
+                } finally {
+                    ussdMutex.unlock()
+                    Log.i(TAG, "USSD bridge released modem guard: mode=$mode simSlot=$simSlot")
                 }
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error posting USSD callback", e)
+
+            return mapOf(
+                "success" to true,
+                "message" to "Dispatched to hardware"
+            )
+        } else {
+            // Synchronous execution (old blocking behavior for frontend interactive flows like Sambaza)
+            val executor = UssdExecutor(context)
+            val lockAcquired = runBlocking {
+                withTimeoutOrNull(USSD_LOCK_WAIT_MS) {
+                    ussdMutex.lock()
+                    true
+                } ?: false
+            }
+
+            if (!lockAcquired) {
+                Log.w(TAG, "USSD bridge busy (sync): mode=$mode simSlot=$simSlot")
+                return mapOf(
+                    "success" to false,
+                    "message" to "Another USSD session is already in progress. Try again shortly."
+                )
+            }
+
+            val result = try {
+                Log.i(TAG, "USSD bridge acquired modem guard (sync): mode=$mode simSlot=$simSlot timeoutSeconds=$timeoutSeconds")
+                runBlocking {
+                    executor.execute(
+                        code = code,
+                        mode = mode,
+                        simSlot = simSlot,
+                        isSambaza = isSambaza,
+                        timeoutSeconds = timeoutSeconds,
+                    )
+                }
+            } finally {
+                ussdMutex.unlock()
+                Log.i(TAG, "USSD bridge released modem guard (sync): mode=$mode simSlot=$simSlot")
+            }
+
+            return mapOf(
+                "success" to result.success,
+                "message" to result.message
+            )
         }
+    }
+
+    private fun postCallback(context: Context, id: Int, success: Boolean, message: String) {
+        val inputData = androidx.work.Data.Builder()
+            .putInt(UssdCallbackWorker.KEY_ID, id)
+            .putBoolean(UssdCallbackWorker.KEY_SUCCESS, success)
+            .putString(UssdCallbackWorker.KEY_MESSAGE, message)
+            .build()
+
+        val workRequest = androidx.work.OneTimeWorkRequestBuilder<UssdCallbackWorker>()
+            .setInputData(inputData)
+            .build()
+
+        androidx.work.WorkManager.getInstance(context).enqueue(workRequest)
+        Log.i(TAG, "Enqueued USSD callback for transaction #$id")
     }
 
 

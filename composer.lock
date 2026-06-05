@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b982c103238d9521110bb39191907a5e",
+    "content-hash": "ee3028ce308459e7303dbb38c3cb018b",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -5148,11 +5148,11 @@
         },
         {
             "name": "statum/native-scheduler",
-            "version": "dev-main",
+            "version": "dev-feature/async-ussd-bridge",
             "dist": {
                 "type": "path",
                 "url": "packages/statum/native-scheduler",
-                "reference": "62fd5a375682ed53931a5190eed3a558cdbdc808"
+                "reference": "a260374cf9520c3c1ebb26046165f61b36129cbc"
             },
             "require": {
                 "nativephp/mobile": "^3.0",
@@ -5193,6 +5193,7 @@
             ],
             "description": "A NativePHP Mobile plugin",
             "transport-options": {
+                "symlink": false,
                 "relative": true
             }
         },

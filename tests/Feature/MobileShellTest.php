@@ -128,9 +128,8 @@ test('the android queue worker initializes the background environment before usi
         ->not->toContain('nativeWorkerShutdown');
 
     expect($schedulerWorkerSource)
-        ->toContain('initializeForBackground()')
-        ->toContain('registerContextOnlyBridgeFunctions(applicationContext)')
-        ->toContain('return synchronized(PHPBridge.phpLock)')
+        ->toContain('PHPQueueService::class.java')
+        ->toContain('startForegroundService')
         ->not->toContain('ReentrantLock')
         ->not->toContain('ephemeralLock.lock()');
 

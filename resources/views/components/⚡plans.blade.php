@@ -641,11 +641,31 @@ new #[Title('Subscriptions')] class extends Component {
 
                                 @if ($this->sambazaLine)
                                     <div class="rounded-2xl bg-zinc-50/80 p-4 border border-zinc-150">
-                                        <div class="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-600">{{ __('Choose SIM Slot') }}</div>
-                                        <flux:radio.group wire:model="simSlot" variant="segmented" class="mt-3.5 h-11 w-full rounded-2xl bg-white p-1 ring-1 ring-zinc-200">
-                                            <flux:radio value="0" label="{{ __('SIM 1') }}" class="font-extrabold text-zinc-700 text-xs" />
-                                            <flux:radio value="1" label="{{ __('SIM 2') }}" class="font-extrabold text-zinc-700 text-xs" />
-                                        </flux:radio.group>
+                                        <div class="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-600 mb-3 block">{{ __('Choose SIM Slot') }}</div>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <button 
+                                                type="button" 
+                                                wire:click="$set('simSlot', 0)"
+                                                @class([
+                                                    'flex h-11 items-center justify-center rounded-xl text-xs font-black transition-all border',
+                                                    'bg-emerald-600 text-white border-transparent shadow-sm shadow-emerald-500/20' => (int) $simSlot === 0,
+                                                    'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50' => (int) $simSlot !== 0,
+                                                ])
+                                            >
+                                                {{ __('SIM 1') }}
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                wire:click="$set('simSlot', 1)"
+                                                @class([
+                                                    'flex h-11 items-center justify-center rounded-xl text-xs font-black transition-all border',
+                                                    'bg-emerald-600 text-white border-transparent shadow-sm shadow-emerald-500/20' => (int) $simSlot === 1,
+                                                    'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50' => (int) $simSlot !== 1,
+                                                ])
+                                            >
+                                                {{ __('SIM 2') }}
+                                            </button>
+                                        </div>
                                     </div>
                                 @endif
 

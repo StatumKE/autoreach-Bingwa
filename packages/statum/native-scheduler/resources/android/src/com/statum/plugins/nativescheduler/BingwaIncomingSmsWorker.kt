@@ -1,14 +1,12 @@
 package com.statum.plugins.nativescheduler
 
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.util.Base64
 import android.util.Log
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.nativephp.mobile.bridge.BridgeFunctionRegistry
-import com.nativephp.mobile.bridge.LaravelEnvironment
-import com.nativephp.mobile.bridge.PHPBridge
-import com.nativephp.mobile.bridge.plugins.registerContextOnlyBridgeFunctions
 
 class BingwaIncomingSmsWorker(
     context: Context,
@@ -27,50 +25,23 @@ class BingwaIncomingSmsWorker(
         )
         val command = "bingwa:process-incoming-sms --payload=$encodedPayload"
 
-        val phpBridge = PHPBridge(applicationContext)
-        if (phpBridge.isPersistentMode()) {
-            try {
-                val output = phpBridge.runPersistentArtisan(command)
-                Log.i(TAG, "Incoming SMS processing via persistent runtime completed: ${output.take(200)}")
-                return Result.success()
-            } catch (e: Exception) {
-                Log.w(TAG, "Persistent runtime execution failed for incoming SMS: ${e.message}")
-                return Result.retry()
-            }
+        Log.i(TAG, "Executing incoming SMS processing command via PHPQueueService: $command")
+
+        val serviceIntent = Intent(applicationContext, com.nativephp.mobile.bridge.PHPQueueService::class.java).apply {
+            action = "RUN_COMMAND"
+            putExtra("command", command)
         }
-
-        // Cold boot fallback
-        return synchronized(PHPBridge.phpLock) {
-            try {
-                if (!BridgeFunctionRegistry.shared.exists("ExecuteUssd")) {
-                    registerContextOnlyBridgeFunctions(applicationContext)
-                }
-
-                val environment = LaravelEnvironment(applicationContext)
-                environment.initializeForBackground()
-
-                val booted = phpBridge.nativeEphemeralBoot(
-                    "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
-                )
-
-                if (booted != 0) {
-                    Log.e(TAG, "Failed to boot PHP for incoming SMS processing")
-                    return@synchronized Result.retry()
-                }
-
-                try {
-                    val output = phpBridge.nativeEphemeralArtisan(command)
-                    Log.i(TAG, "Incoming SMS processing completed: ${output.take(200)}")
-                } finally {
-                    phpBridge.nativeEphemeralShutdown()
-                }
-
-                Result.success()
-            } catch (exception: Exception) {
-                Log.e(TAG, "Incoming SMS processing failed", exception)
-                Result.retry()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                applicationContext.startForegroundService(serviceIntent)
+            } else {
+                applicationContext.startService(serviceIntent)
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start PHPQueueService for command: $command", e)
+            return Result.failure()
         }
+        return Result.success()
     }
 
     companion object {

@@ -117,26 +117,12 @@ function patch_mobile_background_tasks_scheduler_lock(): void
 package com.nativephp.mobile.background
 
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.util.Log
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.nativephp.mobile.bridge.BridgeFunctionRegistry
-import com.nativephp.mobile.bridge.LaravelEnvironment
-import com.nativephp.mobile.bridge.PHPBridge
-import com.nativephp.mobile.bridge.plugins.registerContextOnlyBridgeFunctions
 
-/**
- * WorkManager Worker that executes a scheduled artisan command.
- *
- * Each task has its own PeriodicWorkRequest with independent intervals and
- * constraints, but execution is serialized with PHPBridge.phpLock because
- * the ephemeral PHP runtime must be booted, used, and shut down on the same
- * thread without another PHP runtime user entering the session.
- *
- * Each execution: acquire lock -> boot ephemeral -> run command -> shutdown -> release lock.
- * This runs in a WorkManager-managed thread, potentially in a cold process
- * start after the app has been closed.
- */
 class PHPSchedulerWorker(
     context: Context,
     params: WorkerParameters
@@ -154,57 +140,23 @@ class PHPSchedulerWorker(
             return Result.failure()
         }
 
-        Log.i(TAG, "Executing scheduled command: $command (waiting for PHP lock)")
+        Log.i(TAG, "Executing scheduled command via PHPQueueService: $command")
 
-        val phpBridge = PHPBridge(applicationContext)
-        if (phpBridge.isPersistentMode()) {
-            Log.i(TAG, "Persistent mode active — running $command via persistent artisan")
-            try {
-                val output = phpBridge.runPersistentArtisan(command)
-                Log.i(TAG, "Command completed via persistent runtime: $command (output=${output.take(200)})")
-                return Result.success()
-            } catch (e: Exception) {
-                Log.e(TAG, "Persistent artisan execution failed for: $command", e)
-                return Result.retry()
-            }
+        val serviceIntent = Intent(applicationContext, com.nativephp.mobile.bridge.PHPQueueService::class.java).apply {
+            action = "RUN_COMMAND"
+            putExtra("command", command)
         }
-
-        return synchronized(PHPBridge.phpLock) {
-            Log.i(TAG, "PHP lock acquired for: $command")
-
-            try {
-                if (!BridgeFunctionRegistry.shared.exists("BackgroundTasks.Register")) {
-                    Log.i(TAG, "Cold boot detected - registering context-only bridge functions")
-                    registerContextOnlyBridgeFunctions(applicationContext)
-                }
-
-                val env = LaravelEnvironment(applicationContext)
-                env.initializeForBackground()
-
-                val booted = phpBridge.nativeEphemeralBoot(
-                    "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
-                )
-
-                if (booted != 0) {
-                    Log.e(TAG, "Failed to boot ephemeral runtime for: $command")
-                    return@synchronized Result.retry()
-                }
-
-                try {
-                    val output = phpBridge.nativeEphemeralArtisan(command)
-                    Log.i(TAG, "Command completed: $command (output=${output.take(200)})")
-                } finally {
-                    phpBridge.nativeEphemeralShutdown()
-                }
-
-                Result.success()
-            } catch (e: Exception) {
-                Log.e(TAG, "Scheduler execution failed for: $command", e)
-                Result.retry()
-            } finally {
-                Log.i(TAG, "PHP lock released for: $command")
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                applicationContext.startForegroundService(serviceIntent)
+            } else {
+                applicationContext.startService(serviceIntent)
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start PHPQueueService for command: $command", e)
+            return Result.failure()
         }
+        return Result.success()
     }
 }
 KOTLIN;
@@ -213,12 +165,7 @@ KOTLIN;
         if (! file_exists($target)) {
             continue;
         }
-
-        $contents = (string) file_get_contents($target);
-
-        if (! str_contains($contents, 'return synchronized(PHPBridge.phpLock)')) {
-            write_if_changed($target, $patched);
-        }
+        write_if_changed($target, $patched);
     }
 }
 
@@ -561,13 +508,13 @@ function patch_mobile_queue_worker_timeout(): void
                 '"queue:work --once --quiet"',
                 '"queue:work --once"',
                 'workerThread = Thread({',
-                '}, "php-queue-worker").apply {'
+                '}, "php-queue-worker").apply {',
             ],
             [
                 '"queue:work --once --quiet --timeout=360"',
                 '"queue:work --once --timeout=360"',
                 'workerThread = Thread(null, {',
-                '}, "php-queue-worker", 8 * 1024 * 1024).apply {'
+                '}, "php-queue-worker", 8 * 1024 * 1024).apply {',
             ],
             $contents
         );
@@ -1024,6 +971,8 @@ function patch_mobile_manifest_queue_service(): void
     $serviceDef = <<<'XML'
         <service
             android:name="com.nativephp.mobile.bridge.PHPQueueService"
+            android:process=":queue"
+            android:foregroundServiceType="dataSync"
             android:exported="false" />
 XML;
 
@@ -1041,24 +990,33 @@ XML;
         $contents = (string) file_get_contents($target);
 
         if (str_contains($contents, 'com.nativephp.mobile.bridge.PHPQueueService')) {
-            // Already injected — ensure it is in the safe zone (before plugin comment)
-            // If it appears after the plugin comment, move it to the safe zone.
+            // Already injected — ensure it has the correct attributes (foregroundServiceType)
+            // and is in the safe zone (before plugin comment).
             $pluginCommentPos = strpos($contents, $safeAnchor);
             $servicePos = strpos($contents, 'com.nativephp.mobile.bridge.PHPQueueService');
+            $hasCorrectAttrs = str_contains($contents, 'android:foregroundServiceType="dataSync"') && str_contains($contents, 'android:process=":queue"');
 
-            if ($pluginCommentPos !== false && $servicePos !== false && $servicePos > $pluginCommentPos) {
-                // Remove the mis-placed entry first
+            if (! $hasCorrectAttrs || ($pluginCommentPos !== false && $servicePos !== false && $servicePos > $pluginCommentPos)) {
+                // Remove the old/mis-placed entry
                 $contents = preg_replace(
                     '/\s*<service[^>]*com\.nativephp\.mobile\.bridge\.PHPQueueService[^>]*\/>/',
                     '',
                     $contents
                 );
                 // Re-inject in the safe zone
-                $contents = str_replace(
-                    $safeAnchor,
-                    $serviceDef.PHP_EOL.'        '.$safeAnchor,
-                    $contents
-                );
+                if (str_contains($contents, $safeAnchor)) {
+                    $contents = str_replace(
+                        $safeAnchor,
+                        $serviceDef.PHP_EOL.'        '.$safeAnchor,
+                        $contents
+                    );
+                } elseif (str_contains($contents, $fallbackAnchor)) {
+                    $contents = str_replace(
+                        $fallbackAnchor,
+                        $serviceDef.PHP_EOL.'    '.$fallbackAnchor,
+                        $contents
+                    );
+                }
                 write_if_changed($target, $contents);
             }
 
@@ -1085,6 +1043,318 @@ XML;
     }
 }
 
+function patch_mobile_manifest_battery_and_foreground(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/AndroidManifest.xml'),
+        project_path('nativephp/android/app/src/main/AndroidManifest.xml'),
+    ];
+
+    $permissions = <<<'XML'
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+XML;
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (! str_contains($contents, 'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS')) {
+            $contents = replace_or_fail(
+                $contents,
+                '<uses-permission android:name="android.permission.INTERNET" />',
+                '<uses-permission android:name="android.permission.INTERNET" />'.PHP_EOL.$permissions,
+                'AndroidManifest permissions injection'
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
+function patch_mobile_queue_service_foreground(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/java/com/nativephp/mobile/bridge/PHPQueueService.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/mobile/bridge/PHPQueueService.kt'),
+    ];
+
+    $contents = <<<'KOTLIN'
+package com.nativephp.mobile.bridge
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.IBinder
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.nativephp.mobile.bridge.plugins.registerContextOnlyBridgeFunctions
+
+class PHPQueueService : Service() {
+    private var queueWorker: PHPQueueWorker? = null
+
+    companion object {
+        private const val TAG = "PHPQueueService"
+        private const val CHANNEL_ID = "PHPQueueServiceChannel"
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        Log.i(TAG, "QueueService created in separate process")
+        createNotificationChannel()
+        val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Autoreach Bingwa")
+            .setContentText("Status: Running")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+        
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            } else {
+                startForeground(1, notification)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start foreground service", e)
+        }
+        queueWorker = PHPQueueWorker(applicationContext)
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val serviceChannel = NotificationChannel(
+                CHANNEL_ID,
+                "Background Processing",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(serviceChannel)
+        }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent != null && intent.action == "RUN_COMMAND") {
+            val command = intent.getStringExtra("command")
+            if (command != null) {
+                Log.i(TAG, "QueueService executing command: $command")
+                Thread {
+                    synchronized(PHPBridge.phpLock) {
+                        try {
+                            if (!BridgeFunctionRegistry.shared.exists("BackgroundTasks.Register")) {
+                                Log.i(TAG, "Registering context-only bridge functions in queue process")
+                                registerContextOnlyBridgeFunctions(applicationContext)
+                            }
+                            val env = LaravelEnvironment(applicationContext)
+                            env.initializeForBackground()
+                            val phpBridge = PHPBridge(applicationContext)
+                            val booted = phpBridge.nativeEphemeralBoot(
+                                "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
+                            )
+                            if (booted == 0) {
+                                try {
+                                    val output = phpBridge.nativeEphemeralArtisan(command)
+                                    Log.i(TAG, "Command execution completed: $command")
+                                } finally {
+                                    phpBridge.nativeEphemeralShutdown()
+                                }
+                            } else {
+                                Log.e(TAG, "Failed to boot ephemeral runtime for command: $command")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Exception running command: $command", e)
+                        }
+                    }
+                }.start()
+            }
+        } else {
+            Log.i(TAG, "QueueService starting worker thread")
+            queueWorker?.start()
+        }
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        Log.i(TAG, "QueueService destroying, stopping worker thread")
+        queueWorker?.stop()
+        queueWorker = null
+        super.onDestroy()
+    }
+
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
+    }
+}
+KOTLIN;
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+        write_if_changed($target, $contents);
+    }
+}
+
+function patch_mobile_main_activity_battery(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/java/com/nativephp/mobile/ui/MainActivity.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/mobile/ui/MainActivity.kt'),
+    ];
+
+    $originalOnCreateStart = <<<'KOTLIN'
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        instance = this
+
+        // Android 15 edge-to-edge compatibility fix
+KOTLIN;
+
+    $patchedOnCreateStart = <<<'KOTLIN'
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        instance = this
+
+        // Request Ignore Battery Optimizations to ensure background scheduler/queues aren't killed
+        try {
+            val intent = Intent()
+            val packageName = packageName
+            val pm = getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                intent.action = android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                intent.data = android.net.Uri.parse("package:$packageName")
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            Log.e("BatteryOpt", "Failed to request battery optimization ignore", e)
+        }
+
+        // Android 15 edge-to-edge compatibility fix
+KOTLIN;
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (! str_contains($contents, 'isIgnoringBatteryOptimizations(')) {
+            $contents = replace_or_fail(
+                $contents,
+                $originalOnCreateStart,
+                $patchedOnCreateStart,
+                'MainActivity Battery Optimization prompt'
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
+function write_mobile_main_application(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/java/com/nativephp/mobile/MainApplication.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/mobile/MainApplication.kt'),
+    ];
+
+    $contents = <<<'KOTLIN'
+package com.nativephp.mobile
+
+import android.app.Application
+import android.util.Log
+import androidx.work.Configuration
+
+class MainApplication : Application(), Configuration.Provider {
+    companion object {
+        private const val TAG = "MainApplication"
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        Log.i(TAG, "MainApplication onCreate - process: ${android.os.Process.myPid()}")
+    }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(Log.INFO)
+            .build()
+}
+KOTLIN;
+
+    foreach ($targets as $target) {
+        write_if_changed($target, $contents);
+    }
+}
+
+function patch_mobile_manifest_workmanager_and_application(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile/resources/androidstudio/app/src/main/AndroidManifest.xml'),
+        project_path('nativephp/android/app/src/main/AndroidManifest.xml'),
+    ];
+
+    $providerDef = <<<'XML'
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+XML;
+
+    $safeAnchor = '<!-- NativePHP Plugin Components -->';
+    $fallbackAnchor = '</application>';
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (! str_contains($contents, 'android:name="com.nativephp.mobile.MainApplication"')) {
+            $contents = replace_or_fail(
+                $contents,
+                '<application',
+                '<application'.PHP_EOL.'        android:name="com.nativephp.mobile.MainApplication"',
+                'AndroidManifest Application class'
+            );
+        }
+
+        if (! str_contains($contents, 'androidx.work.WorkManagerInitializer')) {
+            if (str_contains($contents, $safeAnchor)) {
+                $contents = str_replace(
+                    $safeAnchor,
+                    $providerDef.PHP_EOL.'        '.$safeAnchor,
+                    $contents
+                );
+            } elseif (str_contains($contents, $fallbackAnchor)) {
+                $contents = str_replace(
+                    $fallbackAnchor,
+                    $providerDef.PHP_EOL.'    '.$fallbackAnchor,
+                    $contents
+                );
+            }
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
 try {
 
     patch_mobile_firebase_dispatch_command();
@@ -1103,6 +1373,11 @@ try {
     patch_mobile_phpbridge_executor();
     patch_mobile_runtime_terminate();
     patch_mobile_manifest_queue_service();
+    patch_mobile_manifest_battery_and_foreground();
+    patch_mobile_queue_service_foreground();
+    patch_mobile_main_activity_battery();
+    write_mobile_main_application();
+    patch_mobile_manifest_workmanager_and_application();
 } catch (Throwable $throwable) {
     fwrite(STDERR, $throwable->getMessage().PHP_EOL);
 

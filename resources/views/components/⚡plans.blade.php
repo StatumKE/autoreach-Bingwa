@@ -467,77 +467,99 @@ new #[Title('Subscriptions')] class extends Component {
                         </div>
                     </div>
                 @endif
+                <div class="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                    @foreach ($this->plans as $plan)
+                        @php
+                            $planDelay = ($loop->index * 80) + 100;
+                            $isSelected = $this->selectedPlanId === ($plan['id'] ?? null);
+                            $isActive = $this->activePlan?->backend_plan_id === ($plan['id'] ?? null);
+                            $isUsage = ($plan['type'] ?? '') === 'usage_pack';
+                        @endphp
 
-                @foreach ($this->plans as $plan)
-                    @php
-                        $planDelay = ($loop->index * 90) + 120;
-                    @endphp
+                        <article 
+                            @class([
+                                'plans-reveal group relative overflow-hidden rounded-2xl transition-all duration-300 transform hover:-translate-y-0.5 shadow-sm hover:shadow border',
+                                'bg-gradient-to-br from-emerald-500/10 via-emerald-600/[0.03] to-green-600/[0.02] border-emerald-500 ring-2 ring-emerald-500/10' => $isSelected,
+                                'bg-white border-zinc-200/90 hover:border-zinc-300' => !$isSelected,
+                                'opacity-70 grayscale-[0.2]' => $this->activePlan && !$isActive
+                            ]) 
+                            style="animation-delay: {{ $planDelay }}ms"
+                        >
+                            <!-- Elegant top accent line for selected plan -->
+                            @if ($isSelected)
+                                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-green-600"></div>
+                            @endif
 
-                    <article @class([
-                        'plans-reveal relative overflow-hidden rounded-xl transition duration-300',
-                        'bg-white ring-2 ring-green-500 shadow-md' => $this->selectedPlanId === ($plan['id'] ?? null),
-                        'bg-white shadow-sm ring-1 ring-zinc-200' => $this->selectedPlanId !== ($plan['id'] ?? null),
-                        'opacity-40 grayscale-[0.8]' => $this->activePlan && ($this->activePlan->backend_plan_id !== ($plan['id'] ?? null))
-                    ]) style="animation-delay: {{ $planDelay }}ms">
-                        
-                        <div class="p-6">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="flex flex-col gap-1">
-                                    <div class="flex items-center gap-2">
-                                        <div class="text-base font-bold tracking-tight text-zinc-900">{{ $plan['name'] ?? __('Plan') }}</div>
-                                        @if ($this->activePlan?->backend_plan_id === ($plan['id'] ?? null))
-                                            <div class="flex size-4 items-center justify-center rounded-full bg-green-500 text-white shadow-sm">
-                                                <flux:icon.check class="size-3" />
-                                            </div>
-                                        @endif
-                                    </div>
-                                    <div class="text-[9px] font-bold uppercase tracking-widest text-zinc-500">{{ str_replace('_', ' ', $plan['type'] ?? 'PLAN') }}</div>
-                                </div>
-                                <div class="flex flex-col items-end">
-                                    <div class="text-base font-bold text-green-700">KES {{ number_format((float) ($plan['price'] ?? 0)) }}</div>
-                                    <div class="text-[8px] font-bold uppercase tracking-widest text-zinc-600">{{ __('PRICE') }}</div>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-3 mb-6">
-                                @if (($plan['type'] ?? null) === 'usage_pack' && ! is_null($plan['ussd_requests_included']))
-                                    <div class="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-200">
-                                        <div class="text-[8px] font-bold uppercase tracking-widest text-zinc-600">{{ __('USSD requests') }}</div>
-                                        <div class="mt-1 text-xs font-bold text-zinc-900">{{ number_format((int) $plan['ussd_requests_included']) }}</div>
-                                    </div>
-                                @endif
-
-                                @if (! empty($plan['duration_days']))
-                                    <div class="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-200">
-                                        <div class="text-[8px] font-bold uppercase tracking-widest text-zinc-600">{{ __('Duration') }}</div>
-                                        <div class="mt-1 text-xs font-bold text-zinc-900">
-                                            {{ trans_choice(':count day|:count days', (int) $plan['duration_days'], ['count' => (int) $plan['duration_days']]) }}
+                            <div class="p-3.5 flex flex-col justify-between h-full gap-3">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="space-y-1">
+                                        <div class="flex flex-wrap items-center gap-1.5">
+                                            <span class="text-sm font-black tracking-tight text-zinc-950 group-hover:text-emerald-700 transition-colors">
+                                                {{ $plan['name'] ?? __('Plan') }}
+                                            </span>
+                                            @if ($isActive)
+                                                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[8px] font-black tracking-wider text-emerald-700">
+                                                    <span class="size-1 rounded-full bg-emerald-500 animate-ping"></span>
+                                                    {{ __('ACTIVE') }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                        <div class="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest text-zinc-500 bg-zinc-100/80 px-2 py-0.5 rounded-full border border-zinc-200/60">
+                                            {{ str_replace('_', ' ', $plan['type'] ?? 'PLAN') }}
                                         </div>
                                     </div>
-                                @endif
-                            </div>
+                                    <div class="text-right">
+                                        <div class="text-lg font-black text-zinc-950 leading-tight">
+                                            KES {{ number_format((float) ($plan['price'] ?? 0)) }}
+                                        </div>
+                                        <span class="text-[8px] font-bold uppercase tracking-widest text-zinc-400 block mt-0.5">{{ __('One-time') }}</span>
+                                    </div>
+                                </div>
 
-                            <button
-                                @class([
-                                    'flex h-10 w-full items-center justify-center rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm transition active:scale-95 disabled:pointer-events-none disabled:opacity-50 ring-1 ring-inset',
-                                    'bg-green-600 text-white ring-green-700/20' => $this->selectedPlanId === ($plan['id'] ?? null),
-                                    'bg-white text-zinc-700 ring-zinc-200 hover:bg-zinc-50' => $this->selectedPlanId !== ($plan['id'] ?? null),
-                            ])
-                            type="button"
-                            wire:click="selectPlan({{ (int) ($plan['id'] ?? 0) }})"
-                            @disabled($this->activePlan !== null)
-                        >
-                                @if ($this->activePlan?->backend_plan_id === ($plan['id'] ?? null))
-                                    {{ __('ACTIVE') }}
-                                @elseif ($this->activePlan)
-                                    {{ __('LOCKED') }}
-                                @else
-                                    {{ $this->selectedPlanId === ($plan['id'] ?? null) ? __('SELECTED') : __('SELECT PLAN') }}
-                                @endif
-                            </button>
-                        </div>
-                    </article>
-                @endforeach
+                                <div class="grid grid-cols-2 gap-2">
+                                    @if ($isUsage && !is_null($plan['ussd_requests_included']))
+                                        <div class="rounded-xl bg-zinc-50/80 p-2 border border-zinc-150 flex flex-col justify-center shadow-inner">
+                                            <span class="text-[7px] font-bold uppercase tracking-wider text-zinc-400 block">{{ __('USSD requests') }}</span>
+                                            <span class="text-[11px] font-extrabold text-zinc-850 mt-0.5 flex items-center gap-1">
+                                                <flux:icon.banknotes class="size-3 text-emerald-600" />
+                                                {{ number_format((int) $plan['ussd_requests_included']) }}
+                                            </span>
+                                        </div>
+                                    @endif
+
+                                    @if (!empty($plan['duration_days']))
+                                        <div class="rounded-xl bg-zinc-50/80 p-2 border border-zinc-150 flex flex-col justify-center shadow-inner">
+                                            <span class="text-[7px] font-bold uppercase tracking-wider text-zinc-400 block">{{ __('Duration') }}</span>
+                                            <span class="text-[11px] font-extrabold text-zinc-850 mt-0.5 flex items-center gap-1">
+                                                <flux:icon.clock class="size-3 text-emerald-600" />
+                                                {{ trans_choice(':count day|:count days', (int) $plan['duration_days'], ['count' => (int) $plan['duration_days']]) }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <button
+                                    type="button"
+                                    wire:click="selectPlan({{ (int) ($plan['id'] ?? 0) }})"
+                                    @disabled($this->activePlan !== null)
+                                    @class([
+                                        'flex h-9 w-full items-center justify-center rounded-xl text-[9px] font-black uppercase tracking-widest transition-all duration-200 transform active:scale-95 disabled:pointer-events-none disabled:opacity-50 border shadow-sm',
+                                        'bg-gradient-to-r from-emerald-600 to-green-600 text-white border-transparent shadow-emerald-500/10 hover:shadow-md' => $isSelected,
+                                        'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 hover:text-zinc-900' => !$isSelected,
+                                    ])
+                                >
+                                    @if ($isActive)
+                                        {{ __('CURRENT ACTIVE') }}
+                                    @elseif ($this->activePlan)
+                                        {{ __('LOCKED') }}
+                                    @else
+                                        {{ $isSelected ? __('SELECTED') : __('SELECT THIS PLAN') }}
+                                    @endif
+                                </button>
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
             </div>
 
             @if ($this->selectedPlanId !== null)
@@ -546,36 +568,39 @@ new #[Title('Subscriptions')] class extends Component {
                 @endphp
 
                 @if (is_array($selectedPlan))
-                    <div class="fixed inset-0 z-[70] flex items-end justify-center bg-zinc-950/45 p-4 backdrop-blur-sm sm:items-center sm:p-6">
+                    <!-- Centered Modal Wrapper with Glassmorphism Overlay -->
+                    <div class="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 bg-zinc-950/50 backdrop-blur-sm transition-all duration-300">
                         <button
                             type="button"
                             wire:click="$set('selectedPlanId', null)"
-                            class="absolute inset-0 cursor-default"
+                            class="absolute inset-0 cursor-default bg-transparent"
                             aria-label="{{ __('Close selected plan dialog') }}"
                         ></button>
 
-                        <div class="relative z-10 w-full max-w-xl overflow-hidden rounded-[2rem] bg-white shadow-2xl ring-1 ring-zinc-200 plans-reveal">
+                        <div class="relative z-10 w-full max-w-md overflow-hidden rounded-[2.5rem] bg-white shadow-2xl ring-1 ring-zinc-200/80 plans-reveal">
                             @if ($this->purchaseInFlight)
-                                <div class="absolute inset-0 z-30 flex items-center justify-center bg-white/80 px-6 backdrop-blur-sm">
-                                    <div class="flex w-full max-w-sm flex-col items-center gap-3 rounded-[1.5rem] bg-white px-6 py-5 text-center shadow-xl ring-1 ring-zinc-200">
-                                        <flux:icon.loading variant="mini" class="size-7 text-green-600" />
-                                        <div class="text-sm font-black uppercase tracking-[0.18em] text-zinc-900">
+                                <div class="absolute inset-0 z-30 flex items-center justify-center bg-white/90 px-6 backdrop-blur-sm">
+                                    <div class="flex w-full max-w-xs flex-col items-center gap-4 rounded-3xl bg-white px-6 py-6 text-center shadow-2xl ring-1 ring-zinc-150">
+                                        <flux:icon.loading variant="mini" class="size-8 text-emerald-600" />
+                                        <div class="text-xs font-black uppercase tracking-[0.2em] text-zinc-950">
                                             {{ __('Processing purchase') }}
                                         </div>
-                                        <div class="text-xs font-medium leading-relaxed text-zinc-500">
+                                        <div class="text-[10px] font-medium leading-relaxed text-zinc-500">
                                             {{ __('Keep the app open while your phone handles the USSD session.') }}
                                         </div>
                                     </div>
                                 </div>
                             @endif
 
-                            <div class="bg-app-shell px-6 pb-5 pt-6 text-white">
+                            <div class="bg-gradient-to-br from-zinc-900 to-zinc-950 px-6 pb-5 pt-6 text-white border-b border-zinc-800">
                                 <div class="flex items-start justify-between gap-4">
                                     <div class="min-w-0">
-                                        <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-green-300/80">{{ __('Purchase Plan') }}</div>
-                                        <div class="mt-2 text-2xl font-black tracking-tight text-white">{{ $selectedPlan['name'] ?? __('Plan') }}</div>
-                                        <div class="mt-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/55">
-                                            {{ str_replace('_', ' ', $selectedPlan['type'] ?? 'PLAN') }}
+                                        <div class="text-[9px] font-bold uppercase tracking-[0.24em] text-emerald-400">{{ __('Confirm Purchase') }}</div>
+                                        <div class="mt-2 text-xl font-black tracking-tight text-white">{{ $selectedPlan['name'] ?? __('Plan') }}</div>
+                                        <div class="mt-1">
+                                            <span class="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-400 bg-zinc-800/80 px-2.5 py-0.5 rounded-full">
+                                                {{ str_replace('_', ' ', $selectedPlan['type'] ?? 'PLAN') }}
+                                            </span>
                                         </div>
                                     </div>
 
@@ -583,7 +608,7 @@ new #[Title('Subscriptions')] class extends Component {
                                         type="button"
                                         wire:click="$set('selectedPlanId', null)"
                                         @disabled($this->purchaseInFlight)
-                                        class="app-secondary-button flex size-11 shrink-0 items-center justify-center rounded-2xl border-0 bg-white/8 text-white ring-1 ring-white/10 hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-50"
+                                        class="flex size-9 shrink-0 items-center justify-center rounded-2xl border-0 bg-white/5 text-white ring-1 ring-white/10 hover:bg-white/10 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
                                         aria-label="{{ __('Close') }}"
                                     >
                                         <flux:icon.x-mark class="size-5" />
@@ -592,17 +617,17 @@ new #[Title('Subscriptions')] class extends Component {
                             </div>
 
                             <div @class(['space-y-6 px-6 py-6', 'opacity-40 pointer-events-none' => $this->purchaseInFlight])>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div class="rounded-2xl bg-zinc-50 px-4 py-4 ring-1 ring-zinc-200">
-                                        <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Price') }}</div>
-                                        <div class="mt-2 text-2xl font-black tracking-tight text-green-700">
+                                <div class="grid grid-cols-2 gap-3.5">
+                                    <div class="rounded-2xl bg-zinc-50/80 px-4 py-3.5 border border-zinc-150 shadow-inner">
+                                        <div class="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Price') }}</div>
+                                        <div class="mt-1 text-xl font-black tracking-tight text-emerald-700">
                                             KES {{ number_format((float) ($selectedPlan['price'] ?? 0)) }}
                                         </div>
                                     </div>
 
-                                    <div class="rounded-2xl bg-zinc-50 px-4 py-4 ring-1 ring-zinc-200">
-                                        <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Duration') }}</div>
-                                        <div class="mt-2 text-lg font-black text-zinc-950">
+                                    <div class="rounded-2xl bg-zinc-50/80 px-4 py-3.5 border border-zinc-150 shadow-inner">
+                                        <div class="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Duration') }}</div>
+                                        <div class="mt-1 text-sm font-black text-zinc-950">
                                             @if (! empty($selectedPlan['duration_days']))
                                                 {{ trans_choice(':count day|:count days', (int) $selectedPlan['duration_days'], ['count' => (int) $selectedPlan['duration_days']]) }}
                                             @elseif (($selectedPlan['type'] ?? null) === 'usage_pack' && ! is_null($selectedPlan['ussd_requests_included']))
@@ -615,11 +640,11 @@ new #[Title('Subscriptions')] class extends Component {
                                 </div>
 
                                 @if ($this->sambazaLine)
-                                    <div class="rounded-[1.75rem] bg-zinc-50 p-4 ring-1 ring-zinc-200">
-                                        <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-600">{{ __('Choose SIM Slot') }}</div>
-                                        <flux:radio.group wire:model="simSlot" variant="segmented" class="mt-4 h-12 w-full rounded-2xl bg-white p-1 ring-1 ring-zinc-200">
-                                            <flux:radio value="0" label="{{ __('SIM 1') }}" class="font-bold text-zinc-700 text-sm" />
-                                            <flux:radio value="1" label="{{ __('SIM 2') }}" class="font-bold text-zinc-700 text-sm" />
+                                    <div class="rounded-2xl bg-zinc-50/80 p-4 border border-zinc-150">
+                                        <div class="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-600">{{ __('Choose SIM Slot') }}</div>
+                                        <flux:radio.group wire:model="simSlot" variant="segmented" class="mt-3.5 h-11 w-full rounded-2xl bg-white p-1 ring-1 ring-zinc-200">
+                                            <flux:radio value="0" label="{{ __('SIM 1') }}" class="font-extrabold text-zinc-700 text-xs" />
+                                            <flux:radio value="1" label="{{ __('SIM 2') }}" class="font-extrabold text-zinc-700 text-xs" />
                                         </flux:radio.group>
                                     </div>
                                 @endif
@@ -629,7 +654,7 @@ new #[Title('Subscriptions')] class extends Component {
                                         type="button"
                                         wire:click="$set('selectedPlanId', null)"
                                         @disabled($this->purchaseInFlight)
-                                        class="app-secondary-button flex h-12 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest sm:w-40 disabled:cursor-not-allowed disabled:opacity-50"
+                                        class="flex h-12 w-full items-center justify-center rounded-2xl border border-zinc-200 bg-white text-[10px] font-black uppercase tracking-widest text-zinc-700 hover:bg-zinc-50 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {{ __('Cancel') }}
                                     </button>
@@ -640,14 +665,14 @@ new #[Title('Subscriptions')] class extends Component {
                                         @disabled($this->purchaseInFlight)
                                         wire:loading.attr="disabled"
                                         wire:target="initiateSambaza"
-                                        class="app-primary-button flex h-12 w-full items-center justify-center text-[10px] font-bold uppercase tracking-widest disabled:cursor-not-allowed disabled:opacity-50"
+                                        class="flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 text-[10px] font-black uppercase tracking-widest text-white shadow-md shadow-emerald-600/10 hover:opacity-95 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <span wire:loading.remove wire:target="initiateSambaza" @class(['inline-flex items-center justify-center gap-2', 'hidden' => $this->purchaseInFlight])>
-                                            {{ __('Purchase Now') }}
+                                            {{ __('Confirm & Buy') }}
                                         </span>
                                         <span wire:loading wire:target="initiateSambaza" @class(['inline-flex items-center justify-center gap-2', 'hidden' => ! $this->purchaseInFlight])>
                                             <flux:icon.loading variant="mini" class="size-3.5" />
-                                            {{ __('Purchasing…') }}
+                                            {{ __('Processing…') }}
                                         </span>
                                     </button>
                                 </div>

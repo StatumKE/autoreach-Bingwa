@@ -390,7 +390,7 @@ new #[Title('Dashboard')] class extends Component
             }
         }
     }"
-    x-init="checkAccessibility(); const timer = setInterval(() => checkAccessibility(), 10000); $cleanup(() => clearInterval(timer));"
+    x-init="checkAccessibility(); const _bingwaTimer = setInterval(() => checkAccessibility(), 10000); return () => clearInterval(_bingwaTimer);"
     @visibilitychange.window="if (document.visibilityState === 'visible') checkAccessibility()"
 >
     <div class="mx-auto flex h-full max-w-[780px] flex-col gap-3 lg:h-auto">

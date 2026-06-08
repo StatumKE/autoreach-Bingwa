@@ -54,6 +54,11 @@
         {
             "name": "RequestOutboundSmsPermission",
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.RequestOutboundSmsPermission"
+        },
+        {
+            "name": "WakeQueueWorker",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.WakeQueueWorker",
+            "android_params": ["context"]
         }
     ],
     "assets": {

@@ -256,6 +256,22 @@ object BingwaFunctions {
         }
     }
 
+    class WakeQueueWorker(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            Log.i("WakeQueueWorker", "WakeQueueWorker bridge function executed, sending intent to PHPQueueService")
+            val intent = Intent(context, com.nativephp.mobile.bridge.PHPQueueService::class.java).apply {
+                action = "WAKE_WORKER"
+            }
+            return try {
+                context.startService(intent)
+                mapOf("success" to true)
+            } catch (e: Exception) {
+                Log.e("WakeQueueWorker", "Failed to start PHPQueueService with WAKE_WORKER", e)
+                mapOf("success" to false, "error" to (e.message ?: "Unknown error"))
+            }
+        }
+    }
+
     class OpenBatterySettings(private val activity: FragmentActivity) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
             if (isBatteryUnrestricted(activity)) {
@@ -534,6 +550,8 @@ object BingwaFunctions {
                 Log.i(TAG, "USSD callback via persistent runtime (~5ms): ${output.take(200)}")
                 executedInstantly = true
                 UssdCallbackOutbox.markDelivered(context, id)
+                // Wake the queue worker immediately so the next job is dispatched without delay.
+                wakeQueueWorker(context)
             } catch (e: Exception) {
                 Log.w(TAG, "Persistent runtime execution failed for USSD callback: ${e.message}")
             }
@@ -564,6 +582,8 @@ object BingwaFunctions {
                             Log.i(TAG, "USSD callback via ephemeral runtime (~200ms): ${output.take(200)}")
                             executedInstantly = true
                             UssdCallbackOutbox.markDelivered(context, id)
+                            // Wake the queue worker immediately so the next job is dispatched without delay.
+                            wakeQueueWorker(context)
                         } finally {
                             phpBridge.nativeEphemeralShutdown()
                         }
@@ -583,15 +603,37 @@ object BingwaFunctions {
         }
     }
 
-    private fun replayBufferedCallbacks(context: Context) {
-        val delivered = UssdCallbackOutbox.replay(context) { callback ->
-            val result = postCallbackDelivery(context, callback.id, callback.success, callback.message)
-            result
+    /**
+     * Wake the PHPQueueWorker immediately so it picks up the next queued job without
+     * waiting for the idle sleep to expire. Sends a WAKE_WORKER intent directly to
+     * PHPQueueService in the :queue process — no PHP bridge required.
+     */
+    private fun wakeQueueWorker(context: Context) {
+        try {
+            val intent = android.content.Intent(context, com.nativephp.mobile.bridge.PHPQueueService::class.java).apply {
+                action = "WAKE_WORKER"
+            }
+            context.startService(intent)
+            Log.i(TAG, "WAKE_WORKER intent sent to PHPQueueService")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to send WAKE_WORKER intent: ${e.message}")
         }
+    }
 
-        if (delivered > 0) {
-            Log.i(TAG, "Replayed $delivered buffered USSD callbacks")
-        }
+    private fun replayBufferedCallbacks(context: Context) {
+        Thread {
+            try {
+                val delivered = UssdCallbackOutbox.replay(context) { callback ->
+                    postCallbackDelivery(context, callback.id, callback.success, callback.message)
+                }
+
+                if (delivered > 0) {
+                    Log.i(TAG, "Replayed $delivered buffered USSD callbacks")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error in replayBufferedCallbacks thread", e)
+            }
+        }.start()
     }
 
     private fun postCallbackDelivery(context: Context, id: Int, success: Boolean, message: String): Boolean {

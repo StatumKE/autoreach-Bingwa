@@ -563,35 +563,36 @@ object BingwaFunctions {
         // blocks or interferes with WebView/Livewire requests.
         // Only run this if persistent mode is NOT active to avoid Zend engine thread conflict.
         if (!executedInstantly && !phpBridge.isPersistentMode()) {
-            synchronized(com.nativephp.mobile.bridge.PHPBridge.phpLock) {
-                try {
-                    if (!com.nativephp.mobile.bridge.BridgeFunctionRegistry.shared.exists("ExecuteUssd")) {
-                        com.nativephp.mobile.bridge.plugins.registerContextOnlyBridgeFunctions(context.applicationContext)
-                    }
-
-                    val environment = com.nativephp.mobile.bridge.LaravelEnvironment(context.applicationContext)
-                    environment.initializeForBackground()
-
-                    val booted = phpBridge.nativeEphemeralBoot(
-                        "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
-                    )
-
-                    if (booted == 0) {
-                        try {
-                            val output = phpBridge.nativeEphemeralArtisan(command)
-                            Log.i(TAG, "USSD callback via ephemeral runtime (~200ms): ${output.take(200)}")
-                            executedInstantly = true
-                            UssdCallbackOutbox.markDelivered(context, id)
-                            // Wake the queue worker immediately so the next job is dispatched without delay.
-                            wakeQueueWorker(context)
-                        } finally {
-                            phpBridge.nativeEphemeralShutdown()
+            Thread {
+                synchronized(com.nativephp.mobile.bridge.PHPBridge.phpLock) {
+                    try {
+                        if (!com.nativephp.mobile.bridge.BridgeFunctionRegistry.shared.exists("ExecuteUssd")) {
+                            com.nativephp.mobile.bridge.plugins.registerContextOnlyBridgeFunctions(context.applicationContext)
                         }
+
+                        val environment = com.nativephp.mobile.bridge.LaravelEnvironment(context.applicationContext)
+                        environment.initializeForBackground()
+
+                        val booted = phpBridge.nativeEphemeralBoot(
+                            "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
+                        )
+
+                        if (booted == 0) {
+                            try {
+                                val output = phpBridge.nativeEphemeralArtisan(command)
+                                Log.i(TAG, "USSD callback via ephemeral runtime (~200ms): ${output.take(200)}")
+                                UssdCallbackOutbox.markDelivered(context, id)
+                                // Wake the queue worker immediately so the next job is dispatched without delay.
+                                wakeQueueWorker(context)
+                            } finally {
+                                phpBridge.nativeEphemeralShutdown()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Ephemeral PHP bridge callback failed", e)
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Ephemeral PHP bridge callback failed", e)
                 }
-            }
+            }.start()
         }
 
         // ── Tier 3: Background Fallback ────────────────────────────────────────────────────────

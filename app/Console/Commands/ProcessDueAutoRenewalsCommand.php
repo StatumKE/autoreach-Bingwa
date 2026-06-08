@@ -21,6 +21,10 @@ class ProcessDueAutoRenewalsCommand extends Command
         BingwaDeviceContext $deviceContext,
         ProcessDueAutoRenewals $processDueAutoRenewals,
     ): int {
+        Log::debug('Auto-renewal processing command started.', [
+            'component' => 'auto_renewal',
+        ]);
+
         $registration = $deviceContext->registration();
 
         if ($registration === null || $registration->user === null) {
@@ -31,12 +35,19 @@ class ProcessDueAutoRenewalsCommand extends Command
         }
 
         $userId = $registration->user->getKey();
+        Log::debug('Auto-renewal processing command dispatching jobs.', [
+            'component' => 'auto_renewal',
+            'user_id' => $userId,
+        ]);
 
         $result = $processDueAutoRenewals->process($userId);
 
         app(DispatchBingwaQueuedTransactionsJob::class)->dispatch($userId);
 
-        Log::info('Auto-renewal processing command finished.', $result);
+        Log::info('Auto-renewal processing command finished.', array_merge($result, [
+            'component' => 'auto_renewal',
+            'user_id' => $userId,
+        ]));
 
         $this->output->write(json_encode([
             'queued' => $result['queued'],

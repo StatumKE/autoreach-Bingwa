@@ -577,29 +577,27 @@ new #[Title('Transactions')] class extends Component
             @endphp
 
             @if ($retryableCount > 0)
-                <div class="flex items-center gap-3 px-2 py-1">
-                    <label class="relative flex items-center cursor-pointer">
-                        <input
-                            type="checkbox"
-                            wire:click="toggleSelectAllPage({{ $allPageRetryableSelected ? 'true' : 'false' }})"
-                            @checked($allPageRetryableSelected)
-                            class="peer sr-only"
-                            id="select-all-checkbox"
-                        >
-                        <div @class([
-                            'flex size-4 items-center justify-center rounded border-2 bg-white transition-all',
-                            'border-zinc-200' => ! $allPageRetryableSelected,
-                            'border-green-600 bg-green-600' => $allPageRetryableSelected,
-                        ])>
-                            <flux:icon.check variant="mini" @class([
-                                'size-3 text-white transition-transform',
-                                'scale-100' => $allPageRetryableSelected,
-                                'scale-0' => ! $allPageRetryableSelected,
-                            ]) />
-                        </div>
-                    </label>
+                <label class="flex items-center gap-3 px-2 py-1 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        wire:click="toggleSelectAllPage({{ $allPageRetryableSelected ? 'true' : 'false' }})"
+                        @checked($allPageRetryableSelected)
+                        class="peer sr-only"
+                        id="select-all-checkbox"
+                    >
+                    <div @class([
+                        'flex size-4 items-center justify-center rounded border-2 bg-white transition-all',
+                        'border-zinc-200' => ! $allPageRetryableSelected,
+                        'border-green-600 bg-green-600' => $allPageRetryableSelected,
+                    ])>
+                        <flux:icon.check variant="mini" @class([
+                            'size-3 text-white transition-transform',
+                            'scale-100' => $allPageRetryableSelected,
+                            'scale-0' => ! $allPageRetryableSelected,
+                        ]) />
+                    </div>
                     <span class="text-xs font-bold text-zinc-500 uppercase tracking-widest">{{ __('Select All') }}</span>
-                </div>
+                </label>
             @endif
 
             @foreach ($transactions as $transaction)
@@ -624,19 +622,20 @@ new #[Title('Transactions')] class extends Component
                 >
                     <div class="flex items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
-                            <label
-                                x-on:click.stop
+                            <div
                                 @class([
-                                'relative flex items-center',
-                                'cursor-pointer' => $canRetry,
-                                'cursor-not-allowed opacity-40' => ! $canRetry,
-                            ])>
+                                    'relative flex items-center size-4',
+                                    'cursor-pointer' => $canRetry,
+                                    'cursor-not-allowed opacity-40' => ! $canRetry,
+                                ])
+                            >
                                 <input
                                     type="checkbox"
                                     wire:model.live="selectedIds"
                                     value="{{ $transaction->id }}"
                                     @disabled(! $canRetry)
-                                    class="peer sr-only"
+                                    x-on:click.stop
+                                    class="absolute inset-0 z-10 cursor-pointer opacity-0"
                                 >
                                 <div @class([
                                     'flex size-4 items-center justify-center rounded border-2 bg-white transition-all',
@@ -649,7 +648,7 @@ new #[Title('Transactions')] class extends Component
                                         'scale-0' => ! $isSelected,
                                     ]) />
                                 </div>
-                            </label>
+                            </div>
                             <div class="flex items-center gap-2">
                                 <span @class([
                                     'inline-flex items-center rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest',

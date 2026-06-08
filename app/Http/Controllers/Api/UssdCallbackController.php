@@ -13,6 +13,7 @@ class UssdCallbackController
     {
         if (! $this->isLoopbackRequest($request)) {
             Log::warning('🛑 [CALLBACK BLOCK] Unauthorized external request rejected by USSD callback endpoint.', [
+                'component' => 'ussd_callback',
                 'ip' => $request->ip(),
                 'host' => $request->getHost(),
             ]);
@@ -26,11 +27,17 @@ class UssdCallbackController
         $transactionId = $request->input('id');
         $success = (bool) $request->input('success');
         $message = trim((string) $request->input('message'));
+        $callbackToken = trim((string) $request->input('callback_token'));
 
         Log::info('📥 [CALLBACK RECEIVE] Asynchronous USSD callback received', [
+            'component' => 'ussd_callback',
             'transaction_id' => $transactionId,
             'success' => $success,
             'message' => $message,
+            'callback_token' => $callbackToken !== '' ? $callbackToken : null,
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'payload' => $request->all(),
         ]);
 
         if (! $transactionId) {
@@ -44,6 +51,7 @@ class UssdCallbackController
             transactionId: (int) $transactionId,
             status: $success ? 'completed' : 'failed',
             message: $message,
+            callbackToken: $callbackToken !== '' ? $callbackToken : null,
         );
 
         return response()->json([

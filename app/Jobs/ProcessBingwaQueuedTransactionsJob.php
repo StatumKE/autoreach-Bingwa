@@ -24,6 +24,8 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
     use Queueable;
     use SerializesModels;
 
+    public static bool $isProcessing = false;
+
     public function __construct(
         public ?int $userId = null,
         public ?string $flowId = null,
@@ -43,7 +45,7 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
 
     public function uniqueId(): string
     {
-        return 'bingwa-process-queued-transactions';
+        return 'bingwa-process-queued-transactions:'.$this->userId();
     }
 
     public function handle(
@@ -51,144 +53,150 @@ class ProcessBingwaQueuedTransactionsJob implements ShouldBeUniqueUntilProcessin
         ExecuteBingwaUssd $executeBingwaUssd,
         GetNextBingwaQueuedTransaction $getNextBingwaQueuedTransaction,
     ): void {
-        $flowId = $this->flowId ??= (string) Str::uuid();
-        $userId = $this->userId();
+        self::$isProcessing = true;
 
-        if ($userId <= 0) {
-            Log::warning('Bingwa USSD processor job skipped because no user id was provided.', [
-                'flow_id' => $flowId,
-            ]);
+        try {
+            $flowId = $this->flowId ??= (string) Str::uuid();
+            $userId = $this->userId();
 
-            return;
-        }
+            if ($userId <= 0) {
+                Log::warning('Bingwa USSD processor job skipped because no user id was provided.', [
+                    'flow_id' => $flowId,
+                ]);
 
-        Log::debug('Bingwa USSD processor job started.', [
-            'user_id' => $userId,
-            'flow_id' => $flowId,
-            'attempt' => $this->attempts(),
-            'tries' => $this->tries,
-        ]);
+                return;
+            }
 
-        // Resolve the processing-enabled flag exactly once for the entire job run.
-        // This single boolean is then forwarded to GetNextBingwaQueuedTransaction so
-        // it does not re-query the cache on every loop iteration.
-        $isProcessingEnabled = DeviceSetting::isTransactionProcessingEnabledForUser($userId);
-
-        if (! $isProcessingEnabled) {
-            Log::info('Bingwa USSD processor paused by device setting.', [
+            Log::debug('Bingwa USSD processor job started.', [
                 'user_id' => $userId,
                 'flow_id' => $flowId,
+                'attempt' => $this->attempts(),
+                'tries' => $this->tries,
             ]);
 
-            return;
-        }
+            // Resolve the processing-enabled flag exactly once for the entire job run.
+            // This single boolean is then forwarded to GetNextBingwaQueuedTransaction so
+            // it does not re-query the cache on every loop iteration.
+            $isProcessingEnabled = DeviceSetting::isTransactionProcessingEnabledForUser($userId);
 
-        $processed = 0;
-        $deadline = now()->addSeconds(45);
-
-        while (now()->lessThan($deadline)) {
-            // Re-check the flag on each iteration to honour mid-run pauses, but
-            // use the cached result already held in DeviceSetting (TTL 300s).
-            if (! DeviceSetting::isTransactionProcessingEnabledForUser($userId)) {
-                Log::info('Bingwa USSD processor stopped because device processing was paused mid-run.', [
-                    'user_id' => $userId,
-                    'flow_id' => $flowId,
-                    'processed' => $processed,
-                ]);
-
-                break;
-            }
-
-            // Forward the pre-resolved flag so next() skips its own cache lookup.
-            $queuedJob = $getNextBingwaQueuedTransaction->next($userId, $isProcessingEnabled);
-
-            if ($queuedJob === null) {
-                Log::debug('Bingwa USSD processor found no queued transaction.', [
+            if (! $isProcessingEnabled) {
+                Log::info('Bingwa USSD processor paused by device setting.', [
                     'user_id' => $userId,
                     'flow_id' => $flowId,
                 ]);
 
-                break;
+                return;
             }
 
-            if (isset($queuedJob['skip'])) {
-                Log::debug('Bingwa USSD processor skipped a transaction while loading the next payload.', [
-                    'user_id' => $userId,
-                    'flow_id' => $flowId,
-                    'transaction_id' => $queuedJob['id'] ?? null,
-                ]);
+            $processed = 0;
+            $deadline = now()->addSeconds(45);
 
-                continue;
-            }
+            while (now()->lessThan($deadline)) {
+                // Re-check the flag on each iteration to honour mid-run pauses, but
+                // use the cached result already held in DeviceSetting (TTL 300s).
+                if (! DeviceSetting::isTransactionProcessingEnabledForUser($userId)) {
+                    Log::info('Bingwa USSD processor stopped because device processing was paused mid-run.', [
+                        'user_id' => $userId,
+                        'flow_id' => $flowId,
+                        'processed' => $processed,
+                    ]);
 
-            $transactionId = (int) ($queuedJob['id'] ?? 0);
+                    break;
+                }
 
-            if ($transactionId <= 0) {
-                Log::warning('Bingwa USSD processor received an invalid queued job payload.', [
-                    'user_id' => $userId,
-                    'flow_id' => $flowId,
-                    'payload' => $queuedJob,
-                ]);
+                // Forward the pre-resolved flag so next() skips its own cache lookup.
+                $queuedJob = $getNextBingwaQueuedTransaction->next($userId, $isProcessingEnabled);
 
-                break;
-            }
+                if ($queuedJob === null) {
+                    Log::debug('Bingwa USSD processor found no queued transaction.', [
+                        'user_id' => $userId,
+                        'flow_id' => $flowId,
+                    ]);
 
-            if (! $this->claimQueuedTransaction($transactionId, $flowId)) {
-                continue;
-            }
+                    break;
+                }
 
-            try {
-                $result = $executeBingwaUssd->execute($queuedJob, $flowId);
-            } catch (\Throwable $throwable) {
-                Log::warning('Bingwa USSD processor bridge execution failed.', [
-                    'user_id' => $userId,
-                    'flow_id' => $flowId,
-                    'transaction_id' => $transactionId,
-                    'message' => $throwable->getMessage(),
-                ]);
+                if (isset($queuedJob['skip'])) {
+                    Log::debug('Bingwa USSD processor skipped a transaction while loading the next payload.', [
+                        'user_id' => $userId,
+                        'flow_id' => $flowId,
+                        'transaction_id' => $queuedJob['id'] ?? null,
+                    ]);
 
-                report($throwable);
+                    continue;
+                }
 
-                $result = [
-                    'success' => false,
-                    'message' => $throwable->getMessage(),
-                ];
-            }
+                $transactionId = (int) ($queuedJob['id'] ?? 0);
 
-            if (isset($result['async']) && $result['async'] === true) {
-                Log::debug('Bingwa USSD processor dispatched transaction asynchronously.', [
-                    'user_id' => $userId,
-                    'flow_id' => $flowId,
-                    'transaction_id' => $transactionId,
-                ]);
+                if ($transactionId <= 0) {
+                    Log::warning('Bingwa USSD processor received an invalid queued job payload.', [
+                        'user_id' => $userId,
+                        'flow_id' => $flowId,
+                        'payload' => $queuedJob,
+                    ]);
+
+                    break;
+                }
+
+                if (! $this->claimQueuedTransaction($transactionId, $flowId)) {
+                    continue;
+                }
+
+                try {
+                    $result = $executeBingwaUssd->execute($queuedJob, $flowId);
+                } catch (\Throwable $throwable) {
+                    Log::warning('Bingwa USSD processor bridge execution failed.', [
+                        'user_id' => $userId,
+                        'flow_id' => $flowId,
+                        'transaction_id' => $transactionId,
+                        'message' => $throwable->getMessage(),
+                    ]);
+
+                    report($throwable);
+
+                    $result = [
+                        'success' => false,
+                        'message' => $throwable->getMessage(),
+                    ];
+                }
+
+                if (isset($result['async']) && $result['async'] === true) {
+                    Log::debug('Bingwa USSD processor dispatched transaction asynchronously.', [
+                        'user_id' => $userId,
+                        'flow_id' => $flowId,
+                        'transaction_id' => $transactionId,
+                    ]);
+                    $processed++;
+                    // Break out of the loop: because USSD operations are serial, we must wait for
+                    // the callback before processing the next transaction.
+                    break;
+                }
+
+                $this->completeQueuedTransaction($completeBingwaTransaction, $transactionId, $result, $flowId);
                 $processed++;
-                // Break out of the loop: because USSD operations are serial, we must wait for
-                // the callback before processing the next transaction.
-                break;
+
+                $message = $result['message'];
+                $isModemBusy = $message !== '' && (str_contains(strtolower($message), 'another ussd session is already in progress') || str_contains(strtolower($message), 'modem is busy'));
+
+                if ($isModemBusy) {
+                    Log::info('Bingwa USSD processor loop aborted due to modem lock contention.', [
+                        'user_id' => $userId,
+                        'flow_id' => $flowId,
+                        'transaction_id' => $transactionId,
+                    ]);
+
+                    break;
+                }
             }
 
-            $this->completeQueuedTransaction($completeBingwaTransaction, $transactionId, $result, $flowId);
-            $processed++;
-
-            $message = $result['message'];
-            $isModemBusy = $message !== '' && (str_contains(strtolower($message), 'another ussd session is already in progress') || str_contains(strtolower($message), 'modem is busy'));
-
-            if ($isModemBusy) {
-                Log::info('Bingwa USSD processor loop aborted due to modem lock contention.', [
-                    'user_id' => $userId,
-                    'flow_id' => $flowId,
-                    'transaction_id' => $transactionId,
-                ]);
-
-                break;
-            }
+            Log::debug('Bingwa USSD processor job finished.', [
+                'user_id' => $userId,
+                'flow_id' => $flowId,
+                'processed' => $processed,
+            ]);
+        } finally {
+            self::$isProcessing = false;
         }
-
-        Log::debug('Bingwa USSD processor job finished.', [
-            'user_id' => $userId,
-            'flow_id' => $flowId,
-            'processed' => $processed,
-        ]);
     }
 
     private function claimQueuedTransaction(int $transactionId, string $flowId): bool

@@ -10,6 +10,7 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PersistBingwaTransaction
 {
@@ -30,6 +31,12 @@ class PersistBingwaTransaction
         $registration = $user->bingwaDeviceRegistration;
 
         if ($registration === null || blank($registration->device_token)) {
+            Log::debug('Bingwa transaction persist skipped because the user has no device token.', [
+                'user_id' => $user->getKey(),
+                'transaction_id' => $payload['transaction_id'] ?? null,
+                'mpesa_code' => $payload['mpesa_code'] ?? null,
+            ]);
+
             return [
                 'transaction' => null,
                 'skipped' => true,
@@ -39,6 +46,11 @@ class PersistBingwaTransaction
         $transactionId = trim((string) ($payload['transaction_id'] ?? ''));
 
         if ($transactionId === '') {
+            Log::warning('Bingwa transaction persist skipped because the payload did not include a transaction id.', [
+                'user_id' => $user->getKey(),
+                'payload' => $payload,
+            ]);
+
             return [
                 'transaction' => null,
                 'skipped' => true,
@@ -56,6 +68,12 @@ class PersistBingwaTransaction
             $existingTransaction !== null
             && in_array($existingTransaction->status, ['processing', 'completed', 'failed'], true)
         ) {
+            Log::debug('Bingwa transaction persist skipped because the transaction already exists in a final state.', [
+                'user_id' => $user->getKey(),
+                'transaction_id' => $transactionId,
+                'status' => $existingTransaction->status,
+            ]);
+
             return [
                 'transaction' => null,
                 'skipped' => true,
@@ -71,6 +89,13 @@ class PersistBingwaTransaction
                 ->first(['id', 'transaction_id']);
 
             if ($existingMpesaTransaction !== null) {
+                Log::debug('Bingwa transaction persist skipped because the MPESA code already belongs to another transaction.', [
+                    'user_id' => $user->getKey(),
+                    'transaction_id' => $transactionId,
+                    'mpesa_code' => $mpesaCode,
+                    'existing_transaction_id' => $existingMpesaTransaction->transaction_id,
+                ]);
+
                 return [
                     'transaction' => null,
                     'skipped' => true,
@@ -146,6 +171,15 @@ class PersistBingwaTransaction
                 executedAt: now()->toIso8601String(),
             );
         }
+
+        Log::debug('Bingwa transaction persisted locally.', [
+            'user_id' => $user->getKey(),
+            'transaction_id' => $transaction->transaction_id,
+            'status' => $transaction->status,
+            'offer_type' => $transaction->offer_type,
+            'mpesa_code' => $transaction->mpesa_code,
+            'offer_id' => $transaction->offer_id,
+        ]);
 
         return [
             'transaction' => $transaction,

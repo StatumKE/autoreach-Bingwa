@@ -37,12 +37,19 @@ class SyncRemoteSubscriptionPurchaseJob implements ShouldBeUniqueUntilProcessing
 
     public function handle(): void
     {
+        Log::debug('Remote subscription purchase sync job started.', [
+            'component' => 'subscription_sync',
+            'plan_id' => $this->planId,
+            'payment_reference' => $this->paymentReference,
+        ]);
+
         $plan = Plan::query()
             ->with('user.bingwaDeviceRegistration')
             ->find($this->planId);
 
         if (! $plan instanceof Plan) {
             Log::warning('Remote subscription purchase sync skipped because the local plan was not found.', [
+                'component' => 'subscription_sync',
                 'plan_id' => $this->planId,
             ]);
 
@@ -51,6 +58,7 @@ class SyncRemoteSubscriptionPurchaseJob implements ShouldBeUniqueUntilProcessing
 
         if ($plan->remote_purchase_synced_at !== null || $plan->remote_subscription_id !== null) {
             Log::debug('Remote subscription purchase sync skipped because the local plan is already synced.', [
+                'component' => 'subscription_sync',
                 'plan_id' => $plan->getKey(),
                 'remote_subscription_id' => $plan->remote_subscription_id,
             ]);
@@ -72,6 +80,7 @@ class SyncRemoteSubscriptionPurchaseJob implements ShouldBeUniqueUntilProcessing
         ];
 
         Log::info('Syncing successful subscription purchase to backend.', [
+            'component' => 'subscription_sync',
             'plan_id' => $plan->getKey(),
             'plan_code' => $plan->code,
             'payment_reference' => $this->paymentReference,
@@ -81,6 +90,7 @@ class SyncRemoteSubscriptionPurchaseJob implements ShouldBeUniqueUntilProcessing
 
         if ($response->status() === 401) {
             Log::warning('Remote subscription purchase sync returned unauthorized; attempting token recovery.', [
+                'component' => 'subscription_sync',
                 'plan_id' => $plan->getKey(),
                 'plan_code' => $plan->code,
                 'payment_reference' => $this->paymentReference,
@@ -109,15 +119,23 @@ class SyncRemoteSubscriptionPurchaseJob implements ShouldBeUniqueUntilProcessing
         ]);
 
         Log::info('Successful subscription purchase synced to backend.', [
+            'component' => 'subscription_sync',
             'plan_id' => $plan->getKey(),
             'plan_code' => $plan->code,
             'remote_subscription_id' => $plan->remote_subscription_id,
+        ]);
+
+        Log::debug('Remote subscription purchase sync job finished.', [
+            'component' => 'subscription_sync',
+            'plan_id' => $plan->getKey(),
+            'payment_reference' => $this->paymentReference,
         ]);
     }
 
     public function failed(?\Throwable $exception): void
     {
         Log::error('Remote subscription purchase sync failed.', [
+            'component' => 'subscription_sync',
             'plan_id' => $this->planId,
             'payment_reference' => $this->paymentReference,
             'message' => $exception?->getMessage(),

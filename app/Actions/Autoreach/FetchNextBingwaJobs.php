@@ -50,6 +50,15 @@ class FetchNextBingwaJobs
         $skipped = 0;
         $failed = 0;
 
+        Log::debug('Bingwa transaction sync started.', [
+            'component' => 'transaction_sync',
+            'user_id' => $user->getKey(),
+            'limit' => $limit,
+            'only_service' => $onlyService,
+            'registration_id' => $registration->getKey(),
+            'backend_device_id' => $registration->backend_device_id,
+        ]);
+
         $endpointsToFetch = self::ENDPOINTS;
         if ($onlyService !== null && array_key_exists($onlyService, $endpointsToFetch)) {
             $endpointsToFetch = [$onlyService => $endpointsToFetch[$onlyService]];
@@ -208,6 +217,21 @@ class FetchNextBingwaJobs
             }
         }
 
+        Log::debug('Bingwa transaction sync finished fetching jobs.', [
+            'component' => 'transaction_sync',
+            'user_id' => $user->getKey(),
+            'synced_so_far' => $synced,
+            'skipped_so_far' => $skipped,
+            'failed_so_far' => $failed,
+            'push_data' => array_map(
+                static fn (array $jobGroup): array => [
+                    'type' => $jobGroup['type'],
+                    'count' => is_countable($jobGroup['jobs']) ? count($jobGroup['jobs']) : 0,
+                ],
+                $allJobs,
+            ),
+        ]);
+
         // ── Persist in a single DB transaction ──────────────────────────────
         DB::transaction(function () use ($allJobs, $user, &$synced, &$skipped, &$failed): void {
             foreach ($allJobs as $jobGroup) {
@@ -236,6 +260,14 @@ class FetchNextBingwaJobs
             }
         });
 
+        Log::info('Bingwa transaction sync completed.', [
+            'component' => 'transaction_sync',
+            'user_id' => $user->getKey(),
+            'synced' => $synced,
+            'skipped' => $skipped,
+            'failed' => $failed,
+        ]);
+
         return ['synced' => $synced, 'skipped' => $skipped, 'failed' => $failed];
     }
 
@@ -258,6 +290,15 @@ class FetchNextBingwaJobs
         string $currentToken,
         int &$failed,
     ): array {
+        Log::warning('Bingwa transaction sync received unauthorized response.', [
+            'component' => 'transaction_sync',
+            'user_id' => $user->getKey(),
+            'endpoint' => $type,
+            'url' => $url,
+            'status' => $currentResponse->status(),
+            'response_body' => $this->responseContext($currentResponse)['response_body'],
+        ]);
+
         try {
             $recoveredRegistration = app(RecoverBingwaDeviceToken::class)->recover($user);
             $recoveredToken = $recoveredRegistration->device_token;
@@ -270,6 +311,15 @@ class FetchNextBingwaJobs
                 ->withToken($recoveredToken)
                 ->timeout(30)
                 ->get("{$baseUrl}{$endpoint}", ['limit' => $limit]);
+
+            Log::debug('Bingwa transaction sync token recovery retry completed.', [
+                'component' => 'transaction_sync',
+                'user_id' => $user->getKey(),
+                'endpoint' => $type,
+                'url' => $url,
+                'status' => $retried->status(),
+                'response_body' => $this->responseContext($retried)['response_body'],
+            ]);
 
             // If the retried response is also 403, the device was stopped.
             if ($retried->status() === 403) {
@@ -362,6 +412,7 @@ class FetchNextBingwaJobs
         array $context = [],
     ): void {
         Log::warning('Bingwa transaction sync request failed.', array_merge([
+            'component' => 'transaction_sync',
             'user_id' => $user->getKey(),
             'endpoint' => $endpoint,
             'url' => $url,

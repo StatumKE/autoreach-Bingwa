@@ -2,7 +2,6 @@
 
 namespace App\Actions\Autoreach;
 
-use App\Jobs\ProcessBingwaQueuedTransactionsJob;
 use App\Models\AutoReply;
 use App\Models\DeviceSetting;
 use App\Models\Offer;
@@ -48,6 +47,7 @@ class ProcessIncomingMpesaSms
 
         if (! $this->isAllowedSimSlot($configuredSimSlot, $simSlot)) {
             Log::info('Incoming M-Pesa SMS ignored because the SIM slot is not enabled.', [
+                'component' => 'incoming_sms',
                 'user_id' => $user->getKey(),
                 'configured_sim_slot' => $configuredSimSlot,
                 'received_sim_slot' => $simSlot,
@@ -71,6 +71,7 @@ class ProcessIncomingMpesaSms
 
         if (Transaction::query()->where('mpesa_code', $parsed->code)->exists()) {
             Log::info('Duplicate incoming M-Pesa SMS ignored.', [
+                'component' => 'incoming_sms',
                 'user_id' => $user->getKey(),
                 'mpesa_code' => $parsed->code,
                 'sender_phone' => $this->redactPhone($parsed->senderPhone),
@@ -119,7 +120,7 @@ class ProcessIncomingMpesaSms
 
         $transaction = $this->createQueuedTransaction($user, $parsed, $offer, $payload, $simSlot);
 
-        app()->call([(new ProcessBingwaQueuedTransactionsJob($user->getKey())), 'handle']);
+        app(DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) $user->getKey());
 
         $transaction->refresh();
 
@@ -283,6 +284,7 @@ class ProcessIncomingMpesaSms
     private function failed(Transaction $transaction, string $reason): array
     {
         Log::info('Incoming M-Pesa SMS saved as failed local transaction.', [
+            'component' => 'incoming_sms',
             'transaction_id' => $transaction->getKey(),
             'mpesa_code' => $transaction->mpesa_code,
             'sender_phone' => $this->redactPhone($transaction->sender_phone),

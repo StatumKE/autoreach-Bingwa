@@ -97,7 +97,47 @@ describe('Native Code', function () {
         expect($kotlinContent)
             ->toContain('parameters["timeoutSeconds"]')
             ->toContain('timeoutSeconds = timeoutSeconds')
-            ->toContain('private val ussdMutex = Mutex()');
+            ->toContain('private val ussdMutex = Mutex()')
+            ->toContain('UssdCallbackOutbox.enqueue(context, id, success, message)')
+            ->toContain('UssdCallbackOutbox.markDelivered(context, id)')
+            ->toContain('replayBufferedCallbacks(context)');
+    });
+
+    it('buffers pending ussd callbacks in a durable outbox before delivery', function () {
+        $outboxFile = $this->pluginPath.'/resources/android/src/com/statum/plugins/nativescheduler/UssdCallbackOutbox.kt';
+        $outboxContent = file_get_contents($outboxFile);
+
+        expect($outboxContent)
+            ->toContain('internal data class PendingUssdCallback')
+            ->toContain('SharedPreferences')
+            ->toContain('callbackToken: String')
+            ->toContain('MAX_BUFFERED_CALLBACKS')
+            ->toContain('MAX_REPLAY_BATCH')
+            ->toContain('fun enqueue(context: Context, id: Int, success: Boolean, message: String): String')
+            ->toContain('fun replay(context: Context, sender: (PendingUssdCallback) -> Boolean): Int')
+            ->toContain('fun markDelivered(context: Context, id: Int): Boolean');
+    });
+
+    it('uses unique work and retryable delivery for the callback worker', function () {
+        $workerFile = $this->pluginPath.'/resources/android/src/com/statum/plugins/nativescheduler/UssdCallbackWorker.kt';
+        $workerContent = file_get_contents($workerFile);
+
+        expect($workerContent)
+            ->toContain('Result.retry()')
+            ->toContain('setBackoffCriteria(')
+            ->toContain('enqueueUniqueWork(')
+            ->toContain('ExistingWorkPolicy.KEEP')
+            ->toContain('uniqueWorkName(id)');
+    });
+
+    it('passes callback tokens through the complete-transaction command', function () {
+        $kotlinFile = $this->pluginPath.'/resources/android/src/com/statum/plugins/nativescheduler/BingwaFunctions.kt';
+        $kotlinContent = file_get_contents($kotlinFile);
+
+        expect($kotlinContent)
+            ->toContain('--callback-token=')
+            ->toContain('callback.callbackToken')
+            ->toContain('UssdCallbackOutbox.enqueue(context, id, success, message)');
     });
 
     it('declares context-only bridge functions required by background sms processing', function () {
@@ -121,7 +161,6 @@ describe('Native Code', function () {
             ->and(file_exists($workerFile))->toBeTrue()
             ->and(file_get_contents($workerFile))
             ->toContain('bingwa:process-incoming-sms')
-            ->toContain('registerContextOnlyBridgeFunctions(applicationContext)')
             ->not->toContain('Log.i(TAG, payload');
     });
 

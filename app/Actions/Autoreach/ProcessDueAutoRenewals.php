@@ -25,6 +25,7 @@ class ProcessDueAutoRenewals
 
         if (! $lock->get()) {
             Log::debug('Auto-renewal processing skipped because another worker is running.', [
+                'component' => 'auto_renewal',
                 'user_id' => $userId,
             ]);
 
@@ -37,6 +38,11 @@ class ProcessDueAutoRenewals
         }
 
         try {
+            Log::debug('Auto-renewal processing started.', [
+                'component' => 'auto_renewal',
+                'user_id' => $userId,
+            ]);
+
             return $this->processWithLock($userId);
         } finally {
             $lock->release();
@@ -152,6 +158,7 @@ class ProcessDueAutoRenewals
                 report($throwable);
 
                 Log::error('Auto-renewal processing failed.', [
+                    'component' => 'auto_renewal',
                     'auto_renewal_id' => $renewal->id,
                     'user_id' => $renewal->user_id,
                     'message' => $throwable->getMessage(),

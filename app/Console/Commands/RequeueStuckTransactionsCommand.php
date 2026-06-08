@@ -19,6 +19,11 @@ class RequeueStuckTransactionsCommand extends Command
      */
     public function handle(): int
     {
+        Log::debug('RequeueStuckTransactionsCommand started.', [
+            'component' => 'transaction_requeue',
+            'requeue_all' => (bool) $this->option('all'),
+        ]);
+
         $query = Transaction::query()->where('status', 'processing');
 
         if (! $this->option('all')) {
@@ -34,6 +39,12 @@ class RequeueStuckTransactionsCommand extends Command
         if ($count > 0) {
             Log::warning("♻️ Requeued {$count} stuck transactions.");
         }
+
+        Log::debug('RequeueStuckTransactionsCommand completed.', [
+            'component' => 'transaction_requeue',
+            'requeued' => $count,
+            'requeue_all' => (bool) $this->option('all'),
+        ]);
 
         $this->info("Requeued {$count} transaction(s).");
 

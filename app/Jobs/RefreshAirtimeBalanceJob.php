@@ -34,12 +34,23 @@ class RefreshAirtimeBalanceJob implements ShouldBeUnique, ShouldQueue
 
         if ($user === null) {
             Log::warning('Airtime balance refresh job skipped because no user was found.', [
+                'component' => 'airtime_balance',
                 'user_id' => $this->userId,
             ]);
 
             return;
         }
 
+        Log::debug('Airtime balance refresh job started.', [
+            'component' => 'airtime_balance',
+            'user_id' => $user->getKey(),
+        ]);
+
         $refreshAirtimeBalance->refresh($user);
+
+        Log::debug('Airtime balance refresh job finished.', [
+            'component' => 'airtime_balance',
+            'user_id' => $user->getKey(),
+        ]);
     }
 }

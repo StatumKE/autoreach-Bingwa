@@ -43,11 +43,21 @@ class SendAutoReplySmsJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 
     public function handle(SendAutoReplySms $sender): void
     {
+        Log::debug('Auto-reply SMS job started.', [
+            'component' => 'auto_reply_sms',
+            'transaction_id' => $this->transactionId,
+        ]);
+
         $transaction = Transaction::query()
             ->with(['user.deviceSetting'])
             ->find($this->transactionId);
 
         if ($transaction === null) {
+            Log::debug('Auto-reply SMS job skipped because the transaction was not found.', [
+                'component' => 'auto_reply_sms',
+                'transaction_id' => $this->transactionId,
+            ]);
+
             return;
         }
 
@@ -72,6 +82,7 @@ class SendAutoReplySmsJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
             ]);
 
             Log::info('Auto-reply SMS sent.', [
+                'component' => 'auto_reply_sms',
                 'transaction_id' => $claimed->id,
                 'auto_reply_id' => $claimed->auto_reply_id,
                 'recipient_phone' => $claimed->auto_reply_recipient_phone,
@@ -87,11 +98,18 @@ class SendAutoReplySmsJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         ]);
 
         Log::warning('Auto-reply SMS failed.', [
+            'component' => 'auto_reply_sms',
             'transaction_id' => $claimed->id,
             'auto_reply_id' => $claimed->auto_reply_id,
             'recipient_phone' => $claimed->auto_reply_recipient_phone,
             'retryable' => (bool) $response['retryable'],
             'message' => $response['message'],
+        ]);
+
+        Log::debug('Auto-reply SMS job finished.', [
+            'component' => 'auto_reply_sms',
+            'transaction_id' => $claimed->id,
+            'retryable' => (bool) $response['retryable'],
         ]);
 
         if ($response['retryable']) {
@@ -115,6 +133,7 @@ class SendAutoReplySmsJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         }
 
         Log::error('Auto-reply SMS job failed.', [
+            'component' => 'auto_reply_sms',
             'transaction_id' => $this->transactionId,
             'message' => $exception->getMessage(),
             'exception' => $exception::class,

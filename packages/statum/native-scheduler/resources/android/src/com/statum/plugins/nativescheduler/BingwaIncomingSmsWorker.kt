@@ -19,6 +19,8 @@ class BingwaIncomingSmsWorker(
             return Result.failure()
         }
 
+        Log.i(TAG, "Incoming SMS worker started payload_length=${payload.length}")
+
         val encodedPayload = Base64.encodeToString(
             payload.toByteArray(Charsets.UTF_8),
             Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
@@ -41,6 +43,8 @@ class BingwaIncomingSmsWorker(
             Log.e(TAG, "Failed to start PHPQueueService for command: $command", e)
             return Result.failure()
         }
+
+        Log.i(TAG, "Incoming SMS worker dispatched PHPQueueService")
         return Result.success()
     }
 

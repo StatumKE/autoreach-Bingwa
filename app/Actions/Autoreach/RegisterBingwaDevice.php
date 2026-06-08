@@ -37,6 +37,7 @@ class RegisterBingwaDevice
         $payload['device_info'] = $deviceInfo;
 
         Log::debug('Submitting Bingwa device registration request.', [
+            'component' => 'device_registration',
             'url' => rtrim((string) config('services.autoreach.backend_url'), '/').'/api/v1/auth/device/register/hybrid',
             'payload' => $payload,
         ]);
@@ -51,6 +52,7 @@ class RegisterBingwaDevice
             ->post('/api/v1/auth/device/register/hybrid', $payload);
 
         Log::debug('Bingwa device registration response received.', [
+            'component' => 'device_registration',
             'status' => $response->status(),
         ]);
 
@@ -70,6 +72,7 @@ class RegisterBingwaDevice
     private function deviceInfo(string $hardwareId): array
     {
         Log::debug('Bingwa native device info bridge probe.', [
+            'component' => 'device_registration',
             'hardware_id' => $hardwareId,
             'nativephp_call_available' => function_exists('nativephp_call'),
         ]);
@@ -77,50 +80,42 @@ class RegisterBingwaDevice
         $rawDeviceInfo = $this->nativeBridgeCall('Device.GetInfo', '{}');
 
         Log::debug('Bingwa native device info raw response.', [
+            'component' => 'device_registration',
             'hardware_id' => $hardwareId,
             'response' => is_string($rawDeviceInfo) ? $rawDeviceInfo : null,
         ]);
 
         $deviceInfo = $this->decodeNativeBridgeDeviceInfo($rawDeviceInfo, $hardwareId);
 
-        if ($deviceInfo !== []) {
-            return $deviceInfo;
+        if ($deviceInfo === []) {
+            $rawNativeInfo = Device::getInfo();
+            if (is_string($rawNativeInfo) && $rawNativeInfo !== '') {
+                $decoded = json_decode($rawNativeInfo, true);
+                if (is_array($decoded)) {
+                    $deviceInfo = array_filter([
+                        'name' => $decoded['name'] ?? null,
+                        'model' => $decoded['model'] ?? null,
+                        'manufacturer' => $decoded['manufacturer'] ?? null,
+                        'os_name' => $decoded['operatingSystem'] ?? $decoded['os_name'] ?? null,
+                        'os_version' => $decoded['osVersion'] ?? $decoded['os_version'] ?? null,
+                        'platform' => $decoded['platform'] ?? null,
+                        'is_virtual' => $decoded['isVirtual'] ?? $decoded['is_virtual'] ?? null,
+                        'uuid' => $hardwareId,
+                    ], static fn ($value): bool => $value !== null);
+                }
+            }
         }
 
-        $deviceInfo = Device::getInfo();
-
-        if (! is_string($deviceInfo) || $deviceInfo === '') {
-            Log::debug('Bingwa native device info bridge returned an empty value.', [
-                'hardware_id' => $hardwareId,
-            ]);
-
-            return [
-                'uuid' => $hardwareId,
-            ];
-        }
-
-        $decoded = json_decode($deviceInfo, true);
-
-        if (! is_array($decoded)) {
-            Log::debug('Bingwa native device info bridge returned invalid JSON.', [
-                'hardware_id' => $hardwareId,
-            ]);
-
-            return [
-                'uuid' => $hardwareId,
-            ];
-        }
-
-        return array_filter([
-            'name' => $decoded['name'] ?? null,
-            'model' => $decoded['model'] ?? null,
-            'manufacturer' => $decoded['manufacturer'] ?? null,
-            'os_name' => $decoded['operatingSystem'] ?? $decoded['os_name'] ?? null,
-            'os_version' => $decoded['osVersion'] ?? $decoded['os_version'] ?? null,
-            'platform' => $decoded['platform'] ?? null,
-            'is_virtual' => $decoded['isVirtual'] ?? $decoded['is_virtual'] ?? null,
+        return array_merge([
+            'name' => 'Generic Android Device',
+            'model' => 'Generic',
+            'manufacturer' => 'Unknown',
+            'os_name' => 'Android',
+            'os_version' => '14',
+            'platform' => 'android',
+            'is_virtual' => false,
             'uuid' => $hardwareId,
-        ], static fn ($value): bool => $value !== null);
+        ], $deviceInfo);
     }
 
     private function throwValidationException(Response $response): never
@@ -204,6 +199,7 @@ class RegisterBingwaDevice
 
         if (! is_array($decodedResponse)) {
             Log::debug('Bingwa native device info raw response was not valid JSON.', [
+                'component' => 'device_registration',
                 'hardware_id' => $hardwareId,
             ]);
 
@@ -214,6 +210,7 @@ class RegisterBingwaDevice
 
         if (! is_string($deviceInfoJson) || $deviceInfoJson === '') {
             Log::debug('Bingwa native device info response did not contain info data.', [
+                'component' => 'device_registration',
                 'hardware_id' => $hardwareId,
             ]);
 
@@ -224,6 +221,7 @@ class RegisterBingwaDevice
 
         if (! is_array($decodedDeviceInfo)) {
             Log::debug('Bingwa native device info payload was not valid JSON.', [
+                'component' => 'device_registration',
                 'hardware_id' => $hardwareId,
             ]);
 

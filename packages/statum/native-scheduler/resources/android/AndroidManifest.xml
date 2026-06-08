@@ -35,5 +35,9 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/ussd_accessibility_service_config" />
         </service>
+        <service
+            android:name="com.statum.plugins.nativescheduler.UssdExecutionService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 </manifest>

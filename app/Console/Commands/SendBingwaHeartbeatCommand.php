@@ -27,9 +27,17 @@ class SendBingwaHeartbeatCommand extends Command
             return self::SUCCESS;
         }
 
+        Log::debug('Bingwa heartbeat command dispatching job.', [
+            'user_id' => $registration->user->getKey(),
+            'registration_id' => $registration->getKey(),
+        ]);
+
         SendHeartbeatJob::dispatch($registration->user->getKey());
 
-        Log::info('Bingwa heartbeat job queued.');
+        Log::info('Bingwa heartbeat job queued.', [
+            'user_id' => $registration->user->getKey(),
+            'registration_id' => $registration->getKey(),
+        ]);
 
         $this->info('Heartbeat job queued.');
 

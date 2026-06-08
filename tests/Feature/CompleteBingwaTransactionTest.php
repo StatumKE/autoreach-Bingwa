@@ -2,9 +2,11 @@
 
 use App\Actions\Autoreach\CompleteBingwaTransaction;
 use App\Models\DeviceSetting;
+use App\Models\Plan;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -106,4 +108,74 @@ it('processes auto-renewal reschedules optimally without N+1 issues', function (
     // Verify no clones are created
     $clonesCount = Transaction::where('transaction_id', 'like', 'TXN999-retry-%')->count();
     expect($clonesCount)->toBe(0);
+});
+
+it('treats duplicate completion callbacks as no-ops', function (): void {
+    $user = User::factory()->create();
+
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
+        'ussd_counter' => 0,
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'queued',
+        'transaction_id' => 'TXN-DUPLICATE',
+        'amount' => 10,
+    ]);
+
+    $action = app(CompleteBingwaTransaction::class);
+
+    expect($action->complete($transaction, 'completed', 'USSD request completed.'))->toBeTrue();
+
+    $firstCompleted = $transaction->fresh();
+    $firstPlan = $user->plans()->first();
+
+    expect($firstCompleted?->status)->toBe('completed');
+    expect($firstCompleted?->status_desc)->toBe('USSD request completed.');
+    expect($firstPlan?->ussd_counter)->toBe(1);
+
+    DB::enableQueryLog();
+
+    expect($action->complete($transaction->fresh(), 'failed', 'late duplicate callback'))->toBeTrue();
+
+    $queries = DB::getQueryLog();
+    DB::disableQueryLog();
+
+    $secondCompleted = $transaction->fresh();
+    $secondPlan = $user->plans()->first();
+
+    expect($secondCompleted?->status)->toBe('completed');
+    expect($secondCompleted?->status_desc)->toBe('USSD request completed.');
+    expect($secondPlan?->ussd_counter)->toBe(1);
+    expect(count($queries))->toBeLessThan(5);
+});
+
+it('records callback delivery tokens exactly once', function (): void {
+    $user = User::factory()->create();
+
+    Plan::factory()->create([
+        'user_id' => $user->id,
+        'is_active' => true,
+        'type' => 'time_unlimited',
+        'ussd_counter' => 0,
+    ]);
+
+    $transaction = Transaction::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'queued',
+        'transaction_id' => 'TXN-TOKEN',
+        'amount' => 10,
+    ]);
+
+    $action = app(CompleteBingwaTransaction::class);
+
+    expect($action->complete($transaction, 'completed', 'USSD request completed.', 'token-123'))->toBeTrue();
+    expect(DB::table('ussd_callback_deliveries')->where('callback_token', 'token-123')->count())->toBe(1);
+
+    expect($action->complete($transaction->fresh(), 'failed', 'late duplicate callback', 'token-123'))->toBeTrue();
+    expect(DB::table('ussd_callback_deliveries')->where('callback_token', 'token-123')->count())->toBe(1);
 });

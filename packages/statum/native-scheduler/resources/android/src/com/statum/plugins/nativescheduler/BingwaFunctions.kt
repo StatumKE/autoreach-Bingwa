@@ -19,10 +19,6 @@ import com.nativephp.mobile.bridge.BridgeFunction
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 
@@ -34,7 +30,7 @@ object BingwaFunctions {
     private const val PERMISSION_SETUP_REQUESTED = "requested"
     private const val TAG = "BingwaPermissions"
     private const val USSD_LOCK_WAIT_MS = 2_000L
-    private val ussdMutex = Mutex()
+    internal val ussdMutex = Mutex()
 
     class TriggerSambaza(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
@@ -44,6 +40,7 @@ object BingwaFunctions {
 
     class ExecuteUssd(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            replayBufferedCallbacks(context)
             val runAsyncVal = parameters["runAsync"] ?: parameters["run_async"]
             val runAsync = when (runAsyncVal) {
                 is Boolean -> runAsyncVal
@@ -132,6 +129,7 @@ object BingwaFunctions {
 
     class CheckSetupStatus(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            replayBufferedCallbacks(context)
             return mapOf(
                 "phoneGranted" to isPhoneGranted(context),
                 "smsGranted" to isSmsGranted(context),
@@ -452,39 +450,22 @@ object BingwaFunctions {
         }.takeIf { it > 0 } ?: 30
 
         if (runAsync) {
-            // Asynchronously run USSD on background thread pool
-            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Default) {
-                val executor = UssdExecutor(context)
-                val lockAcquired = withTimeoutOrNull(USSD_LOCK_WAIT_MS) {
-                    ussdMutex.lock()
-                    true
-                } ?: false
-
-                if (!lockAcquired) {
-                    Log.w(TAG, "USSD bridge busy: mode=$mode simSlot=$simSlot timeoutSeconds=$timeoutSeconds")
-                    postCallback(context, id!!, false, "Another USSD session is already in progress. Try again shortly.")
-                    return@launch
-                }
-
-                try {
-                    Log.i(TAG, "USSD bridge acquired modem guard: mode=$mode simSlot=$simSlot timeoutSeconds=$timeoutSeconds")
-                    val result = executor.execute(
-                        code = code,
-                        mode = mode,
-                        simSlot = simSlot,
-                        isSambaza = isSambaza,
-                        timeoutSeconds = timeoutSeconds,
-                    )
-                    postCallback(context, id!!, result.success, result.message)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Async USSD execution failed", e)
-                    postCallback(context, id!!, false, e.message ?: "Async USSD execution failed")
-                } finally {
-                    ussdMutex.unlock()
-                    Log.i(TAG, "USSD bridge released modem guard: mode=$mode simSlot=$simSlot")
-                }
-            }
-
+            // Dispatch USSD execution to UssdExecutionService, which runs in the MAIN process.
+            // This is critical: UssdAccessibilityService (and its responseChannel) live in the
+            // main process. Running UssdExecutor in the :queue process (this process when called
+            // from PHPQueueService) means responseChannel is always empty — causing 90-second
+            // timeouts on every async USSD job. The service intent crosses process boundaries
+            // safely; Android starts the service in the process that declared it (main process).
+            Log.i(TAG, "USSD async: dispatching to UssdExecutionService (main process) id=${id} mode=$mode simSlot=$simSlot")
+            UssdExecutionService.start(
+                context = context,
+                id = id!!,
+                code = code,
+                mode = mode,
+                simSlot = simSlot,
+                isSambaza = isSambaza,
+                timeoutSeconds = timeoutSeconds,
+            )
             return mapOf(
                 "success" to true,
                 "message" to "Dispatched to hardware"
@@ -530,13 +511,14 @@ object BingwaFunctions {
         }
     }
 
-    private fun postCallback(context: Context, id: Int, success: Boolean, message: String) {
+    internal fun postCallback(context: Context, id: Int, success: Boolean, message: String) {
         val status = if (success) "completed" else "failed"
         val encodedMessage = android.util.Base64.encodeToString(
             message.toByteArray(Charsets.UTF_8),
             android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING
         )
-        val command = "bingwa:complete-transaction --transaction-id=$id --result=$status --message-base64=$encodedMessage"
+        val token = UssdCallbackOutbox.enqueue(context, id, success, message)
+        val command = "bingwa:complete-transaction --transaction-id=$id --result=$status --message-base64=$encodedMessage --callback-token=$token"
 
         var executedInstantly = false
 
@@ -551,6 +533,7 @@ object BingwaFunctions {
                 val output = phpBridge.runPersistentArtisan(command)
                 Log.i(TAG, "USSD callback via persistent runtime (~5ms): ${output.take(200)}")
                 executedInstantly = true
+                UssdCallbackOutbox.markDelivered(context, id)
             } catch (e: Exception) {
                 Log.w(TAG, "Persistent runtime execution failed for USSD callback: ${e.message}")
             }
@@ -580,6 +563,7 @@ object BingwaFunctions {
                             val output = phpBridge.nativeEphemeralArtisan(command)
                             Log.i(TAG, "USSD callback via ephemeral runtime (~200ms): ${output.take(200)}")
                             executedInstantly = true
+                            UssdCallbackOutbox.markDelivered(context, id)
                         } finally {
                             phpBridge.nativeEphemeralShutdown()
                         }
@@ -597,6 +581,64 @@ object BingwaFunctions {
             Log.w(TAG, "Both instant tiers failed — enqueuing background fallback for transaction #$id")
             UssdCallbackWorker.enqueueFallback(context, id, success, message)
         }
+    }
+
+    private fun replayBufferedCallbacks(context: Context) {
+        val delivered = UssdCallbackOutbox.replay(context) { callback ->
+            val result = postCallbackDelivery(context, callback.id, callback.success, callback.message)
+            result
+        }
+
+        if (delivered > 0) {
+            Log.i(TAG, "Replayed $delivered buffered USSD callbacks")
+        }
+    }
+
+    private fun postCallbackDelivery(context: Context, id: Int, success: Boolean, message: String): Boolean {
+        val status = if (success) "completed" else "failed"
+        val encodedMessage = android.util.Base64.encodeToString(
+            message.toByteArray(Charsets.UTF_8),
+            android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING
+        )
+        val token = UssdCallbackOutbox.enqueue(context, id, success, message)
+        val command = "bingwa:complete-transaction --transaction-id=$id --result=$status --message-base64=$encodedMessage --callback-token=$token"
+
+        try {
+            val phpBridge = com.nativephp.mobile.bridge.PHPBridge(context.applicationContext)
+
+            if (phpBridge.isPersistentMode()) {
+                phpBridge.runPersistentArtisan(command)
+                UssdCallbackOutbox.markDelivered(context, id)
+                return true
+            }
+
+            synchronized(com.nativephp.mobile.bridge.PHPBridge.phpLock) {
+                if (!com.nativephp.mobile.bridge.BridgeFunctionRegistry.shared.exists("ExecuteUssd")) {
+                    com.nativephp.mobile.bridge.plugins.registerContextOnlyBridgeFunctions(context.applicationContext)
+                }
+
+                val environment = com.nativephp.mobile.bridge.LaravelEnvironment(context.applicationContext)
+                environment.initializeForBackground()
+
+                val booted = phpBridge.nativeEphemeralBoot(
+                    "${phpBridge.getLaravelPath()}/vendor/nativephp/mobile/bootstrap/android/persistent.php"
+                )
+
+                if (booted == 0) {
+                    try {
+                        phpBridge.nativeEphemeralArtisan(command)
+                        UssdCallbackOutbox.markDelivered(context, id)
+                        return true
+                    } finally {
+                        phpBridge.nativeEphemeralShutdown()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Buffered USSD callback replay failed for transaction #$id", e)
+        }
+
+        return false
     }
 
 
@@ -698,13 +740,26 @@ object BingwaFunctions {
 
     private fun isAccessibilityServiceEnabled(context: Context): Boolean {
         val expectedServiceName = "${context.packageName}/${UssdAccessibilityService::class.java.name}"
+        
+        // 1. Check if the setting is turned on in the settings database
         val enabledServices = Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
         ) ?: return false
 
-        return enabledServices.split(':').any { enabledService ->
+        val settingsEnabled = enabledServices.split(':').any { enabledService ->
             enabledService.equals(expectedServiceName, ignoreCase = true)
         }
+
+        if (!settingsEnabled) {
+            return false
+        }
+
+        // 2. Check if the service is actively running/bound by the OS (detects suspended state after reinstall/updates)
+        val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager
+        val runningServices = am?.getEnabledAccessibilityServiceList(android.view.accessibility.AccessibilityEvent.TYPES_ALL_MASK)
+        return runningServices?.any { service ->
+            service.id.equals(expectedServiceName, ignoreCase = true)
+        } ?: false
     }
 }

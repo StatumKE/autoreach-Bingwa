@@ -25,6 +25,11 @@ class ClaimUssdJobCommand extends Command
             return self::FAILURE;
         }
 
+        Log::debug('ClaimUssdJobCommand started.', [
+            'component' => 'transaction_claim',
+            'transaction_id' => $id,
+        ]);
+
         $claimed = Transaction::query()
             ->whereKey($id)
             ->whereIn('status', ['queued', 'failed'])
@@ -47,6 +52,12 @@ class ClaimUssdJobCommand extends Command
         } else {
             $this->line($json);
         }
+
+        Log::debug('ClaimUssdJobCommand completed.', [
+            'component' => 'transaction_claim',
+            'transaction_id' => $id,
+            'claimed' => $claimed > 0,
+        ]);
 
         return self::SUCCESS;
     }

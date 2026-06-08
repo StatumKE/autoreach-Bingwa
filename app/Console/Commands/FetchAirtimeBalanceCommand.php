@@ -18,7 +18,10 @@ class FetchAirtimeBalanceCommand extends Command
      */
     public function handle(BingwaDeviceContext $deviceContext): int
     {
-        Log::info('Starting automated airtime balance refresh command...');
+        Log::info('Starting automated airtime balance refresh command...', [
+            'component' => 'airtime_balance',
+            'command' => 'bingwa:fetch-airtime-balance',
+        ]);
 
         $registration = $deviceContext->registration();
 
@@ -29,7 +32,10 @@ class FetchAirtimeBalanceCommand extends Command
             return self::SUCCESS;
         }
 
-        Log::info('Dispatching RefreshAirtimeBalanceJob.');
+        Log::info('Dispatching RefreshAirtimeBalanceJob.', [
+            'component' => 'airtime_balance',
+            'user_id' => $registration->user->getKey(),
+        ]);
         RefreshAirtimeBalanceJob::dispatch($registration->user->getKey());
 
         $this->info('Dispatched airtime balance refresh job.');

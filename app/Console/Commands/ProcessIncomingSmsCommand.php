@@ -6,6 +6,7 @@ use App\Actions\Autoreach\ProcessIncomingMpesaSms;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use JsonException;
 
 #[Signature('bingwa:process-incoming-sms {--payload= : Base64url-encoded JSON SMS payload}')]
@@ -26,9 +27,17 @@ class ProcessIncomingSmsCommand extends Command
         }
 
         try {
+            Log::debug('ProcessIncomingSmsCommand started.', [
+                'component' => 'incoming_sms',
+                'payload_length' => strlen($encodedPayload),
+            ]);
             $payload = $this->decodePayload($encodedPayload);
             $result = $processIncomingMpesaSms->process($payload);
             $this->line(json_encode($result, JSON_THROW_ON_ERROR));
+            Log::debug('ProcessIncomingSmsCommand completed.', [
+                'component' => 'incoming_sms',
+                'result' => $result,
+            ]);
 
             return self::SUCCESS;
         } catch (JsonException $exception) {

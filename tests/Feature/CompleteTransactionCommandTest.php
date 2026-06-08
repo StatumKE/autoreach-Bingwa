@@ -123,7 +123,7 @@ it('marks auto reply as skipped when no active rule matches', function () {
     $this->artisan("bingwa:complete-transaction {$transaction->id} completed")
         ->assertExitCode(0);
 
-    Queue::assertNothingPushed();
+    Queue::assertNotPushed(SendAutoReplySmsJob::class);
 
     $fresh = $transaction->fresh();
 

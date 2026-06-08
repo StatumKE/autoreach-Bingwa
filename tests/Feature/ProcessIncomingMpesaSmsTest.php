@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Queue;
 use Mockery\MockInterface;
 
 it('creates a local M-Pesa SMS transaction and processes it immediately', function (): void {
-    Queue::fake();
+    Queue::fake([UpdateRemoteTransactionStatusJob::class]);
     $user = registeredIncomingSmsUser();
     $offer = Offer::factory()->for($user)->create([
         'name' => 'M-Pesa Matched Bundle',

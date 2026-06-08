@@ -36,6 +36,6 @@ test('bingwa heartbeat command queues background job', function (): void {
     });
 
     Log::shouldHaveReceived('info')
-        ->with('Bingwa heartbeat job queued.')
+        ->with('Bingwa heartbeat job queued.', Mockery::any())
         ->once();
 });

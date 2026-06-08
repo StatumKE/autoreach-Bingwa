@@ -51,6 +51,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
 
         if (! $user instanceof User) {
             Log::warning('Bingwa FCM sync job skipped because the user could not be found.', [
+                'component' => 'fcm_sync',
                 'flow_id' => $flowId,
                 'user_id' => $this->userId,
             ]);
@@ -59,6 +60,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
         }
 
         Log::debug('Bingwa FCM sync job started.', [
+            'component' => 'fcm_sync',
             'user_id' => $user->getKey(),
             'flow_id' => $flowId,
             'attempt' => $this->attempts(),
@@ -70,6 +72,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
             $delay = $this->backoff()[$attempt - 1] ?? 60;
 
             Log::debug('Bingwa device registration not yet available in backend job; requeueing.', [
+                'component' => 'fcm_sync',
                 'user_id' => $user->getKey(),
                 'flow_id' => $flowId,
                 'attempt' => $attempt,
@@ -89,6 +92,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
                 $permissionStatus = PushNotifications::checkPermission();
 
                 Log::debug('Bingwa FCM permission status checked in backend job.', [
+                    'component' => 'fcm_sync',
                     'user_id' => $user->getKey(),
                     'flow_id' => $flowId,
                     'permission_status' => $permissionStatus,
@@ -96,6 +100,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
 
                 if ($permissionStatus === 'denied') {
                     Log::warning('Bingwa FCM enrollment skipped because permission is denied.', [
+                        'component' => 'fcm_sync',
                         'user_id' => $user->getKey(),
                         'flow_id' => $flowId,
                     ]);
@@ -107,11 +112,13 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
                 $this->enrollmentRequested = true;
 
                 Log::debug('Bingwa FCM enrollment requested from backend job.', [
+                    'component' => 'fcm_sync',
                     'user_id' => $user->getKey(),
                     'flow_id' => $flowId,
                 ]);
             } catch (\Throwable $throwable) {
                 Log::warning('Bingwa FCM enrollment failed in backend job.', [
+                    'component' => 'fcm_sync',
                     'user_id' => $user->getKey(),
                     'flow_id' => $flowId,
                     'message' => $throwable->getMessage(),
@@ -134,6 +141,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
             $delay = $this->backoff()[$attempt - 1] ?? 60;
 
             Log::debug('Bingwa FCM token not yet available in backend job; requeueing.', [
+                'component' => 'fcm_sync',
                 'user_id' => $user->getKey(),
                 'flow_id' => $flowId,
                 'attempt' => $attempt,
@@ -150,6 +158,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
 
         if ($syncBingwaFcmToken->sync($user, $token, $flowId)) {
             Log::debug('Bingwa FCM sync job completed successfully.', [
+                'component' => 'fcm_sync',
                 'user_id' => $user->getKey(),
                 'flow_id' => $flowId,
             ]);
@@ -161,6 +170,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
         $delay = $this->backoff()[$attempt - 1] ?? 60;
 
         Log::debug('Bingwa FCM backend sync did not complete; requeueing job.', [
+            'component' => 'fcm_sync',
             'user_id' => $user->getKey(),
             'flow_id' => $flowId,
             'attempt' => $attempt,
@@ -171,6 +181,12 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
         if ($attempt < $this->tries) {
             $this->release($delay);
         }
+
+        Log::debug('Bingwa FCM sync job finished.', [
+            'component' => 'fcm_sync',
+            'user_id' => $user->getKey(),
+            'flow_id' => $flowId,
+        ]);
     }
 
     private function ensureBingwaDeviceRegistered(
@@ -190,6 +206,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
             $user->setRelation('bingwaDeviceRegistration', $registration);
 
             Log::debug('Bingwa device registration completed in backend job.', [
+                'component' => 'fcm_sync',
                 'user_id' => $user->getKey(),
                 'flow_id' => $this->flowId,
                 'backend_device_id' => $registration->backend_device_id,
@@ -198,6 +215,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
             return true;
         } catch (\Throwable $throwable) {
             Log::warning('Bingwa device registration failed in backend job.', [
+                'component' => 'fcm_sync',
                 'user_id' => $user->getKey(),
                 'flow_id' => $this->flowId,
                 'message' => $throwable->getMessage(),
@@ -216,6 +234,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
 
             if (is_string($token) && $token !== '') {
                 Log::debug('Bingwa FCM token resolved in backend job.', [
+                    'component' => 'fcm_sync',
                     'user_id' => $this->userId,
                     'flow_id' => $this->flowId,
                     'token_hash' => hash('sha256', $token),
@@ -225,6 +244,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
             return is_string($token) && $token !== '' ? $token : null;
         } catch (\Throwable $throwable) {
             Log::warning('Bingwa FCM token lookup failed in backend job.', [
+                'component' => 'fcm_sync',
                 'user_id' => $this->userId,
                 'flow_id' => $this->flowId,
                 'message' => $throwable->getMessage(),

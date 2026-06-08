@@ -20,6 +20,9 @@ class DispatchBingwaQueuedTransactionsJob
         }
 
         ProcessBingwaQueuedTransactionsJob::dispatch($userId, (string) Str::uuid());
+        Log::debug('Bingwa transaction processing job dispatched.', [
+            'user_id' => $userId,
+        ]);
 
         return true;
     }

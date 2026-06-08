@@ -45,6 +45,8 @@ new #[Title('Dashboard')] class extends Component
 
         $this->hydrateAirtimeBalance();
 
+        \App\Jobs\PrefetchSubscriptionPlansJob::dispatch((int) Auth::id());
+
         Log::debug('Bingwa dashboard airtime response ready.', [
             'user_id' => Auth::id(),
             'balance' => $this->airtimeBalance,

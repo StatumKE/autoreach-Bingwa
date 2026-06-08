@@ -119,6 +119,7 @@ class UssdAccessibilityService : AccessibilityService() {
                 simBtn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 return
             }
+            Log.d(TAG, "Ignoring non-USSD telephony window package=$eventPackage class=${event.className}")
             return
         }
 
@@ -182,6 +183,7 @@ class UssdAccessibilityService : AccessibilityService() {
     fun dismiss() {
         lastSentDialogText = null
         closeDialog()
+        Log.d(TAG, "USSD dialog dismissed")
     }
 
     /**

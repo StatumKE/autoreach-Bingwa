@@ -22,7 +22,10 @@ class BingwaIncomingSmsReceiver : BroadcastReceiver() {
             return
         }
 
+        Log.d(TAG, "Incoming SMS broadcast received")
+
         if (!BingwaIncomingSmsSettings.isEnabled(context)) {
+            Log.d(TAG, "Incoming SMS ignored because feature is disabled")
             return
         }
 
@@ -33,6 +36,7 @@ class BingwaIncomingSmsReceiver : BroadcastReceiver() {
 
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
         if (messages.isEmpty()) {
+            Log.d(TAG, "Incoming SMS ignored because no messages were decoded")
             return
         }
 
@@ -40,15 +44,18 @@ class BingwaIncomingSmsReceiver : BroadcastReceiver() {
         val body = messages.joinToString(separator = "") { it.messageBody ?: "" }.trim()
 
         if (sender.isBlank() || body.isBlank()) {
+            Log.d(TAG, "Incoming SMS ignored because sender or body was blank")
             return
         }
 
         val allowAllSenders = BingwaIncomingSmsSettings.allowAllSenders(context)
         if (!BingwaIncomingSmsSettings.isTrustedSender(sender, allowAllSenders)) {
+            Log.d(TAG, "Incoming SMS ignored because sender was not trusted")
             return
         }
 
         if (!BingwaIncomingSmsSettings.isCandidateBody(body)) {
+            Log.d(TAG, "Incoming SMS ignored because body did not match a candidate pattern")
             return
         }
 

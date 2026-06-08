@@ -2,6 +2,7 @@
 
 namespace App\Actions\Autoreach;
 
+use App\Jobs\ProcessBingwaQueuedTransactionsJob;
 use App\Jobs\SendAutoReplySmsJob;
 use App\Models\Transaction;
 use App\Support\AppTimezone;
@@ -25,6 +26,7 @@ class CompleteBingwaTransaction
         int|Transaction $transactionId,
         string $status,
         ?string $message = null,
+        ?string $callbackToken = null,
     ): bool {
         // Accept a pre-loaded model so the caller does not pay for a redundant
         // DB round-trip when it already has the model in memory.
@@ -38,6 +40,38 @@ class CompleteBingwaTransaction
 
         if (! $transaction instanceof Transaction) {
             return false;
+        }
+
+        Log::debug('Bingwa transaction completion started.', [
+            'transaction_id' => $transaction->id,
+            'transaction_key' => $transaction->transaction_id,
+            'status' => $status,
+            'callback_token' => $callbackToken,
+        ]);
+
+        if (is_string($callbackToken) && $callbackToken !== '' && DB::table('ussd_callback_deliveries')->where('callback_token', $callbackToken)->exists()) {
+            Log::debug('Bingwa transaction completion skipped because the callback token was already recorded.', [
+                'transaction_id' => $transaction->id,
+                'transaction_key' => $transaction->transaction_id,
+                'callback_token' => $callbackToken,
+            ]);
+
+            return true;
+        }
+
+        if (in_array($transaction->status, ['completed', 'failed'], true) && filled($transaction->processed_at)) {
+            if (is_string($callbackToken) && $callbackToken !== '') {
+                $this->recordCallbackDelivery($callbackToken, $transaction, $status, $message);
+            }
+
+            Log::debug('Bingwa transaction completion skipped because the transaction was already finalized.', [
+                'transaction_id' => $transaction->id,
+                'transaction_key' => $transaction->transaction_id,
+                'status' => $transaction->status,
+                'callback_token' => $callbackToken,
+            ]);
+
+            return true;
         }
 
         $statusDesc = match ($status) {
@@ -112,8 +146,25 @@ class CompleteBingwaTransaction
             );
         });
 
+        if (is_string($callbackToken) && $callbackToken !== '') {
+            $this->recordCallbackDelivery($callbackToken, $transaction, $status, $message);
+        }
+
         $cacheKey = 'dashboard:metrics:'.$transaction->user_id.':'.AppTimezone::now()->toDateString();
         Cache::forget($cacheKey);
+
+        // Dispatch the next queued job to keep the queue processing autonomously if we are not already processing
+        if (! ProcessBingwaQueuedTransactionsJob::$isProcessing) {
+            app(DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) $transaction->user_id);
+        }
+
+        Log::info('Bingwa transaction completion finished.', [
+            'transaction_id' => $transaction->id,
+            'transaction_key' => $transaction->transaction_id,
+            'status' => $status,
+            'callback_token' => $callbackToken,
+            'message' => $statusDesc,
+        ]);
 
         return true;
     }
@@ -140,5 +191,33 @@ class CompleteBingwaTransaction
         ) {
             $activePlan->update(['is_active' => false]);
         }
+    }
+
+    private function recordCallbackDelivery(
+        string $callbackToken,
+        Transaction $transaction,
+        string $status,
+        ?string $message,
+    ): void {
+        DB::table('ussd_callback_deliveries')->updateOrInsert(
+            ['callback_token' => $callbackToken],
+            [
+                'transaction_key' => (string) $transaction->transaction_id,
+                'transaction_id' => $transaction->id,
+                'status' => $status,
+                'message' => $message,
+                'delivered_at' => now(),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ],
+        );
+
+        Log::debug('Bingwa callback delivery recorded.', [
+            'transaction_id' => $transaction->id,
+            'transaction_key' => $transaction->transaction_id,
+            'callback_token' => $callbackToken,
+            'status' => $status,
+            'message' => $message,
+        ]);
     }
 }

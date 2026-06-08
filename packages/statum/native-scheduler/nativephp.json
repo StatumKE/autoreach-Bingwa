@@ -85,7 +85,6 @@
             {
                 "name": "com.statum.plugins.nativescheduler.BingwaIncomingSmsReceiver",
                 "exported": true,
-                "permission": "android.permission.BROADCAST_SMS",
                 "intent_filters": [
                     {
                         "action": "android.provider.Telephony.SMS_RECEIVED"

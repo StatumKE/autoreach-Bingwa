@@ -15,6 +15,7 @@ class NativeRuntimeTickController
         $isLoopbackRequest = $this->isLoopbackRequest($request);
 
         Log::debug('Bingwa runtime tick request received.', [
+            'component' => 'runtime_tick',
             'ip' => $request->ip(),
             'host' => $request->getHost(),
             'loopback' => $isLoopbackRequest,
@@ -23,6 +24,7 @@ class NativeRuntimeTickController
 
         if (! $isLoopbackRequest || $runtimeHeader !== 'android') {
             Log::debug('Bingwa runtime tick request rejected.', [
+                'component' => 'runtime_tick',
                 'ip' => $request->ip(),
                 'host' => $request->getHost(),
                 'loopback' => $isLoopbackRequest,
@@ -35,14 +37,22 @@ class NativeRuntimeTickController
         }
 
         Log::debug('Bingwa runtime tick request accepted.', [
+            'component' => 'runtime_tick',
             'ip' => $request->ip(),
             'host' => $request->getHost(),
             'runtime_header' => $runtimeHeader,
         ]);
 
+        $tasks = $scheduler->runDueTasks();
+
+        Log::debug('Bingwa runtime tick tasks resolved.', [
+            'component' => 'runtime_tick',
+            'tasks' => $tasks,
+        ]);
+
         return response()->json([
             'status' => 'ok',
-            'tasks' => $scheduler->runDueTasks(),
+            'tasks' => $tasks,
         ]);
     }
 

@@ -20,6 +20,8 @@ class PopUssdJobCommand extends Command
     public function handle(): int
     {
         try {
+            Log::debug('PopUssdJobCommand started.');
+
             // 1. Recovery Logic (Business Logic Preservation)
             $recoveredCount = Transaction::query()
                 ->where('status', 'processing')
@@ -120,6 +122,11 @@ class PopUssdJobCommand extends Command
             } else {
                 $this->output->write($json);
             }
+
+            Log::debug('PopUssdJobCommand completed.', [
+                'transaction_id' => $payload['id'] ?? null,
+                'output_path' => $outputPath ?: null,
+            ]);
 
             return self::SUCCESS;
         } catch (\Throwable $e) {

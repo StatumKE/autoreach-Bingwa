@@ -18,7 +18,9 @@ class SyncBingwaTransactions extends Command
      */
     public function handle(BingwaDeviceContext $deviceContext): int
     {
-        Log::info('🔄 Starting Bingwa transactions sync...');
+        Log::info('🔄 Starting Bingwa transactions sync...', [
+            'command' => 'bingwa:sync-transactions',
+        ]);
 
         $registration = $deviceContext->registration();
 
@@ -39,7 +41,10 @@ class SyncBingwaTransactions extends Command
             'message' => '✅ Sync job queued successfully.',
         ];
 
-        Log::info($data['message']);
+        Log::info($data['message'], [
+            'queued' => true,
+            'user_id' => $registration->user->getKey(),
+        ]);
         $this->output->write(json_encode($data));
 
         return self::SUCCESS;

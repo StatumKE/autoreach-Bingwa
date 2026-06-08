@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Throwable;
@@ -218,13 +219,17 @@ class DeviceSettingsController extends BaseController
                 }
 
                 $infoResponse = json_decode(nativephp_call('Device.GetInfo', '{}'), true, flags: JSON_THROW_ON_ERROR);
-
-                if (isset($infoResponse['data']['os_name'])) {
-                    $osName = (string) $infoResponse['data']['os_name'];
-                }
-
-                if (isset($infoResponse['data']['os_version'])) {
-                    $osVersion = (string) $infoResponse['data']['os_version'];
+                $deviceInfoJson = $infoResponse['data']['info'] ?? null;
+                if (is_string($deviceInfoJson) && $deviceInfoJson !== '') {
+                    $decodedDeviceInfo = json_decode($deviceInfoJson, true);
+                    if (is_array($decodedDeviceInfo)) {
+                        if (isset($decodedDeviceInfo['operatingSystem'])) {
+                            $osName = (string) $decodedDeviceInfo['operatingSystem'];
+                        }
+                        if (isset($decodedDeviceInfo['osVersion'])) {
+                            $osVersion = (string) $decodedDeviceInfo['osVersion'];
+                        }
+                    }
                 }
             } catch (Throwable $throwable) {
                 Log::debug('Failed to retrieve device ID or info from NativePHP.', [

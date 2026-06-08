@@ -41,6 +41,13 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
     {
         $baseUrl = rtrim((string) config('services.autoreach.backend_url'), '/');
 
+        Log::debug('Remote transaction status update job started.', [
+            'remote_transaction_id' => $this->remoteTransactionId,
+            'status' => $this->status,
+            'user_id' => $this->userId,
+            'executed_at' => $this->executedAt,
+        ]);
+
         $user = User::query()
             ->with('bingwaDeviceRegistration')
             ->find($this->userId);
@@ -82,6 +89,13 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
         }
 
         $response = $this->sendRemoteStatusUpdate($baseUrl, $deviceToken, $payload);
+
+        Log::debug('Remote transaction status update response received.', [
+            'remote_transaction_id' => $this->remoteTransactionId,
+            'status' => $response->status(),
+            'body' => $response->body(),
+            'payload' => $payload,
+        ]);
 
         if ($response->status() === 401) {
             Log::warning("Autoreach backend returned 401 Unauthorized for transaction {$this->remoteTransactionId}; attempting token recovery and retry.");

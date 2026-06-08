@@ -27,6 +27,8 @@ class NextUssdJobCommand extends Command
     public function handle(): int
     {
         try {
+            Log::debug('NextUssdJobCommand started.');
+
             // Recover any transactions stuck in "processing" due to a previous crash.
             // The USSD timeout is 30 seconds, so anything older than 45 minutes is definitively stuck.
             $recoveredCount = Transaction::query()
@@ -53,6 +55,8 @@ class NextUssdJobCommand extends Command
                 ->first();
 
             if ($transaction === null || $transaction->offer === null) {
+                Log::debug('NextUssdJobCommand found no queued transaction.');
+
                 return self::SUCCESS;
             }
 
@@ -111,6 +115,11 @@ class NextUssdJobCommand extends Command
             } else {
                 $this->output->write($json);
             }
+
+            Log::debug('NextUssdJobCommand completed.', [
+                'transaction_id' => $transaction->id,
+                'output_path' => $outputPath ?: null,
+            ]);
 
             return self::SUCCESS;
         } catch (\Throwable $e) {

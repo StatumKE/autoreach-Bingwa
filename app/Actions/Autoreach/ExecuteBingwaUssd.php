@@ -95,6 +95,12 @@ class ExecuteBingwaUssd
         ]);
 
         if (! is_string($rawResponse) || $rawResponse === '') {
+            Log::warning('Bingwa USSD bridge returned an empty response.', [
+                'flow_id' => $flowId,
+                'transaction_id' => $payload['backend_transaction_id'] ?? null,
+                'id' => $payload['id'] ?? null,
+            ]);
+
             return [
                 'success' => false,
                 'message' => __('The native USSD bridge returned no response.'),
@@ -105,6 +111,13 @@ class ExecuteBingwaUssd
         $decoded = json_decode($rawResponse, true);
 
         if (! is_array($decoded)) {
+            Log::warning('Bingwa USSD bridge returned an invalid JSON payload.', [
+                'flow_id' => $flowId,
+                'transaction_id' => $payload['backend_transaction_id'] ?? null,
+                'id' => $payload['id'] ?? null,
+                'raw_response' => $rawResponse,
+            ]);
+
             return [
                 'success' => false,
                 'message' => __('The native USSD bridge returned an invalid response.'),
@@ -115,13 +128,34 @@ class ExecuteBingwaUssd
         $success = (bool) ($decoded['success'] ?? false);
         $message = trim((string) ($decoded['message'] ?? ''));
 
+        Log::debug('Bingwa USSD bridge response decoded.', [
+            'flow_id' => $flowId,
+            'transaction_id' => $payload['backend_transaction_id'] ?? null,
+            'id' => $payload['id'] ?? null,
+            'success' => $success,
+            'message' => $message,
+        ]);
+
         if (! $success) {
+            Log::warning('Bingwa USSD bridge reported a failure.', [
+                'flow_id' => $flowId,
+                'transaction_id' => $payload['backend_transaction_id'] ?? null,
+                'id' => $payload['id'] ?? null,
+                'message' => $message,
+            ]);
+
             return [
                 'success' => false,
                 'message' => $message ?: __('USSD request dispatch failed.'),
                 'raw_response' => $rawResponse,
             ];
         }
+
+        Log::info('Bingwa USSD bridge accepted the dispatch.', [
+            'flow_id' => $flowId,
+            'transaction_id' => $payload['backend_transaction_id'] ?? null,
+            'id' => $payload['id'] ?? null,
+        ]);
 
         return [
             'success' => true,

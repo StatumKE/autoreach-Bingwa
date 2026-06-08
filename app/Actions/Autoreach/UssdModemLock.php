@@ -45,6 +45,7 @@ class UssdModemLock
 
         if (! $acquired) {
             Log::info('USSD modem lock busy.', [
+                'component' => 'ussd_modem',
                 ...$context,
                 'operation' => $operation,
                 'wait_seconds' => $waitSeconds,
@@ -55,6 +56,7 @@ class UssdModemLock
         }
 
         Log::debug('USSD modem lock acquired.', [
+            'component' => 'ussd_modem',
             ...$context,
             'operation' => $operation,
             'wait_seconds' => $waitSeconds,
@@ -67,6 +69,7 @@ class UssdModemLock
             $lock->release();
 
             Log::debug('USSD modem lock released.', [
+                'component' => 'ussd_modem',
                 ...$context,
                 'operation' => $operation,
             ]);

@@ -20,6 +20,7 @@ class SendBingwaHeartbeat
 
         if ($registration === null || blank($registration->device_token)) {
             Log::warning('Bingwa heartbeat skipped because the user has no device token.', [
+                'component' => 'heartbeat',
                 'user_id' => $user->getKey(),
                 'registration_id' => $registration?->getKey(),
             ]);
@@ -31,6 +32,7 @@ class SendBingwaHeartbeat
         $token = $registration->device_token;
 
         Log::info('Bingwa heartbeat request starting.', [
+            'component' => 'heartbeat',
             'user_id' => $user->getKey(),
             'registration_id' => $registration->getKey(),
             'backend_device_id' => $registration->backend_device_id,
@@ -43,6 +45,7 @@ class SendBingwaHeartbeat
             // If unauthorized, attempt to recover the token once and retry
             if ($response->status() === 401) {
                 Log::warning('Bingwa heartbeat returned unauthorized; attempting token recovery.', [
+                    'component' => 'heartbeat',
                     'user_id' => $user->getKey(),
                     'registration_id' => $registration->getKey(),
                     'backend_device_id' => $registration->backend_device_id,
@@ -55,6 +58,7 @@ class SendBingwaHeartbeat
                 } catch (\Throwable $e) {
                     report(new \RuntimeException('Failed to recover token during heartbeat: '.$e->getMessage(), 0, $e));
                     Log::error('Bingwa heartbeat token recovery failed.', [
+                        'component' => 'heartbeat',
                         'user_id' => $user->getKey(),
                         'registration_id' => $registration->getKey(),
                         'backend_device_id' => $registration->backend_device_id,
@@ -71,10 +75,12 @@ class SendBingwaHeartbeat
                 ]);
 
                 Log::info('Bingwa heartbeat accepted by backend.', [
+                    'component' => 'heartbeat',
                     'user_id' => $user->getKey(),
                     'registration_id' => $registration->getKey(),
                     'backend_device_id' => $registration->backend_device_id,
                     'status' => $response->status(),
+                    'response_body' => $this->responseBody($response),
                     'recorded_at' => now()->toISOString(),
                 ]);
 
@@ -88,18 +94,21 @@ class SendBingwaHeartbeat
 
             report(new \RuntimeException("Heartbeat failed with status: {$response->status()}"));
             Log::warning('Bingwa heartbeat was rejected by backend.', [
+                'component' => 'heartbeat',
                 'user_id' => $user->getKey(),
                 'registration_id' => $registration->getKey(),
                 'backend_device_id' => $registration->backend_device_id,
                 'status' => $response->status(),
                 'response_code' => $response->json('code'),
                 'response_message' => $response->json('message'),
+                'response_body' => $this->responseBody($response),
             ]);
 
             return false;
         } catch (\Throwable $e) {
             report(new \RuntimeException('Heartbeat threw exception: '.$e->getMessage(), 0, $e));
             Log::error('Bingwa heartbeat threw an exception.', [
+                'component' => 'heartbeat',
                 'user_id' => $user->getKey(),
                 'registration_id' => $registration->getKey(),
                 'backend_device_id' => $registration->backend_device_id,
@@ -124,5 +133,10 @@ class SendBingwaHeartbeat
             ->post("{$baseUrl}/api/v1/auth/device/heartbeat", [
                 'app_version' => config('app.version', '1.0.0'),
             ]);
+    }
+
+    private function responseBody(Response $response): string
+    {
+        return trim($response->body());
     }
 }

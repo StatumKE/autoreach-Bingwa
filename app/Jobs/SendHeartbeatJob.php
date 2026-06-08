@@ -26,7 +26,7 @@ class SendHeartbeatJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 
     public function uniqueId(): string
     {
-        return 'bingwa-send-heartbeat';
+        return 'bingwa-send-heartbeat:'.$this->userId;
     }
 
     /**
@@ -47,6 +47,7 @@ class SendHeartbeatJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         }
 
         Log::debug('Bingwa heartbeat job started.', [
+            'component' => 'heartbeat',
             'user_id' => $user->id,
         ]);
 
@@ -61,6 +62,7 @@ class SendHeartbeatJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         $sent = $sendBingwaHeartbeat->send($user);
 
         Log::debug('Bingwa heartbeat job finished.', [
+            'component' => 'heartbeat',
             'user_id' => $user->id,
             'sent' => $sent,
         ]);
@@ -69,6 +71,7 @@ class SendHeartbeatJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
     public function failed(Throwable $exception): void
     {
         Log::error('Bingwa heartbeat job marked as failed.', [
+            'component' => 'heartbeat',
             'user_id' => $this->userId,
             'message' => $exception->getMessage(),
             'exception' => $exception::class,

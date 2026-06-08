@@ -6,9 +6,10 @@ use App\Actions\Autoreach\CompleteBingwaTransaction;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
-#[Signature('bingwa:complete-transaction {id? : The local transaction ID} {status? : completed or failed} {--transaction-id= : The local transaction ID} {--result= : completed or failed} {--message= : Optional status description} {--message-base64= : Optional base64-encoded status description}')]
+#[Signature('bingwa:complete-transaction {id? : The local transaction ID} {status? : completed or failed} {--transaction-id= : The local transaction ID} {--result= : completed or failed} {--message= : Optional status description} {--message-base64= : Optional base64-encoded status description} {--callback-token= : Unique callback delivery token}')]
 #[Description('Mark a transaction as completed or failed after a USSD execution attempt.')]
 class CompleteTransactionCommand extends Command
 {
@@ -19,6 +20,13 @@ class CompleteTransactionCommand extends Command
     {
         $id = (int) ($this->option('transaction-id') ?? $this->argument('id'));
         $status = (string) ($this->option('result') ?? $this->argument('status'));
+
+        Log::debug('CompleteTransactionCommand started.', [
+            'component' => 'transaction_completion',
+            'transaction_id' => $id,
+            'status' => $status,
+            'callback_token' => $this->option('callback-token'),
+        ]);
 
         if ($id <= 0) {
             $this->error('A transaction ID must be provided.');
@@ -44,11 +52,19 @@ class CompleteTransactionCommand extends Command
             transactionId: $id,
             status: $status,
             message: $message,
+            callbackToken: $this->option('callback-token'),
         );
 
         if (! $completed) {
             $this->warn("Transaction #{$id} not found.");
         }
+
+        Log::debug('CompleteTransactionCommand finished.', [
+            'component' => 'transaction_completion',
+            'transaction_id' => $id,
+            'status' => $status,
+            'completed' => $completed,
+        ]);
 
         return self::SUCCESS;
     }

@@ -17,7 +17,10 @@ class RefreshAirtimeBalance
      */
     public function refresh(User $user): array
     {
-        Log::info('Bingwa airtime balance refresh started.', ['user_id' => $user->id]);
+        Log::info('Bingwa airtime balance refresh started.', [
+            'component' => 'airtime_balance',
+            'user_id' => $user->id,
+        ]);
 
         $settings = $this->ensureSettings($user);
 
@@ -25,12 +28,16 @@ class RefreshAirtimeBalance
         $response = $this->executeBalanceQuery($simSlot, (int) ($settings->ussd_timeout_seconds ?? 60));
 
         if ($response === null) {
-            Log::warning('Bingwa airtime balance refresh failed: No response from USSD bridge.', ['user_id' => $user->id]);
+            Log::warning('Bingwa airtime balance refresh failed: No response from USSD bridge.', [
+                'component' => 'airtime_balance',
+                'user_id' => $user->id,
+            ]);
 
             return $this->cached($user);
         }
 
         Log::info('Bingwa airtime balance USSD response received.', [
+            'component' => 'airtime_balance',
             'user_id' => $user->id,
             'response_length' => strlen($response),
         ]);
@@ -39,6 +46,7 @@ class RefreshAirtimeBalance
 
         if ($balance === null) {
             Log::warning('Bingwa airtime balance refresh failed: Could not parse balance.', [
+                'component' => 'airtime_balance',
                 'user_id' => $user->id,
                 'raw_response' => $response,
             ]);
@@ -63,6 +71,7 @@ class RefreshAirtimeBalance
         $user->setRelation('deviceSetting', $deviceSettings);
 
         Log::debug('Bingwa airtime balance refreshed.', [
+            'component' => 'airtime_balance',
             'user_id' => $user->id,
             'sim_slot' => $simSlot,
             'balance' => $balance,
@@ -122,6 +131,7 @@ class RefreshAirtimeBalance
         $nativephpAvailable = function_exists('nativephp_call');
 
         Log::debug('Bingwa airtime USSD probe.', [
+            'component' => 'airtime_balance',
             'sim_slot' => $simSlot,
             'nativephp_call_available' => $nativephpAvailable,
         ]);
@@ -151,6 +161,7 @@ class RefreshAirtimeBalance
             );
         } catch (UssdModemBusyException $exception) {
             Log::info('Bingwa airtime balance refresh skipped because the modem is busy.', [
+                'component' => 'airtime_balance',
                 'sim_slot' => $simSlot,
                 'message' => $exception->getMessage(),
             ]);
@@ -159,6 +170,7 @@ class RefreshAirtimeBalance
         }
 
         Log::debug('Bingwa airtime USSD raw response.', [
+            'component' => 'airtime_balance',
             'sim_slot' => $simSlot,
             'response' => $rawResponse,
         ]);
@@ -177,6 +189,7 @@ class RefreshAirtimeBalance
         $error = $decoded['error'] ?? $decoded['data']['error'] ?? null;
         if (is_string($error) && $error !== '') {
             Log::warning('Bingwa airtime USSD returned a bridge error.', [
+                'component' => 'airtime_balance',
                 'sim_slot' => $simSlot,
                 'error' => $error,
             ]);
@@ -193,6 +206,7 @@ class RefreshAirtimeBalance
 
         if (stripos($message, 'permission') !== false || stripos($message, 'not granted') !== false) {
             Log::warning('Bingwa airtime USSD message looks like a permission error; ignoring.', [
+                'component' => 'airtime_balance',
                 'sim_slot' => $simSlot,
                 'message' => $message,
             ]);
@@ -201,6 +215,7 @@ class RefreshAirtimeBalance
         }
 
         Log::debug('Bingwa airtime USSD message extracted.', [
+            'component' => 'airtime_balance',
             'sim_slot' => $simSlot,
             'message' => $message,
         ]);
@@ -212,26 +227,26 @@ class RefreshAirtimeBalance
     {
         // "Airtime Bal: 13.44KSH" / "Airtime Balance: 13.44"
         if (preg_match('/Airtime\s*Bal[^0-9]*([0-9]+(?:\.[0-9]+)?)/i', $response, $matches) === 1) {
-            Log::debug('Bingwa airtime balance parsed via Airtime Bal pattern.', ['raw' => $response, 'parsed' => $matches[1]]);
+            Log::debug('Bingwa airtime balance parsed via Airtime Bal pattern.', ['component' => 'airtime_balance', 'raw' => $response, 'parsed' => $matches[1]]);
 
             return (float) $matches[1];
         }
 
         // "13.44 KSH" or "13.44KSH"
         if (preg_match('/\b([0-9]+(?:\.[0-9]+)?)\s*KSH\b/i', $response, $matches) === 1) {
-            Log::debug('Bingwa airtime balance parsed via KSH suffix pattern.', ['raw' => $response, 'parsed' => $matches[1]]);
+            Log::debug('Bingwa airtime balance parsed via KSH suffix pattern.', ['component' => 'airtime_balance', 'raw' => $response, 'parsed' => $matches[1]]);
 
             return (float) $matches[1];
         }
 
         // "KSh 13.44" or "KSh.13.44" (KSh prefix, common in Safaricom responses)
         if (preg_match('/KSh\.?\s*([0-9]+(?:\.[0-9]+)?)/i', $response, $matches) === 1) {
-            Log::debug('Bingwa airtime balance parsed via KSh prefix pattern.', ['raw' => $response, 'parsed' => $matches[1]]);
+            Log::debug('Bingwa airtime balance parsed via KSh prefix pattern.', ['component' => 'airtime_balance', 'raw' => $response, 'parsed' => $matches[1]]);
 
             return (float) $matches[1];
         }
 
-        Log::warning('Bingwa airtime balance could not be parsed from USSD response.', ['raw' => $response]);
+        Log::warning('Bingwa airtime balance could not be parsed from USSD response.', ['component' => 'airtime_balance', 'raw' => $response]);
 
         return null;
     }

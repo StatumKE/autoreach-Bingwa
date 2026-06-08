@@ -5,8 +5,11 @@ import android.content.Intent
 import android.os.Build
 import android.util.Base64
 import android.util.Log
+import androidx.work.BackoffPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import java.util.concurrent.TimeUnit
 
 class UssdCallbackWorker(
     context: Context,
@@ -16,6 +19,8 @@ class UssdCallbackWorker(
         val id = inputData.getInt(KEY_ID, -1)
         val success = inputData.getBoolean(KEY_SUCCESS, false)
         val message = inputData.getString(KEY_MESSAGE) ?: ""
+
+        Log.i(TAG, "USSD callback worker started transaction=$id success=$success")
 
         if (id == -1) {
             Log.e(TAG, "USSD Callback worker received no transaction ID")
@@ -43,8 +48,10 @@ class UssdCallbackWorker(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start PHPQueueService for command: $command", e)
-            return Result.failure()
+            return Result.retry()
         }
+
+        Log.i(TAG, "USSD callback worker dispatched PHPQueueService transaction=$id")
         return Result.success()
     }
 
@@ -62,11 +69,22 @@ class UssdCallbackWorker(
                 .build()
 
             val workRequest = androidx.work.OneTimeWorkRequestBuilder<UssdCallbackWorker>()
+                .setBackoffCriteria(
+                    BackoffPolicy.EXPONENTIAL,
+                    androidx.work.WorkRequest.MIN_BACKOFF_MILLIS,
+                    TimeUnit.MILLISECONDS
+                )
                 .setInputData(inputData)
                 .build()
 
-            androidx.work.WorkManager.getInstance(context).enqueue(workRequest)
-            Log.i(TAG, "Enqueued WorkManager fallback for transaction #$id")
+            androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+                uniqueWorkName(id),
+                ExistingWorkPolicy.KEEP,
+                workRequest
+            )
+            Log.i(TAG, "Enqueued unique WorkManager fallback for transaction #$id")
         }
+
+        private fun uniqueWorkName(id: Int): String = "bingwa-ussd-callback-$id"
     }
 }

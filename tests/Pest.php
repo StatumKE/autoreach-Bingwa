@@ -64,3 +64,14 @@ if (! function_exists('nativephp_call')) {
         return '{"success":true,"message":"Recommendation submitted successfully."}';
     }
 }
+
+if (! function_exists('nativephp_can')) {
+    function nativephp_can(string $method): bool
+    {
+        if (isset($GLOBALS['nativephp_can_mock'])) {
+            return $GLOBALS['nativephp_can_mock']($method);
+        }
+
+        return true;
+    }
+}

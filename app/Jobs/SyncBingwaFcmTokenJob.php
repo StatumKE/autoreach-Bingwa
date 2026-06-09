@@ -36,7 +36,7 @@ class SyncBingwaFcmTokenJob implements ShouldBeUnique, ShouldQueue
         return (string) $this->userId;
     }
 
-    public int $tries = 0;
+    public int $tries = 10;
 
     public bool $enrollmentRequested = false;
 
@@ -53,6 +53,16 @@ class SyncBingwaFcmTokenJob implements ShouldBeUnique, ShouldQueue
         SyncBingwaFcmToken $syncBingwaFcmToken,
     ): void {
         $flowId = $this->flowId ??= (string) Str::uuid();
+
+        if (function_exists('nativephp_can') && ! nativephp_can('PushNotification.GetToken')) {
+            Log::error('Bingwa FCM sync job aborted because PushNotification.GetToken is not registered in the native bridge.', [
+                'component' => 'fcm_sync',
+                'flow_id' => $flowId,
+                'user_id' => $this->userId,
+            ]);
+
+            return;
+        }
 
         $user = User::query()
             ->with('bingwaDeviceRegistration')

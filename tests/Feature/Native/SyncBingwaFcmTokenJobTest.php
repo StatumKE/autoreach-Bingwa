@@ -45,3 +45,21 @@ test('backend fcm sync job resolves the token and hands it off to the sync actio
 
     (new SyncBingwaFcmTokenJob($user->id))->handle(app(RegisterBingwaDevice::class), app(SyncBingwaFcmToken::class));
 });
+
+test('fcm sync job aborts and does not proceed when native bridge does not support push notifications', function (): void {
+    $user = User::factory()->create();
+
+    $GLOBALS['nativephp_can_mock'] = function (string $method): bool {
+        return false;
+    };
+
+    $registerBingwaDevice = Mockery::mock(RegisterBingwaDevice::class);
+    $registerBingwaDevice->shouldNotReceive('registerOnBackend');
+
+    $syncAction = Mockery::mock(SyncBingwaFcmToken::class);
+    $syncAction->shouldNotReceive('sync');
+
+    (new SyncBingwaFcmTokenJob($user->id))->handle($registerBingwaDevice, $syncAction);
+
+    unset($GLOBALS['nativephp_can_mock']);
+});

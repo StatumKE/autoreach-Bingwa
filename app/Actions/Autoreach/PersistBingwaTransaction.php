@@ -159,6 +159,7 @@ class PersistBingwaTransaction
                     'status' => $status,
                     'status_desc' => $statusDesc,
                     'processed_at' => $status === 'failed' ? now() : null,
+                    'raw_sms' => $payload['raw_sms'] ?? null,
                 ],
             );
         });

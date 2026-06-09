@@ -135,6 +135,7 @@ test('bingwa transaction sync clamps low limits to one and stores single-job res
                 'canonical_offer_id' => 9,
             ],
             'occurred_at' => '2026-04-17T17:34:15+00:00',
+            'raw_sms' => 'Test Raw SMS Confirmation Message',
         ], 200),
         'backend.statum.co.ke/api/v1/jobs/next/sms*' => Http::response('', 204),
         'backend.statum.co.ke/api/v1/jobs/next/airtime*' => Http::response('', 204),
@@ -171,6 +172,7 @@ test('bingwa transaction sync clamps low limits to one and stores single-job res
         'canonical_offer_id' => 9,
     ]);
     expect($transaction?->balance)->toBeNull();
+    expect($transaction?->raw_sms)->toBe('Test Raw SMS Confirmation Message');
 });
 
 test('bingwa transaction sync normalizes naive backend timestamps to africa nairobi', function () {

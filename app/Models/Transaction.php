@@ -38,6 +38,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $auto_reply_sent_at
  * @property Carbon|null $auto_reply_failed_at
  * @property string|null $auto_reply_failure_reason
+ * @property string|null $raw_sms
  * @property-read User|null $user
  * @property-read Offer|null $offer
  * @property-read AutoReply|null $autoReply
@@ -70,6 +71,7 @@ use Illuminate\Support\Carbon;
     'auto_reply_sent_at',
     'auto_reply_failed_at',
     'auto_reply_failure_reason',
+    'raw_sms',
 ])]
 class Transaction extends Model
 {

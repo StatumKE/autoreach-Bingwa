@@ -859,6 +859,15 @@ new #[Title('Transactions')] class extends Component
                     </div>
                 </div>
 
+                @if ($selectedTransaction->raw_sms)
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Raw SMS') }}</div>
+                        <div class="rounded-xl bg-zinc-50 p-2.5 text-xs leading-relaxed text-zinc-800 ring-1 ring-zinc-200 break-words">
+                            {{ $selectedTransaction->raw_sms }}
+                        </div>
+                    </div>
+                @endif
+
                 <div class="space-y-1">
                     <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('USSD Result') }}</div>
                     <div class="rounded-xl bg-zinc-50 p-2.5 text-xs leading-relaxed text-zinc-800 ring-1 ring-zinc-200">

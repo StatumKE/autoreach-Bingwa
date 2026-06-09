@@ -1355,6 +1355,108 @@ XML;
     }
 }
 
+function patch_mobile_firebase_nativephp_json(): void
+{
+    $target = project_path('vendor/nativephp/mobile-firebase/nativephp.json');
+
+    if (! file_exists($target)) {
+        return;
+    }
+
+    $contents = (string) file_get_contents($target);
+
+    $originalGetToken = <<<'JSON'
+        {
+            "name": "PushNotification.GetToken",
+            "android": "com.nativephp.firebase.PushNotificationFunctions.GetToken",
+            "ios": "PushNotificationFunctions.GetToken",
+            "description": "Get the current push notification token"
+        }
+JSON;
+
+    $patchedGetToken = <<<'JSON'
+        {
+            "name": "PushNotification.GetToken",
+            "android": "com.nativephp.firebase.PushNotificationFunctions.GetToken",
+            "android_params": [
+                "context"
+            ],
+            "ios": "PushNotificationFunctions.GetToken",
+            "description": "Get the current push notification token"
+        }
+JSON;
+
+    $originalCheckPermission = <<<'JSON'
+        {
+            "name": "PushNotification.CheckPermission",
+            "android": "com.nativephp.firebase.PushNotificationFunctions.CheckPermission",
+            "ios": "PushNotificationFunctions.CheckPermission",
+            "description": "Check current push notification permission status without prompting the user"
+        }
+JSON;
+
+    $patchedCheckPermission = <<<'JSON'
+        {
+            "name": "PushNotification.CheckPermission",
+            "android": "com.nativephp.firebase.PushNotificationFunctions.CheckPermission",
+            "android_params": [
+                "context"
+            ],
+            "ios": "PushNotificationFunctions.CheckPermission",
+            "description": "Check current push notification permission status without prompting the user"
+        }
+JSON;
+
+    if (! str_contains($contents, '"android_params"')) {
+        $contents = replace_or_fail($contents, $originalGetToken, $patchedGetToken, 'mobile-firebase nativephp.json GetToken params');
+        $contents = replace_or_fail($contents, $originalCheckPermission, $patchedCheckPermission, 'mobile-firebase nativephp.json CheckPermission params');
+    }
+
+    write_if_changed($target, $contents);
+}
+
+function patch_mobile_firebase_context_registrations(): void
+{
+    $targets = [
+        project_path('nativephp/android/app/src/main/java/com/nativephp/mobile/bridge/plugins/PluginBridgeFunctionRegistration.kt'),
+    ];
+
+    $original = <<<'KOTLIN'
+fun registerContextOnlyBridgeFunctions(context: Context) {
+    val registry = BridgeFunctionRegistry.shared
+KOTLIN;
+
+    $patched = <<<'KOTLIN'
+fun registerContextOnlyBridgeFunctions(context: Context) {
+    val registry = BridgeFunctionRegistry.shared
+
+    // Plugin: nativephp/mobile-firebase
+    registry.register("PushNotification.GetToken", PushNotificationFunctions.GetToken(context))
+
+    // Plugin: nativephp/mobile-firebase
+    registry.register("PushNotification.CheckPermission", PushNotificationFunctions.CheckPermission(context))
+KOTLIN;
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (! str_contains($contents, 'PushNotificationFunctions.GetToken(context)')) {
+            $contents = replace_or_fail(
+                $contents,
+                $original,
+                $patched,
+                'PluginBridgeFunctionRegistration background PushNotification registration'
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
 try {
 
     patch_mobile_firebase_dispatch_command();
@@ -1378,6 +1480,8 @@ try {
     patch_mobile_main_activity_battery();
     write_mobile_main_application();
     patch_mobile_manifest_workmanager_and_application();
+    patch_mobile_firebase_nativephp_json();
+    patch_mobile_firebase_context_registrations();
 } catch (Throwable $throwable) {
     fwrite(STDERR, $throwable->getMessage().PHP_EOL);
 

@@ -48,3 +48,19 @@ function something()
 {
     // ..
 }
+
+if (! function_exists('nativephp_call')) {
+    function nativephp_call(string $function, ?string $payload = null): string
+    {
+        $GLOBALS['last_nativephp_call'] = [
+            'function' => $function,
+            'payload' => $payload,
+        ];
+
+        if (isset($GLOBALS['nativephp_call_mock'])) {
+            return $GLOBALS['nativephp_call_mock']($function, $payload);
+        }
+
+        return '{"success":true,"message":"Recommendation submitted successfully."}';
+    }
+}

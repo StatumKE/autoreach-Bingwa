@@ -25,27 +25,41 @@ class RefreshAirtimeBalance
         $settings = $this->ensureSettings($user);
 
         $simSlot = $settings->primary_transaction_sim === 'slot_2' ? 1 : 0;
-        $response = $this->executeBalanceQuery($simSlot, (int) ($settings->ussd_timeout_seconds ?? 60));
+        $preferredMode = $settings->app_interface_mode ?? 'express';
 
-        if ($response === null) {
-            Log::warning('Bingwa airtime balance refresh failed: No response from USSD bridge.', [
+        $response = $this->executeBalanceQuery(
+            $simSlot,
+            (int) ($settings->ussd_timeout_seconds ?? 60),
+            $preferredMode
+        );
+
+        $balance = $response !== null ? $this->parseBalance($response) : null;
+
+        if ($balance === null && $preferredMode === 'express') {
+            Log::info('Express airtime USSD query did not yield a valid balance; attempting advanced mode fallback.', [
                 'component' => 'airtime_balance',
                 'user_id' => $user->id,
+                'sim_slot' => $simSlot,
+                'raw_response' => $response,
             ]);
 
-            return $this->cached($user);
+            $fallbackResponse = $this->executeBalanceQuery(
+                $simSlot,
+                (int) ($settings->ussd_timeout_seconds ?? 60),
+                'advanced'
+            );
+
+            if ($fallbackResponse !== null) {
+                $fallbackBalance = $this->parseBalance($fallbackResponse);
+                if ($fallbackBalance !== null) {
+                    $response = $fallbackResponse;
+                    $balance = $fallbackBalance;
+                }
+            }
         }
 
-        Log::info('Bingwa airtime balance USSD response received.', [
-            'component' => 'airtime_balance',
-            'user_id' => $user->id,
-            'response_length' => strlen($response),
-        ]);
-
-        $balance = $this->parseBalance($response);
-
-        if ($balance === null) {
-            Log::warning('Bingwa airtime balance refresh failed: Could not parse balance.', [
+        if ($balance === null || $response === null) {
+            Log::warning('Bingwa airtime balance refresh failed: Could not retrieve or parse balance.', [
                 'component' => 'airtime_balance',
                 'user_id' => $user->id,
                 'raw_response' => $response,
@@ -53,6 +67,7 @@ class RefreshAirtimeBalance
 
             return $this->cached($user);
         }
+
         $checkedAt = now();
 
         $deviceSettings = DeviceSetting::query()->firstOrNew([
@@ -126,13 +141,14 @@ class RefreshAirtimeBalance
             || stripos($rawResponse, 'not granted') !== false;
     }
 
-    private function executeBalanceQuery(int $simSlot, int $timeoutSeconds): ?string
+    private function executeBalanceQuery(int $simSlot, int $timeoutSeconds, string $mode = 'express'): ?string
     {
         $nativephpAvailable = function_exists('nativephp_call');
 
         Log::debug('Bingwa airtime USSD probe.', [
             'component' => 'airtime_balance',
             'sim_slot' => $simSlot,
+            'mode' => $mode,
             'nativephp_call_available' => $nativephpAvailable,
         ]);
 
@@ -143,7 +159,7 @@ class RefreshAirtimeBalance
         $payload = json_encode([
             'id' => -1, // Use a negative/dummy ID to bypass non-null async check (though we want it sync)
             'code' => '*144#',
-            'mode' => 'express',
+            'mode' => $mode,
             'simSlot' => $simSlot,
             'timeoutSeconds' => max(1, $timeoutSeconds),
             'runAsync' => false,

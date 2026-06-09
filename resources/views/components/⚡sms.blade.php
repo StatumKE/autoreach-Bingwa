@@ -44,6 +44,7 @@ new #[Title('SMS History')] class extends Component {
                 'transaction_id',
                 'sender_phone',
                 'sender_name',
+                'auto_reply_id',
                 'auto_reply_message',
                 'auto_reply_failure_reason',
                 'auto_reply_status',

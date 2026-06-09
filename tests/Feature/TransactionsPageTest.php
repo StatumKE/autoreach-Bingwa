@@ -143,7 +143,7 @@ test('transactions rows open a detail modal with the resolved ussd code and matc
         ->call('openTransactionDetails', $transaction->id)
         ->assertSet('showTransactionDetails', true)
         ->assertSet('selectedTransactionId', $transaction->id)
-        ->assertSee('Transaction #'.$transaction->id)
+        ->assertSee('Transaction Details')
         ->assertSee('Matched App Product')
         ->assertSee('1 GB Data')
         ->assertSee('*180*5*2*0712345678*1*1#')

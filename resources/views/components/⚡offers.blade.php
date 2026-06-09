@@ -138,6 +138,7 @@ new #[Title('My Offers')] class extends Component {
     public function setCategoryFilter(string $category): void
     {
         $this->activeCategory = $category;
+        $this->resetPage();
     }
 
     /**

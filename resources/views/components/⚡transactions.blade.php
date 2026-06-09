@@ -749,91 +749,107 @@ new #[Title('Transactions')] class extends Component
         @endphp
 
         @if ($selectedTransaction)
-            <div x-data="{ copied: false }" class="space-y-3.5">
+            <div x-data="{ copied: false }" class="space-y-3">
                 <div class="space-y-0.5">
-                    <flux:heading size="md">{{ __('Transaction #:id', ['id' => $selectedTransaction->id]) }}</flux:heading>
-                    <flux:text class="text-xs text-zinc-500">
-                        {{ $this->transactionProductLabel($selectedTransaction) }}
-                    </flux:text>
+                    <flux:heading size="md">{{ __('Transaction Details') }}</flux:heading>
                 </div>
 
-                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div class="flex flex-col gap-2">
+                    {{-- Status Card --}}
                     <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Status') }}</div>
-                        <div class="mt-0.5 text-xs font-bold text-zinc-900">
-                            {{ blank($selectedTransaction->status) ? __('Pending') : $selectedTransaction->status }}
-                            @if ($selectedTransaction->status === 'failed' && $selectedTransaction->next_attempt_at)
-                                <span class="ml-2 inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber-600">
-                                    {{ __('Rescheduled') }}
-                                </span>
+                        <div class="grid @if($selectedTransaction->next_attempt_at) grid-cols-2 gap-4 @else grid-cols-1 @endif">
+                            <div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Status') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900">
+                                    {{ blank($selectedTransaction->status) ? __('Pending') : $selectedTransaction->status }}
+                                    @if ($selectedTransaction->status === 'failed' && $selectedTransaction->next_attempt_at)
+                                        <span class="ml-2 inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber-600">
+                                            {{ __('Rescheduled') }}
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                            @if ($selectedTransaction->next_attempt_at)
+                                <div>
+                                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Rescheduled For') }}</div>
+                                    <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ AppTimezone::format($selectedTransaction->next_attempt_at, 'H:i, M j, Y') }}</div>
+                                </div>
                             @endif
                         </div>
                     </div>
-                    @if ($selectedTransaction->next_attempt_at)
-                        <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
-                            <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Rescheduled For') }}</div>
-                            <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ AppTimezone::format($selectedTransaction->next_attempt_at, 'H:i, M j, Y') }}</div>
+
+                    {{-- Amount and Sender Card --}}
+                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Amount') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900">Ksh {{ number_format((float) $selectedTransaction->amount) }}</div>
+                            </div>
+                            <div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Sender') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $selectedTransaction->sender_name ?: __('Unknown sender') }}</div>
+                                <div class="mt-0.5 flex items-center gap-2">
+                                    <div class="text-[10px] text-zinc-500">{{ $selectedTransaction->sender_phone }}</div>
+                                    @if (filled($selectedTransaction->sender_phone))
+                                        <flux:button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            class="!h-5 px-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500"
+                                            data-phone="{{ $selectedTransaction->sender_phone }}"
+                                            x-on:click="
+                                                let phone = $el.getAttribute('data-phone');
+                                                let fallbackCopy = function(text) {
+                                                    let ta = document.createElement('textarea');
+                                                    ta.value = text;
+                                                    ta.style.position = 'fixed';
+                                                    ta.style.left = '-9999px';
+                                                    ta.style.top = '0';
+                                                    ta.setAttribute('readonly', '');
+                                                    document.body.appendChild(ta);
+                                                    ta.select();
+                                                    ta.setSelectionRange(0, 99999);
+                                                    document.execCommand('copy');
+                                                    document.body.removeChild(ta);
+                                                };
+                                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                                    navigator.clipboard.writeText(phone).catch(() => fallbackCopy(phone));
+                                                } else {
+                                                    fallbackCopy(phone);
+                                                }
+                                                copied = true;
+                                                setTimeout(() => copied = false, 1200);
+                                            "
+                                        >
+                                            <span x-show="!copied">{{ __('Copy') }}</span>
+                                            <span x-show="copied" x-cloak>{{ __('Copied') }}</span>
+                                        </flux:button>
+                                    @endif
+                                </div>
+                            </div>
                         </div>
-                    @endif
-                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Amount') }}</div>
-                        <div class="mt-0.5 text-xs font-bold text-zinc-900">Ksh {{ number_format((float) $selectedTransaction->amount) }}</div>
                     </div>
+
+                    {{-- M-PESA Code and Matched Offer Card --}}
                     <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Sender') }}</div>
-                        <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $selectedTransaction->sender_name ?: __('Unknown sender') }}</div>
-                        <div class="mt-0.5 flex items-center gap-2">
-                            <div class="text-[10px] text-zinc-500">{{ $selectedTransaction->sender_phone }}</div>
-                            @if (filled($selectedTransaction->sender_phone))
-                                <flux:button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    class="!h-5 px-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500"
-                                    data-phone="{{ $selectedTransaction->sender_phone }}"
-                                    x-on:click="
-                                        let phone = $el.getAttribute('data-phone');
-                                        let fallbackCopy = function(text) {
-                                            let ta = document.createElement('textarea');
-                                            ta.value = text;
-                                            ta.style.position = 'fixed';
-                                            ta.style.left = '-9999px';
-                                            ta.style.top = '0';
-                                            ta.setAttribute('readonly', '');
-                                            document.body.appendChild(ta);
-                                            ta.select();
-                                            ta.setSelectionRange(0, 99999);
-                                            document.execCommand('copy');
-                                            document.body.removeChild(ta);
-                                        };
-                                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                                            navigator.clipboard.writeText(phone).catch(() => fallbackCopy(phone));
-                                        } else {
-                                            fallbackCopy(phone);
-                                        }
-                                        copied = true;
-                                        setTimeout(() => copied = false, 1200);
-                                    "
-                                >
-                                    <span x-show="!copied">{{ __('Copy') }}</span>
-                                    <span x-show="copied" x-cloak>{{ __('Copied') }}</span>
-                                </flux:button>
-                            @endif
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('M-PESA Code') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $selectedTransaction->mpesa_code ?: '—' }}</div>
+                            </div>
+                            <div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Matched App Product') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $this->transactionProductLabel($selectedTransaction) }}</div>
+                                <div class="mt-0.5 text-[10px] text-zinc-500">{{ $selectedTransaction->offer_type ?: '—' }}</div>
+                            </div>
                         </div>
                     </div>
+
+                    {{-- USSD Code Card --}}
                     <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('M-PESA Code') }}</div>
-                        <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $selectedTransaction->mpesa_code ?: '—' }}</div>
-                    </div>
-                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200 sm:col-span-2">
                         <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('USSD Code') }}</div>
                         <div class="mt-0.5 font-mono text-xs font-bold text-zinc-900 break-all">{{ $this->resolvedUssdCode($selectedTransaction) }}</div>
                         <div class="mt-0.5 text-[10px] text-zinc-500">{{ $selectedTransaction->offer?->ussd_mode ?: '—' }}</div>
-                    </div>
-                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200 sm:col-span-2">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Matched App Product') }}</div>
-                        <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $this->transactionProductLabel($selectedTransaction) }}</div>
-                        <div class="mt-0.5 text-[10px] text-zinc-500">{{ $selectedTransaction->offer_type ?: '—' }}</div>
                     </div>
                 </div>
 

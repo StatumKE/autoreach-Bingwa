@@ -67,8 +67,9 @@ describe('DispatchBingwaQueuedTransactionsJob', function (): void {
         Bus::assertDispatched(ProcessBingwaQueuedTransactionsJob::class, fn ($j) => $j->userId === $userB->id);
     });
 
-    it('does not call nativephp_call for wake — wake is handled in Kotlin', function (): void {
-        Bus::fake();
+    it('calls nativephp_call for wake immediately when a new job is dispatched', function (): void {
+        // We do NOT fake the Bus here because we want the JobQueued event to fire.
+        // Bus::fake() intercepts the job before it hits the queue, preventing the event.
 
         $user = User::factory()->create();
         DeviceSetting::factory()->for($user)->create(['transaction_processing_enabled' => true]);
@@ -77,10 +78,10 @@ describe('DispatchBingwaQueuedTransactionsJob', function (): void {
 
         app(DispatchBingwaQueuedTransactionsJob::class)->dispatch($user->id);
 
-        // The PHP action must NOT call nativephp_call('WakeQueueWorker').
-        // The WAKE_WORKER intent is sent from Kotlin's postCallback() directly
-        // to PHPQueueService, which targets the correct :queue process.
-        expect($GLOBALS['last_nativephp_call'])->toBeNull();
+        // The WAKE_WORKER intent is sent from PHP (AppServiceProvider)
+        // when the job is actually queued to ensure the worker starts without delay.
+        expect($GLOBALS['last_nativephp_call'])->not->toBeNull();
+        expect($GLOBALS['last_nativephp_call']['function'])->toBe('WakeQueueWorker');
     });
 });
 

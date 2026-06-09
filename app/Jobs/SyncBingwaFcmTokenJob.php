@@ -7,6 +7,7 @@ use App\Actions\Autoreach\SyncBingwaFcmToken;
 use App\Models\BingwaDeviceRegistration;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Native\Mobile\Facades\PushNotifications;
 
-class SyncBingwaFcmTokenJob implements ShouldQueue
+class SyncBingwaFcmTokenJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -27,7 +28,15 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
         public ?string $flowId = null,
     ) {}
 
-    public int $tries = 6;
+    /**
+     * The unique ID of the job.
+     */
+    public function uniqueId(): string
+    {
+        return (string) $this->userId;
+    }
+
+    public int $tries = 0;
 
     public bool $enrollmentRequested = false;
 
@@ -80,9 +89,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
                 'delay_seconds' => $delay,
             ]);
 
-            if ($attempt < $this->tries) {
-                $this->release($delay);
-            }
+            $this->release($delay);
 
             return;
         }
@@ -126,9 +133,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
 
                 report($throwable);
 
-                if ($this->attempts() < $this->tries) {
-                    $this->release($this->backoff()[0]);
-                }
+                $this->release($this->backoff()[0]);
 
                 return;
             }
@@ -149,9 +154,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
                 'delay_seconds' => $delay,
             ]);
 
-            if ($attempt < $this->tries) {
-                $this->release($delay);
-            }
+            $this->release($delay);
 
             return;
         }
@@ -178,9 +181,7 @@ class SyncBingwaFcmTokenJob implements ShouldQueue
             'delay_seconds' => $delay,
         ]);
 
-        if ($attempt < $this->tries) {
-            $this->release($delay);
-        }
+        $this->release($delay);
 
         Log::debug('Bingwa FCM sync job finished.', [
             'component' => 'fcm_sync',

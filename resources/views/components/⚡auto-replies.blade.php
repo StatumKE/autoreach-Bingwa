@@ -407,6 +407,7 @@ new #[Title('Auto Replies')] class extends Component {
     x-data="{
         outboundSmsGranted: true,
         requestingPermission: false,
+        pollInterval: null,
         async checkOutboundSms() {
             try {
                 const res = await fetch('/_native/api/call', {
@@ -422,6 +423,10 @@ new #[Title('Auto Replies')] class extends Component {
                 const data = envelope?.data ?? null;
                 if (data) {
                     this.outboundSmsGranted = data.outboundSmsGranted ?? true;
+                    if (this.outboundSmsGranted && this.pollInterval) {
+                        clearInterval(this.pollInterval);
+                        this.pollInterval = null;
+                    }
                 }
             } catch {}
         },
@@ -442,9 +447,20 @@ new #[Title('Auto Replies')] class extends Component {
                 const data = envelope?.data ?? null;
                 if (data?.outboundSmsGranted) {
                     this.outboundSmsGranted = true;
+                    if (this.pollInterval) {
+                        clearInterval(this.pollInterval);
+                        this.pollInterval = null;
+                    }
+                } else {
+                    this.startPolling();
                 }
             } catch {}
             this.requestingPermission = false;
+        },
+        startPolling() {
+            if (!this.pollInterval) {
+                this.pollInterval = setInterval(() => this.checkOutboundSms(), 2000);
+            }
         },
         async toggleWithPermissionCheck(wireId) {
             if (!this.outboundSmsGranted) {
@@ -458,8 +474,16 @@ new #[Title('Auto Replies')] class extends Component {
             Livewire.find(wireId)?.call('toggleAutoReply', ...arguments);
         },
     }"
-    x-init="checkOutboundSms()"
+    x-init="
+        checkOutboundSms().then(() => {
+            if (!outboundSmsGranted) {
+                startPolling();
+            }
+        });
+    "
+    x-on:destroy="if (pollInterval) clearInterval(pollInterval)"
     @visibilitychange.window="if (document.visibilityState === 'visible') checkOutboundSms()"
+    @focus.window="checkOutboundSms()"
 >
     @php
         $autoReplies = $this->loaded ? $this->autoReplies : collect();

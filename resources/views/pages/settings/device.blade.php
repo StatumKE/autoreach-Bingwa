@@ -190,7 +190,7 @@
             </article>
 
             <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-                <form method="POST" action="{{ route('device.processing.toggle') }}" class="space-y-6">
+                <form id="form-device-processing" method="POST" action="{{ route('device.processing.toggle') }}" class="space-y-6">
                     @csrf
 
                     <div class="space-y-1">
@@ -236,18 +236,49 @@
                             </p>
                         </div>
 
-                        <button
-                            type="submit"
-                            @class([
-                                'shrink-0 rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider text-white transition shadow-sm',
-                                'bg-rose-600 hover:bg-rose-500' => $transactionProcessingEnabled,
-                                'bg-green-600 hover:bg-green-500' => ! $transactionProcessingEnabled,
-                            ])
-                        >
-                            {{ $transactionProcessingEnabled ? __('Disable Processing') : __('Resume Processing') }}
-                        </button>
+                        <flux:modal.trigger name="device-processing-modal">
+                            <button
+                                type="button"
+                                @class([
+                                    'shrink-0 rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider text-white transition shadow-sm',
+                                    'bg-rose-600 hover:bg-rose-500' => $transactionProcessingEnabled,
+                                    'bg-green-600 hover:bg-green-500' => ! $transactionProcessingEnabled,
+                                ])
+                            >
+                                {{ $transactionProcessingEnabled ? __('Disable Processing') : __('Resume Processing') }}
+                            </button>
+                        </flux:modal.trigger>
                     </div>
                 </form>
+
+                <flux:modal name="device-processing-modal" class="max-w-md">
+                    <div class="space-y-6">
+                        <div>
+                            <flux:heading size="lg">
+                                {{ $transactionProcessingEnabled ? __('Pause Transaction Processing?') : __('Activate Transaction Processing?') }}
+                            </flux:heading>
+                            <flux:text class="mt-2 text-sm text-zinc-500">
+                                {{ $transactionProcessingEnabled
+                                    ? __('Pausing transaction processing will stop the app from automatically fulfilling incoming SMS or queuing USSD codes. Incoming requests will be kept in the queue until you activate processing again.')
+                                    : __('Activating transaction processing will allow the app to resume automatically fulfilling incoming requests via USSD.') }}
+                            </flux:text>
+                        </div>
+
+                        <div class="flex justify-end gap-2">
+                            <flux:modal.close>
+                                <flux:button variant="ghost">{{ __('Cancel') }}</flux:button>
+                            </flux:modal.close>
+                            
+                            <flux:button
+                                type="submit"
+                                form="form-device-processing"
+                                variant="{{ $transactionProcessingEnabled ? 'danger' : 'primary' }}"
+                            >
+                                {{ $transactionProcessingEnabled ? __('Pause Processing') : __('Activate Processing') }}
+                            </flux:button>
+                        </div>
+                    </div>
+                </flux:modal>
             </article>
 
             <article class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">

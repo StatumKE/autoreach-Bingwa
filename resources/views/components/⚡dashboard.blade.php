@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Flux\Flux;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -26,6 +27,8 @@ new #[Title('Dashboard')] class extends Component
     public ?string $airtimeBalanceRawResponse = null;
 
     public bool $callPhonePermissionDenied = false;
+
+    public bool $isProcessingEnabled = true;
 
     /**
      * Guards against concurrent USSD bridge calls from overlapping polls.
@@ -44,6 +47,7 @@ new #[Title('Dashboard')] class extends Component
         ]);
 
         $this->hydrateAirtimeBalance();
+        $this->isProcessingEnabled = \App\Models\DeviceSetting::isTransactionProcessingEnabledForUser((int) Auth::id());
 
         \App\Jobs\PrefetchSubscriptionPlansJob::dispatch((int) Auth::id());
 
@@ -138,11 +142,11 @@ new #[Title('Dashboard')] class extends Component
 
     public function getWeekLabelsProperty(): array
     {
-        $date = now()->startOfWeek(Carbon::SUNDAY);
+        $now = AppTimezone::now();
         $labels = [];
 
-        for ($i = 0; $i < 7; $i++) {
-            $labels[] = $date->copy()->addDays($i)->format('D - d');
+        for ($i = 6; $i >= 0; $i--) {
+            $labels[] = $now->copy()->subDays($i)->format('D - d');
         }
 
         return $labels;
@@ -224,9 +228,34 @@ new #[Title('Dashboard')] class extends Component
     public function refreshTransactions(): void
     {
         $this->hydrateAirtimeBalance();
+        $this->isProcessingEnabled = \App\Models\DeviceSetting::isTransactionProcessingEnabledForUser((int) Auth::id());
         
         // Livewire will automatically re-render the recentTransactions computed
         // property on the next render cycle after this method completes.
+    }
+
+    /**
+     * Toggle the transaction processing setting.
+     */
+    public function toggleProcessing(): void
+    {
+        $setting = \App\Models\DeviceSetting::firstOrCreate(['user_id' => Auth::id()]);
+        $setting->transaction_processing_enabled = !$this->isProcessingEnabled;
+        $setting->save();
+        $this->isProcessingEnabled = $setting->transaction_processing_enabled;
+        
+        if ($this->isProcessingEnabled) {
+            app(\App\Actions\Autoreach\DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) Auth::id());
+        }
+
+        $this->dispatch('modal-close', name: 'toggle-processing-modal');
+
+        Flux::toast(
+            variant: 'success',
+            text: $this->isProcessingEnabled 
+                ? __('Transaction processing activated.') 
+                : __('Transaction processing paused.')
+        );
     }
 
     /**
@@ -264,8 +293,8 @@ new #[Title('Dashboard')] class extends Component
             $userId = (int) Auth::id();
             $now = AppTimezone::now();
             $today = $now->toDateString();
-            $startOfWeek = $now->copy()->startOfWeek();
-            $endOfWeek = $now->copy()->endOfWeek();
+            $startOfWindow = $now->copy()->subDays(6)->startOfDay();
+            $endOfWindow = $now->copy()->endOfDay();
 
             // Single aggregated query for today's stats
             $todayRow = DB::selectOne(
@@ -282,7 +311,7 @@ new #[Title('Dashboard')] class extends Component
             $dailyTotals = Transaction::query()
                 ->where('user_id', $userId)
                 ->where('status', 'completed')
-                ->whereBetween('occurred_at', [$startOfWeek, $endOfWeek])
+                ->whereBetween('occurred_at', [$startOfWindow, $endOfWindow])
                 ->select(DB::raw('DATE(occurred_at) as date'), DB::raw('SUM(amount) as total'))
                 ->groupBy('date')
                 ->get()
@@ -292,8 +321,8 @@ new #[Title('Dashboard')] class extends Component
             $dataPoints = [];
             $totalCommission = 0;
 
-            for ($i = 0; $i < 7; $i++) {
-                $date = $startOfWeek->copy()->addDays($i)->format('Y-m-d');
+            for ($i = 6; $i >= 0; $i--) {
+                $date = $now->copy()->subDays($i)->format('Y-m-d');
                 $value = (float) ($dailyTotals[$date] ?? 0);
 
                 $dataPoints[] = $value;
@@ -451,26 +480,75 @@ new #[Title('Dashboard')] class extends Component
         {{-- Stat Cards --}}
         @island
         <div wire:poll.visible.5s class="grid grid-cols-3 gap-2">
-
-        {{-- CALL_PHONE permission warning --}}
-        @if ($this->callPhonePermissionDenied)
-            <div class="col-span-3 flex items-start gap-3 rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200">
-                <flux:icon.exclamation-triangle class="mt-0.5 size-4 shrink-0 text-amber-500" />
-                <div class="min-w-0">
-                    <div class="text-xs font-bold text-amber-800">{{ __('Phone Permission Required') }}</div>
-                    <div class="mt-0.5 text-[11px] leading-snug text-amber-700">
-                        {{ __('Airtime balance cannot be fetched. Enable Phone access to see your balance.') }}
-                    </div>
-                    <button 
-                        type="button"
-                        x-on:click="requestSetupPermissionsOnce(true)"
-                        class="mt-2 rounded-lg bg-amber-200/50 px-3 py-1 text-[10px] font-bold text-amber-900 transition hover:bg-amber-200 active:scale-95"
-                    >
-                        {{ __('Grant Access') }}
-                    </button>
+        {{-- Processing Paused Warning --}}
+        @if(!$this->isProcessingEnabled)
+        <div class="col-span-3 flex items-start gap-3 rounded-xl bg-rose-50 px-4 py-3 ring-1 ring-rose-200">
+            <flux:icon.pause-circle class="mt-0.5 size-4 shrink-0 text-rose-500" />
+            <div class="min-w-0">
+                <div class="text-xs font-bold text-rose-800">{{ __('Processing Paused') }}</div>
+                <div class="mt-0.5 text-[11px] leading-snug text-rose-700">
+                    {{ __('Transaction processing is currently paused. New transactions will be queued but not processed until you activate it.') }}
                 </div>
             </div>
+        </div>
         @endif
+
+        {{-- CALL_PHONE permission warning --}}
+        <div
+            x-data="{
+                phoneGranted: true,
+                async checkPhonePermission() {
+                    try {
+                        const res = await fetch('/_native/api/call', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+                            },
+                            body: JSON.stringify({ method: 'CheckSetupStatus', params: {} }),
+                        });
+                        if (!res.ok) return;
+                        const data = (await res.json())?.data;
+                        if (data) {
+                            this.phoneGranted = data.phoneGranted ?? true;
+                        }
+                    } catch {}
+                },
+                async requestPhonePermission() {
+                    try {
+                        await fetch('/_native/api/call', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+                            },
+                            body: JSON.stringify({ method: 'RequestSetupPermissions', params: { force: true } }),
+                        });
+                        setTimeout(() => this.checkPhonePermission(), 1000);
+                    } catch {}
+                }
+            }"
+            x-init="checkPhonePermission()"
+            @visibilitychange.window="if (document.visibilityState === 'visible') checkPhonePermission()"
+            x-show="!phoneGranted"
+            x-cloak
+            class="col-span-3 flex items-start gap-3 rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200"
+        >
+            <flux:icon.exclamation-triangle class="mt-0.5 size-4 shrink-0 text-amber-500" />
+            <div class="min-w-0">
+                <div class="text-xs font-bold text-amber-800">{{ __('Phone Permission Required') }}</div>
+                <div class="mt-0.5 text-[11px] leading-snug text-amber-700">
+                    {{ __('Airtime balance cannot be fetched. Enable Phone access to see your balance.') }}
+                </div>
+                <button 
+                    type="button"
+                    x-on:click="requestPhonePermission()"
+                    class="mt-2 rounded-lg bg-amber-200/50 px-3 py-1 text-[10px] font-bold text-amber-900 transition hover:bg-amber-200 active:scale-95"
+                >
+                    {{ __('Grant Access') }}
+                </button>
+            </div>
+        </div>
             <a href="{{ route('transactions', ['filter' => 'success']) }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#0f652a] px-1.5 py-1 text-white transition active:scale-[0.97]">
                 <div class="text-[8px] font-bold uppercase tracking-wider text-emerald-100/90">{{ __('Successful') }}</div>
                 <div class="mt-0.5 text-sm font-bold leading-none">{{ number_format($this->stats['successful']) }}</div>
@@ -550,7 +628,7 @@ new #[Title('Dashboard')] class extends Component
         {{-- Commission Chart --}}
         <div class="rounded-xl bg-[#f6f8f0] px-4 py-3 ring-1 ring-black/5">
             <div class="text-center text-[10px] font-bold uppercase tracking-widest text-green-700/90">
-                {{ __("This week's commission (Ksh. :amount)", ['amount' => number_format($this->commissionData['total'], 2)]) }}
+                {{ __("Last 7 days commission (Ksh. :amount)", ['amount' => number_format($this->commissionData['total'], 2)]) }}
             </div>
 
             @php
@@ -683,5 +761,61 @@ new #[Title('Dashboard')] class extends Component
                 </div>
             </div>
         @endisland
+
+        {{-- Floating Action Button --}}
+        <div class="fixed bottom-24 right-4 z-50 lg:bottom-8 lg:right-8">
+            <flux:modal.trigger name="toggle-processing-modal">
+                <button
+                    type="button"
+                    class="flex h-12 w-12 items-center justify-center rounded-full shadow-lg ring-1 transition-transform active:scale-95 focus:outline-none"
+                    :class="$wire.isProcessingEnabled ? 'bg-green-600 text-white ring-green-700' : 'bg-rose-600 text-white ring-rose-700'"
+                >
+                    @if($this->isProcessingEnabled)
+                        <flux:icon.pause variant="solid" class="size-6" />
+                    @else
+                        <flux:icon.play variant="solid" class="size-6 ml-0.5" />
+                    @endif
+                </button>
+            </flux:modal.trigger>
+        </div>
+
+        {{-- Toggle Modal --}}
+        <flux:modal name="toggle-processing-modal" class="max-w-md">
+            <div class="space-y-6">
+                <div>
+                    <flux:heading size="lg">
+                        @if($this->isProcessingEnabled)
+                            {{ __('Pause Transaction Processing?') }}
+                        @else
+                            {{ __('Activate Transaction Processing?') }}
+                        @endif
+                    </flux:heading>
+                    <flux:text class="mt-2 text-sm text-zinc-500">
+                        @if($this->isProcessingEnabled)
+                            {{ __('Pausing transaction processing will stop the app from automatically fulfilling incoming SMS or queuing USSD codes. Incoming requests will be kept in the queue until you activate processing again.') }}
+                        @else
+                            {{ __('Activating transaction processing will allow the app to resume automatically fulfilling incoming requests via USSD.') }}
+                        @endif
+                    </flux:text>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <flux:modal.close>
+                        <flux:button variant="ghost">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
+                    <flux:button
+                        :variant="$this->isProcessingEnabled ? 'danger' : 'primary'"
+                        wire:click="toggleProcessing"
+                        x-on:click="$dispatch('modal-close', { name: 'toggle-processing-modal' })"
+                    >
+                        @if($this->isProcessingEnabled)
+                            {{ __('Pause Processing') }}
+                        @else
+                            {{ __('Activate Processing') }}
+                        @endif
+                    </flux:button>
+                </div>
+            </div>
+        </flux:modal>
     </div>
 </div>

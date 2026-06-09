@@ -24,6 +24,14 @@ class DispatchBingwaQueuedTransactionsJob
             'user_id' => $userId,
         ]);
 
+        if (function_exists('nativephp_call')) {
+            try {
+                nativephp_call('WakeQueueWorker', '{}');
+            } catch (\Throwable $e) {
+                // Ignore if bridge is unavailable
+            }
+        }
+
         return true;
     }
 }

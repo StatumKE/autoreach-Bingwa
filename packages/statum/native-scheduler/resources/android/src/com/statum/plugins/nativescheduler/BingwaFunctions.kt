@@ -224,10 +224,18 @@ object BingwaFunctions {
                 )
             }
 
-            val permanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
-                activity,
-                Manifest.permission.SEND_SMS,
-            )
+            val sharedPrefs = activity.getSharedPreferences("bingwa_prefs", Context.MODE_PRIVATE)
+            val hasRequestedSendSms = sharedPrefs.getBoolean("has_requested_send_sms", false)
+
+            var permanentlyDenied = false
+            if (hasRequestedSendSms) {
+                permanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity,
+                    Manifest.permission.SEND_SMS,
+                )
+            } else {
+                sharedPrefs.edit().putBoolean("has_requested_send_sms", true).apply()
+            }
 
             if (permanentlyDenied) {
                 val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {

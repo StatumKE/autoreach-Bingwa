@@ -36,6 +36,16 @@ class SyncBingwaTransactions extends Command
 
         SyncBingwaTransactionsJob::dispatch($registration->user->getKey());
 
+        if (function_exists('nativephp_call')) {
+            try {
+                nativephp_call('WakeQueueWorker', '{}');
+            } catch (\Throwable $e) {
+                // Ignore if bridge is unavailable
+            }
+        }
+
+        $this->info("Dispatched sync job for {$registration->user->phone}");
+
         $data = [
             'queued' => true,
             'message' => '✅ Sync job queued successfully.',

@@ -46,7 +46,15 @@ class HandleNativePushNotificationReceived
             return;
         }
 
-        SyncBingwaTransactionsJob::dispatchSync($user->getKey(), $data);
+        SyncBingwaTransactionsJob::dispatch($user->getKey(), $data);
+
+        if (function_exists('nativephp_call')) {
+            try {
+                nativephp_call('WakeQueueWorker', '{}');
+            } catch (\Throwable $e) {
+                // Ignore if bridge is unavailable
+            }
+        }
 
         Log::debug('Bingwa push notification dispatched the transaction sync job.', [
             'user_id' => $user->getKey(),

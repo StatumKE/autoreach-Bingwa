@@ -25,12 +25,12 @@ class FetchBingwaSubscriptionPlans
         $deviceToken = $this->resolveDeviceToken($user);
 
         if ($forceRefresh) {
-            return $this->fetchFresh($user, $deviceToken);
+            $this->forget($user);
         }
 
-        return Cache::flexible(
+        return Cache::remember(
             $this->cacheKey($user->id, $deviceToken),
-            [1800, 3600],
+            now()->addMinutes(self::CACHE_TTL_MINUTES),
             function () use ($user, $deviceToken): array {
                 return $this->fetchFresh($user, $deviceToken);
             }
@@ -93,15 +93,20 @@ class FetchBingwaSubscriptionPlans
         if ($response->successful()) {
             Log::debug('📦 Plans response received', ['plans_count' => count($response->json('plans') ?? $response->json('data') ?? [])]);
 
-            $plans = $this->normalizePlansResponse($response);
+            $data = $this->normalizePlansResponse($response);
 
-            Cache::put(
-                $this->cacheKey($user->id, $effectiveDeviceToken),
-                $plans,
-                now()->addMinutes(self::CACHE_TTL_MINUTES),
-            );
+            // Edge case: if we recovered a new token, the outer Cache::remember
+            // will save this data against the OLD token key. Let's explicitly save it
+            // against the NEW token key here so the cache is immediately valid for the UI.
+            if ($effectiveDeviceToken !== $deviceToken) {
+                Cache::put(
+                    $this->cacheKey($user->id, $effectiveDeviceToken),
+                    $data,
+                    now()->addMinutes(self::CACHE_TTL_MINUTES)
+                );
+            }
 
-            return $plans;
+            return $data;
         }
 
         Log::error('❌ Plans fetch failed', ['status' => $response->status(), 'body' => $response->json()]);
@@ -170,15 +175,23 @@ class FetchBingwaSubscriptionPlans
         $baseUrl = rtrim((string) config('services.autoreach.backend_url'), '/');
         Log::debug("🌐 Fetching plans from: {$baseUrl}/api/v1/subscription/plans/hybrid");
 
-        return Http::baseUrl($baseUrl)
-            ->retry(3, 100, function (\Throwable $exception): bool {
-                return $exception instanceof ConnectionException;
-            }, throw: false)
-            ->acceptJson()
-            ->asJson()
-            ->withToken($deviceToken)
-            ->timeout(30)
-            ->get('/api/v1/subscription/plans/hybrid');
+        try {
+            return Http::baseUrl($baseUrl)
+                ->retry(3, 100, function (\Throwable $exception): bool {
+                    return $exception instanceof ConnectionException;
+                }, throw: false)
+                ->acceptJson()
+                ->asJson()
+                ->withToken($deviceToken)
+                ->timeout(30)
+                ->get('/api/v1/subscription/plans/hybrid');
+        } catch (ConnectionException $e) {
+            Log::error('❌ Plans fetch connection failed', ['error' => $e->getMessage()]);
+
+            throw ValidationException::withMessages([
+                'device_token' => __('Unable to connect to the server. Please check your internet connection and try again.'),
+            ]);
+        }
     }
 
     private function cacheKey(int $userId, string $deviceToken): string

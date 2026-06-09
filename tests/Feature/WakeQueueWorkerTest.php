@@ -36,8 +36,9 @@ it('does not dispatch the job when transaction processing is disabled', function
     Bus::assertNotDispatched(ProcessBingwaQueuedTransactionsJob::class);
 });
 
-it('does not call nativephp_call for waking the worker (wake is handled in Kotlin)', function (): void {
-    Bus::fake();
+it('calls nativephp_call to wake the worker immediately when a job is queued', function (): void {
+    // We do NOT fake the Bus here because we want the JobQueued event to fire.
+    // Bus::fake() intercepts the job before it hits the queue, preventing the event.
 
     $user = User::factory()->create();
 
@@ -45,14 +46,13 @@ it('does not call nativephp_call for waking the worker (wake is handled in Kotli
         'transaction_processing_enabled' => true,
     ]);
 
-    // The PHP layer no longer calls nativephp_call('WakeQueueWorker').
-    // The WAKE_WORKER intent is sent in Kotlin's postCallback() directly to PHPQueueService,
-    // which correctly targets the :queue process without going through the PHP bridge.
+    // The JobQueued event listener in AppServiceProvider calls nativephp_call('WakeQueueWorker').
     $GLOBALS['last_nativephp_call'] = null;
 
     app(DispatchBingwaQueuedTransactionsJob::class)->dispatch($user->id);
 
-    expect($GLOBALS['last_nativephp_call'])->toBeNull();
+    expect($GLOBALS['last_nativephp_call'])->not->toBeNull();
+    expect($GLOBALS['last_nativephp_call']['function'])->toBe('WakeQueueWorker');
 });
 
 if (! function_exists('nativephp_call')) {

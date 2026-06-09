@@ -79,6 +79,32 @@ class CompleteBingwaTransaction
             'failed' => $message ?? __('USSD call failed.'),
         };
 
+        $isGenericFailure = $status === 'failed' && str_contains(strtolower((string) $message), 'network returned a generic failure');
+
+        if ($isGenericFailure && $transaction->retry_count < 3) {
+            DB::transaction(function () use ($transaction, $statusDesc) {
+                $transaction->update([
+                    'status' => 'queued',
+                    'status_desc' => $statusDesc.' (Retrying '.($transaction->retry_count + 1).'/3)',
+                    'next_attempt_at' => now()->addSeconds(30),
+                    'processed_at' => null,
+                    'retry_count' => $transaction->retry_count + 1,
+                ]);
+            });
+
+            // Dispatch the next queued job to keep the queue processing autonomously
+            if (! ProcessBingwaQueuedTransactionsJob::$isProcessing) {
+                app(DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) $transaction->user_id);
+            }
+
+            Log::warning('Bingwa transaction generic network failure caught. Queued for automatic retry.', [
+                'transaction_id' => $transaction->id,
+                'retry_count' => $transaction->retry_count,
+            ]);
+
+            return true;
+        }
+
         $isDailyLimitHit = $status === 'failed' && str_contains((string) $message, 'Recommendation failed. The customer');
         $nextAttemptAt = null;
 

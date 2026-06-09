@@ -456,65 +456,53 @@ new #[Title('Auto Renewals')] class extends Component {
 
                 <div class="divide-y divide-zinc-100 md:hidden">
                     @foreach ($renewals as $renewal)
-                        <article class="space-y-4 px-5 py-4 transition hover:bg-zinc-50/80">
-                            <div class="flex items-start justify-between gap-4">
+                        <article class="space-y-3 px-4 py-3 transition hover:bg-zinc-50/80">
+                            <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
-                                    <div class="text-base font-black text-zinc-950">{{ $renewal->customer_phone }}</div>
-                                    <div class="mt-1 text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ $renewal->offer?->name ?? __('Unknown offer') }}</div>
-                                </div>
-
-                                <span @class([
-                                    'inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ring-1',
-                                    $this->statusClasses($renewal->status),
-                                ])>
-                                    {{ $this->statusLabel($renewal->status) }}
-                                </span>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="rounded-2xl bg-zinc-50 px-4 py-3 ring-1 ring-zinc-200">
-                                    <div class="text-[8px] font-black uppercase tracking-[0.24em] text-zinc-400">{{ __('Scheduled For') }}</div>
-                                    <div class="mt-1 text-sm font-black text-zinc-950">
-                                        {{ AppTimezone::format($renewal->scheduled_for, 'D d/m/Y') }}
-                                        <span class="block text-[10px] font-medium text-zinc-500">
-                                            {{ __('at') }} {{ AppTimezone::format($renewal->scheduled_for, 'H:i') }} Hrs
+                                    <div class="flex items-center gap-2">
+                                        <div class="text-sm font-black text-zinc-950">{{ $renewal->customer_phone }}</div>
+                                        <span @class([
+                                            'inline-flex items-center rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ring-1',
+                                            $this->statusClasses($renewal->status),
+                                        ])>
+                                            {{ $this->statusLabel($renewal->status) }}
                                         </span>
                                     </div>
-                                </div>
-
-                                <div class="rounded-2xl bg-zinc-50 px-4 py-3 ring-1 ring-zinc-200">
-                                    <div class="text-[8px] font-black uppercase tracking-[0.24em] text-zinc-400">{{ __('Renewal') }}</div>
-                                    <div class="mt-1 text-sm font-black text-zinc-950">
-                                        {{ $this->recurrenceLabel($renewal) }}
+                                    <div class="mt-0.5 text-[10px] font-bold text-zinc-500">
+                                        {{ $renewal->offer?->name ?? __('Unknown offer') }} &bull; Ksh {{ number_format((float) ($renewal->offer?->price ?? 0)) }}
+                                    </div>
+                                    <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-medium text-zinc-600">
+                                        <div class="flex items-center gap-1">
+                                            <flux:icon.calendar-days class="size-3 text-zinc-400" />
+                                            {{ AppTimezone::format($renewal->scheduled_for, 'd/m/y H:i') }}
+                                        </div>
+                                        <div class="flex items-center gap-1">
+                                            <flux:icon.arrow-path class="size-3 text-zinc-400" />
+                                            {{ $renewal->auto_renew ? $renewal->renew_days . ' Days' : 'Once' }}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            @php
-                                $tx = $matchedTransactions[$renewal->id] ?? null;
-                            @endphp
-                            @if ($tx || $renewal->notes)
-                                <div class="rounded-2xl bg-zinc-50 px-4 py-3 ring-1 ring-zinc-200 mt-2">
-                                    <div class="text-[8px] font-black uppercase tracking-[0.24em] text-zinc-400">{{ __('Purchase Message') }}</div>
-                                    <div class="mt-1 text-xs font-medium text-zinc-600 break-words">
-                                        {{ $tx ? $tx->status_desc : $renewal->notes }}
-                                    </div>
-                                </div>
-                            @endif
-
-                            <div class="flex items-center justify-between gap-3 border-t border-zinc-100 pt-3">
-                                <div class="text-sm font-black text-zinc-950">
-                                    Ksh {{ number_format((float) ($renewal->offer?->price ?? 0)) }}
-                                </div>
-
                                 <button
                                     type="button"
                                     wire:click="cancelAutoRenewal({{ $renewal->id }})"
                                     @disabled($renewal->status !== 'scheduled')
-                                    class="app-secondary-button px-4 py-2 text-[10px] font-black uppercase tracking-widest disabled:cursor-not-allowed disabled:opacity-50"
+                                    class="shrink-0 text-[10px] font-bold uppercase tracking-wider text-rose-500 disabled:opacity-30 p-1 -mr-1"
                                 >
                                     {{ __('Cancel') }}
                                 </button>
                             </div>
+
+                            @php
+                                $tx = $matchedTransactions[$renewal->id] ?? null;
+                                $msg = $tx ? $tx->status_desc : $renewal->notes;
+                            @endphp
+                            @if ($msg)
+                                <div class="rounded-xl bg-zinc-50/50 px-3 py-2 ring-1 ring-zinc-200">
+                                    <div class="text-[10px] leading-snug text-zinc-600 break-words font-medium">
+                                        {{ $msg }}
+                                    </div>
+                                </div>
+                            @endif
                         </article>
                     @endforeach
                 </div>

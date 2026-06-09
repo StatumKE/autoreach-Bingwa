@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Jobs\SendHeartbeatJob;
+use App\Jobs\SyncBingwaFcmTokenJob;
 use App\Services\BingwaDeviceContext;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -24,8 +25,17 @@ class SendBingwaHeartbeatCommand extends Command
             Log::warning('Bingwa heartbeat command skipped because no active device registration was found.');
             $this->warn('No active device registration found. Skipping heartbeat.');
 
+            $user = $deviceContext->user();
+            if ($user !== null) {
+                SyncBingwaFcmTokenJob::dispatch($user->getKey());
+            }
+
             return self::SUCCESS;
         }
+
+        // Always attempt to sync/verify FCM tokens on heartbeat. It uses a cache layer
+        // internally, so it's practically free if it's already synced!
+        SyncBingwaFcmTokenJob::dispatch($registration->user->getKey());
 
         Log::debug('Bingwa heartbeat command dispatching job.', [
             'user_id' => $registration->user->getKey(),

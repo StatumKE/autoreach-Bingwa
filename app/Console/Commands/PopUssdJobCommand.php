@@ -25,7 +25,7 @@ class PopUssdJobCommand extends Command
             // 1. Recovery Logic (Business Logic Preservation)
             $recoveredCount = Transaction::query()
                 ->where('status', 'processing')
-                ->where('updated_at', '<=', now()->subMinutes(45))
+                ->where('updated_at', '<=', now()->subMinutes(2))
                 ->update([
                     'status' => 'queued',
                     'status_desc' => __('Recovered: previous USSD attempt timed out.'),
@@ -67,7 +67,7 @@ class PopUssdJobCommand extends Command
                         'user_id' => $transaction->user_id,
                     ]);
 
-                    return ['skip' => true, 'id' => $transaction->id];
+                    return null;
                 }
 
                 // 3. Subscription Validation (Business Logic Preservation)

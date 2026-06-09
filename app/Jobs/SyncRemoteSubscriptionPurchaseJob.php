@@ -23,7 +23,15 @@ class SyncRemoteSubscriptionPurchaseJob implements ShouldBeUniqueUntilProcessing
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 1;
+    public int $tries = 0;
+
+    /**
+     * @return array<int, int>
+     */
+    public function backoff(): array
+    {
+        return [10, 30, 60, 120, 240];
+    }
 
     public function __construct(
         public readonly int $planId,
@@ -104,6 +112,18 @@ class SyncRemoteSubscriptionPurchaseJob implements ShouldBeUniqueUntilProcessing
             }
 
             $response = $this->postPurchase($baseUrl, $recoveredToken, $payload);
+        }
+
+        if ($response->status() === 422) {
+            Log::error('Remote subscription purchase failed permanently due to validation error (422).', [
+                'component' => 'subscription_sync',
+                'plan_id' => $plan->getKey(),
+                'response' => $response->json(),
+            ]);
+
+            $exception = new RuntimeException('Failed to sync subscription purchase due to validation error: '.$response->body());
+            $this->fail($exception);
+            throw $exception;
         }
 
         if ($response->status() !== 201 || $response->json('status') !== 'accepted') {

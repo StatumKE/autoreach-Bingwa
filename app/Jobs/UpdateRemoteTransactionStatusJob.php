@@ -16,9 +16,9 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 3;
+    public int $tries = 0;
 
-    public array $backoff = [10, 30, 60];
+    public array $backoff = [10, 30, 60, 120, 240];
 
     /**
      * Create a new job instance.
@@ -121,6 +121,16 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
             Log::warning("Autoreach backend returned 404 Not Found for transaction {$this->remoteTransactionId}. Device might not own it.");
 
             return;
+        }
+
+        if ($response->status() === 422) {
+            Log::error("Autoreach backend returned 422 Unprocessable Content for transaction {$this->remoteTransactionId}. Permanent failure.", [
+                'body' => $response->body(),
+            ]);
+
+            $exception = new RuntimeException('Failed to update remote status due to validation error: '.$response->body());
+            $this->fail($exception);
+            throw $exception;
         }
 
         if (! $response->successful()) {

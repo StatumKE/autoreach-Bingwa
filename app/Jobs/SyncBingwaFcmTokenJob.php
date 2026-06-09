@@ -14,6 +14,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Native\Mobile\Facades\PushNotifications;
 
 class SyncBingwaFcmTokenJob implements ShouldBeUnique, ShouldQueue
@@ -36,7 +37,7 @@ class SyncBingwaFcmTokenJob implements ShouldBeUnique, ShouldQueue
         return (string) $this->userId;
     }
 
-    public int $tries = 10;
+    public int $tries = 0;
 
     public bool $enrollmentRequested = false;
 
@@ -86,20 +87,33 @@ class SyncBingwaFcmTokenJob implements ShouldBeUnique, ShouldQueue
             'tries' => $this->tries,
         ]);
 
-        if (! $this->ensureBingwaDeviceRegistered($user, $registerBingwaDevice)) {
-            $attempt = $this->attempts();
-            $delay = $this->backoff()[$attempt - 1] ?? 60;
+        try {
+            if (! $this->ensureBingwaDeviceRegistered($user, $registerBingwaDevice)) {
+                $attempt = $this->attempts();
+                $delay = $this->backoff()[$attempt - 1] ?? 60;
 
-            Log::debug('Bingwa device registration not yet available in backend job; requeueing.', [
+                Log::debug('Bingwa device registration not yet available in backend job; requeueing.', [
+                    'component' => 'fcm_sync',
+                    'user_id' => $user->getKey(),
+                    'flow_id' => $flowId,
+                    'attempt' => $attempt,
+                    'tries' => $this->tries,
+                    'delay_seconds' => $delay,
+                ]);
+
+                $this->release($delay);
+
+                return;
+            }
+        } catch (ValidationException $validationException) {
+            Log::error('Bingwa device registration failed permanently due to validation mismatch (email and connect ID).', [
                 'component' => 'fcm_sync',
                 'user_id' => $user->getKey(),
                 'flow_id' => $flowId,
-                'attempt' => $attempt,
-                'tries' => $this->tries,
-                'delay_seconds' => $delay,
+                'errors' => $validationException->errors(),
             ]);
 
-            $this->release($delay);
+            $this->fail($validationException);
 
             return;
         }
@@ -224,6 +238,8 @@ class SyncBingwaFcmTokenJob implements ShouldBeUnique, ShouldQueue
             ]);
 
             return true;
+        } catch (ValidationException $validationException) {
+            throw $validationException;
         } catch (\Throwable $throwable) {
             Log::warning('Bingwa device registration failed in backend job.', [
                 'component' => 'fcm_sync',

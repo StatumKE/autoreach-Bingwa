@@ -63,7 +63,11 @@ class RegisterBingwaDevice
             );
         }
 
-        $this->throwValidationException($response);
+        if ($response->status() === 422) {
+            $this->throwValidationException($response);
+        }
+
+        $response->throw();
     }
 
     /**

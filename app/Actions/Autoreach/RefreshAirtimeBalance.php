@@ -269,9 +269,13 @@ class RefreshAirtimeBalance
 
     private function ensureSettings(User $user): DeviceSetting
     {
-        $settings = $user->deviceSetting;
+        // Bypass the in-memory cached relationship on the User instance (which could be stale in a persistent PHP daemon context)
+        // by performing a fresh query to retrieve the current setting from the database.
+        $settings = DeviceSetting::query()->where('user_id', $user->id)->first();
 
         if ($settings !== null) {
+            $user->setRelation('deviceSetting', $settings);
+
             return $settings;
         }
 

@@ -1,5 +1,5 @@
 <x-layouts::auth :title="__('Log in')">
-    <section class="auth-card flex flex-col gap-6">
+    <section class="auth-card flex flex-col gap-4">
         <span class="auth-badge">{{ __('Secure access') }}</span>
 
         <x-auth-header :title="__('Welcome back')" :description="__('Sign in to continue.')" />
@@ -7,10 +7,10 @@
         <!-- Session Status -->
         <x-auth-session-status class="text-center" :status="session('status')" />
 
-        <form method="POST" action="{{ route('login.store') }}" class="flex flex-col gap-6" x-data="{ submitting: false }" x-on:submit="submitting = true">
+        <form method="POST" action="{{ route('login.store') }}" class="flex flex-col gap-4" x-data="{ submitting: false }" x-on:submit="submitting = true">
             @csrf
 
-            <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-3">
                 <!-- Email Address -->
                 <flux:input
                     name="email"

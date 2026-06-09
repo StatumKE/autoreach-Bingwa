@@ -1,5 +1,5 @@
 <x-layouts::auth :title="__('Register')">
-    <section class="auth-card flex flex-col gap-6">
+    <section class="auth-card flex flex-col gap-4">
         <span class="auth-badge">{{ __('Device setup') }}</span>
 
         <x-auth-header :title="__('Create account')" :description="__('Join Autoreach Bingwa in minutes.')" />
@@ -11,7 +11,7 @@
             <form
                 method="POST"
                 action="{{ route('register.store') }}"
-                class="flex flex-col gap-6"
+                class="flex flex-col gap-4"
                 data-native-method="POST"
                 x-data="{ submitting: false }"
                 x-on:submit="submitting = true"
@@ -28,7 +28,7 @@
                     </div>
                 @endif
                 
-                <div class="flex flex-col gap-4">
+                <div class="flex flex-col gap-3">
                     <!-- Name -->
                     <flux:input
                         name="name"

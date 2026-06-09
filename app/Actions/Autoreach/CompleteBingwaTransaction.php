@@ -123,6 +123,9 @@ class CompleteBingwaTransaction
         $failureCode = BingwaTransactionFailureCode::fromStatusAndMessage($status, $message);
 
         DB::transaction(function () use ($transaction, $status, $statusDesc, $nextAttemptAt): void {
+            $transaction->status = $status;
+            $transaction->status_desc = $statusDesc;
+
             // Resolve auto-reply before the final UPDATE so both the core status
             // fields and the auto-reply fields are written in a single round-trip.
             $resolved = app(ResolveAutoReplyForTransaction::class)->resolve($transaction);

@@ -139,15 +139,15 @@
     }
 
     .auth-card {
-        @apply rounded-[1.75rem] bg-white/95 p-6 shadow-xl shadow-green-950/10 ring-1 ring-white/80 backdrop-blur sm:p-7 dark:bg-zinc-950/95 dark:ring-zinc-800;
+        @apply rounded-2xl bg-white/95 p-5 shadow-xl shadow-green-950/10 ring-1 ring-white/80 backdrop-blur sm:p-6 dark:bg-zinc-950/95 dark:ring-zinc-800;
     }
 
     .auth-badge {
-        @apply inline-flex w-fit items-center rounded-full bg-green-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-green-700 ring-1 ring-green-100 dark:bg-green-500/10 dark:text-green-300 dark:ring-green-500/20;
+        @apply inline-flex w-fit items-center rounded-full bg-green-50 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.24em] text-green-700 ring-1 ring-green-100 dark:bg-green-500/10 dark:text-green-300 dark:ring-green-500/20;
     }
 
     .auth-submit-button {
-        @apply min-h-12 w-full rounded-2xl bg-green-600 px-4 py-3 text-[11px] font-black uppercase tracking-[0.08em] text-white shadow-sm shadow-green-600/20 ring-1 ring-green-700/15 transition hover:bg-green-500 active:scale-[0.98];
+        @apply min-h-10 w-full rounded-xl bg-green-600 px-4 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-white shadow-sm shadow-green-600/20 ring-1 ring-green-700/15 transition hover:bg-green-500 active:scale-[0.98];
     }
 
     .auth-link {
@@ -222,7 +222,7 @@
 .auth-layout input[data-flux-control],
 .auth-layout textarea[data-flux-control],
 .auth-layout select[data-flux-control] {
-    @apply min-h-12 rounded-2xl bg-white/95 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900/90 dark:ring-white/10;
+    @apply min-h-10 rounded-xl bg-white/95 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900/90 dark:ring-white/10 py-1.5 px-3;
 }
 
 input:focus[data-flux-control],

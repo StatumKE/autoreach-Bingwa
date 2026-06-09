@@ -106,29 +106,29 @@ class extends Component {
     @visibilitychange.window="if (document.visibilityState === 'visible') recheckStatus()"
 >
     {{-- Header --}}
-    <div class="px-6 pt-14 pb-6">
-        <div class="flex items-center justify-center mb-8">
-            <div class="flex items-center gap-3 rounded-2xl bg-white/10 px-5 py-3 ring-1 ring-white/10 backdrop-blur">
+    <div class="px-5 pt-8 pb-2">
+        <div class="flex items-center justify-center mb-3">
+            <div class="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-1.5 ring-1 ring-white/10 backdrop-blur">
                 <div>
-                    <p class="text-[9px] font-black uppercase tracking-[0.25em] text-green-300">Autoreach</p>
-                    <p class="text-base font-black leading-tight">Bingwa</p>
+                    <p class="text-[8px] font-black uppercase tracking-[0.22em] text-green-300">Autoreach</p>
+                    <p class="text-xs font-black leading-tight">Bingwa</p>
                 </div>
             </div>
         </div>
 
-        <h1 class="text-2xl font-black text-center tracking-tight">Set up your app</h1>
-        <p class="text-sm text-zinc-400 text-center mt-2 max-w-xs mx-auto leading-relaxed">
-            Grant the following permissions so Bingwa can automatically send data, airtime, and SMS packages to your customers.
+        <h1 class="text-lg font-black text-center tracking-tight">Set up your app</h1>
+        <p class="text-[11px] text-zinc-400 text-center mt-1 max-w-xs mx-auto leading-normal">
+            Grant permissions so Bingwa can automatically process transactions.
         </p>
     </div>
 
     {{-- Progress bar --}}
-    <div class="px-6 mb-6">
-        <div class="flex items-center justify-between mb-2">
-            <span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Setup Progress</span>
-            <span class="text-[10px] font-black text-green-400" x-text="`${grantedCount} of ${total} granted`"></span>
+    <div class="px-6 mb-3">
+        <div class="flex items-center justify-between mb-1">
+            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400">Setup Progress</span>
+            <span class="text-[9px] font-black text-green-400" x-text="`${grantedCount} of ${total} granted`"></span>
         </div>
-        <div class="h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
+        <div class="h-1 w-full rounded-full bg-zinc-800 overflow-hidden">
             <div
                 class="h-full rounded-full transition-all duration-700 ease-out"
                 :class="allCriticalGranted ? 'bg-gradient-to-r from-green-500 to-emerald-400' : 'bg-gradient-to-r from-green-600 to-teal-500'"
@@ -138,194 +138,56 @@ class extends Component {
     </div>
 
     {{-- Permission Cards --}}
-    <div class="px-4 space-y-3 pb-6">
-
-        {{-- Phone --}}
-        <div
-            class="rounded-2xl p-5 border transition-all duration-300"
-            :class="status.phoneGranted ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
-        >
-            <div class="flex items-start gap-4">
-                <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-colors duration-300"
-                    :class="status.phoneGranted ? 'bg-green-500/20' : 'bg-zinc-800'">
-                    <svg class="w-5 h-5 transition-colors duration-300" :class="status.phoneGranted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 6.75Z" />
-                    </svg>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                        <span class="font-black text-[15px]">Phone</span>
-                        <span x-show="status.phoneGranted" class="text-[10px] font-black text-green-400 uppercase tracking-widest flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
-                            Granted
-                        </span>
-                    </div>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed">Make USSD calls to send data to customers.</p>
-                    <button
-                        x-show="!status.phoneGranted"
-                        x-cloak
-                        @click="requestRuntimePermissions()"
-                        :disabled="requesting"
-                        class="mt-3 inline-flex items-center px-4 py-2 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
-                    >
-                        Grant Access
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        {{-- SMS --}}
-        <div
-            class="rounded-2xl p-5 border transition-all duration-300"
-            :class="status.smsGranted ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
-        >
-            <div class="flex items-start gap-4">
-                <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-colors duration-300"
-                    :class="status.smsGranted ? 'bg-green-500/20' : 'bg-zinc-800'">
-                    <svg class="w-5 h-5 transition-colors duration-300" :class="status.smsGranted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h7.5m-7.5 3h4.5m-10.5 6a3 3 0 0 1 3-3h11.25a3 3 0 0 1 3 3v3.75l-3.75-2.25H5.25a3 3 0 0 1-3-3V6.75a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v4.5" />
-                    </svg>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                        <span class="font-black text-[15px]">SMS</span>
-                        <span x-show="status.smsGranted" class="text-[10px] font-black text-green-400 uppercase tracking-widest flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
-                            Granted
-                        </span>
-                    </div>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed">Read incoming M-Pesa payment messages to detect customer payments.</p>
-                    <button
-                        x-show="!status.smsGranted"
-                        x-cloak
-                        @click="requestRuntimePermissions()"
-                        :disabled="requesting"
-                        class="mt-3 inline-flex items-center px-4 py-2 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
-                    >
-                        Grant Access
-                    </button>
-                </div>
-            </div>
-        </div>
-
-
-
-        {{-- Notifications --}}
-        <div
-            class="rounded-2xl p-5 border transition-all duration-300"
-            :class="status.notificationsGranted ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
-        >
-            <div class="flex items-start gap-4">
-                <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-colors duration-300"
-                    :class="status.notificationsGranted ? 'bg-green-500/20' : 'bg-zinc-800'">
-                    <svg class="w-5 h-5 transition-colors duration-300" :class="status.notificationsGranted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/>
-                    </svg>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                        <span class="font-black text-[15px]">Notifications</span>
-                        <span x-show="status.notificationsGranted" class="text-[10px] font-black text-green-400 uppercase tracking-widest flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
-                            Granted
-                        </span>
-                    </div>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed">Send you alerts when transactions complete or fail.</p>
-                    <button
-                        x-show="!status.notificationsGranted"
-                        x-cloak
-                        @click="requestRuntimePermissions()"
-                        :disabled="requesting"
-                        class="mt-3 inline-flex items-center px-4 py-2 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
-                    >
-                        Grant Access
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        {{-- Battery Unrestricted --}}
-        <div
-            class="rounded-2xl p-5 border transition-all duration-300"
-            :class="status.batteryUnrestricted ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
-        >
-            <div class="flex items-start gap-4">
-                <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-colors duration-300"
-                    :class="status.batteryUnrestricted ? 'bg-green-500/20' : 'bg-zinc-800'">
-                    <svg class="w-5 h-5 transition-colors duration-300" :class="status.batteryUnrestricted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/>
-                    </svg>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                        <span class="font-black text-[15px]">Battery Unrestricted</span>
-                        <span x-show="status.batteryUnrestricted" class="text-[10px] font-black text-green-400 uppercase tracking-widest flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
-                            Granted
-                        </span>
-                    </div>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed">Keep Bingwa running in the background without Android killing it.</p>
-                    <button
-                        x-show="!status.batteryUnrestricted"
-                        x-cloak
-                        @click="openBatterySettings()"
-                        class="mt-3 inline-flex items-center px-4 py-2 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95"
-                    >
-                        Grant Access
-                    </button>
-                </div>
-            </div>
-        </div>
+    <div class="px-3.5 space-y-1.5 pb-4">
 
         {{-- Accessibility --}}
         <div
-            class="rounded-2xl p-5 border transition-all duration-300"
+            class="rounded-xl py-2 px-3.5 border transition-all duration-300"
             :class="status.accessibilityEnabled ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
         >
-            <div class="flex items-start gap-4">
-                <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-colors duration-300"
+            <div class="flex items-start gap-2.5">
+                <div class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300"
                     :class="status.accessibilityEnabled ? 'bg-green-500/20' : 'bg-zinc-800'">
-                    <svg class="w-5 h-5 transition-colors duration-300" :class="status.accessibilityEnabled ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <svg class="w-4 h-4 transition-colors duration-300" :class="status.accessibilityEnabled ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z"/>
                     </svg>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                        <span class="font-black text-[15px]">Accessibility Service</span>
-                        <span x-show="status.accessibilityEnabled" class="text-[10px] font-black text-green-400 uppercase tracking-widest flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-black text-[13px]">Accessibility Service</span>
+                        <span x-show="status.accessibilityEnabled" class="text-[9px] font-black text-green-400 uppercase tracking-widest flex items-center gap-0.5">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
                             Enabled
                         </span>
                     </div>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed">Reads USSD responses from the network to confirm transaction delivery.</p>
+                    <p class="text-[11px] text-zinc-400 leading-normal">Reads USSD responses from the network to confirm transaction delivery.</p>
                     <button
                         x-show="!status.accessibilityEnabled"
                         x-cloak
                         @click="openAccessibilitySettings()"
-                        class="mt-3 inline-flex items-center px-4 py-2.5 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95"
+                        class="mt-1.5 inline-flex items-center px-3 py-1 rounded-lg bg-white text-zinc-950 text-[10px] font-black uppercase tracking-widest transition active:scale-95"
                     >
                         Open Accessibility
                     </button>
-                    <div x-show="!status.accessibilityEnabled" x-cloak class="mt-2.5">
-                        <p class="text-[11px] text-zinc-300 leading-relaxed">
-                            On <strong class="text-white">Samsung</strong>: tap <strong class="text-white">Installed apps</strong>. On <strong class="text-white">Xiaomi, Oppo, Realme, Tecno, Infinix & Pixel</strong>: look for <strong class="text-white">Downloaded apps</strong>, <strong class="text-white">Downloaded services</strong> or <strong class="text-white">Installed services</strong>. Select <strong class="text-green-400">Bingwa USSD Automation</strong> and turn it on.
+                    <div x-show="!status.accessibilityEnabled" x-cloak class="mt-1.5">
+                        <p class="text-[10px] text-zinc-300 leading-normal">
+                            On <strong class="text-white">Samsung</strong>: tap <strong class="text-white">Installed apps</strong>. On others: look for <strong class="text-white">Downloaded services</strong>. Turn on <strong class="text-green-400">Bingwa USSD Automation</strong>.
                         </p>
                     </div>
-                    <div x-show="!status.accessibilityEnabled" x-cloak class="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/8 p-4">
-                        <div class="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300">Restricted settings</div>
-                        <p class="mt-2 text-[12px] leading-relaxed text-zinc-300">
-                            If Android shows a "Restricted Setting" dialogue and blocks the service:
+                    <div x-show="!status.accessibilityEnabled" x-cloak class="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/8 p-2.5">
+                        <div class="text-[9px] font-black uppercase tracking-[0.24em] text-amber-300">Restricted settings</div>
+                        <p class="mt-1 text-[11px] leading-normal text-zinc-300">
+                            If Android shows a "Restricted Setting" dialogue:
                         </p>
-                        <ol class="mt-3 space-y-1.5 text-[11px] leading-relaxed text-zinc-400 list-decimal pl-4">
+                        <ol class="mt-1 space-y-1 text-[10px] leading-normal text-zinc-400 list-decimal pl-4">
                             <li>Tap <strong class="text-zinc-200">Open App Info</strong> below.</li>
-                            <li>Tap the three dots (<strong class="text-zinc-200">More</strong>) in the top-right corner.</li>
+                            <li>Tap three dots (<strong class="text-zinc-200">More</strong>) in top-right.</li>
                             <li>Tap <strong class="text-zinc-200">Allow restricted settings</strong>.</li>
-                            <li>Return here, open accessibility, and enable the service.</li>
                         </ol>
-                        <div class="mt-4">
+                        <div class="mt-2">
                             <button
                                 @click="openAppInfo()"
-                                class="inline-flex items-center justify-center rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-white transition active:scale-95 hover:bg-zinc-800"
+                                class="inline-flex items-center justify-center rounded-lg border border-white/10 bg-zinc-900 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white transition active:scale-95 hover:bg-zinc-800"
                             >
                                 Open App Info
                             </button>
@@ -335,32 +197,167 @@ class extends Component {
             </div>
         </div>
 
+        {{-- Phone --}}
+        <div
+            class="rounded-xl py-2 px-3.5 border transition-all duration-300"
+            :class="status.phoneGranted ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
+        >
+            <div class="flex items-start gap-2.5">
+                <div class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300"
+                    :class="status.phoneGranted ? 'bg-green-500/20' : 'bg-zinc-800'">
+                    <svg class="w-4 h-4 transition-colors duration-300" :class="status.phoneGranted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 6.75Z" />
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-black text-[13px]">Phone</span>
+                        <span x-show="status.phoneGranted" class="text-[9px] font-black text-green-400 uppercase tracking-widest flex items-center gap-0.5">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                            Granted
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-zinc-400 leading-normal">Make USSD calls to send data to customers.</p>
+                    <button
+                        x-show="!status.phoneGranted"
+                        x-cloak
+                        @click="requestRuntimePermissions()"
+                        :disabled="requesting"
+                        class="mt-1.5 inline-flex items-center px-3 py-1 rounded-lg bg-white text-zinc-950 text-[10px] font-black uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
+                    >
+                        Grant Access
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- SMS --}}
+        <div
+            class="rounded-xl py-2 px-3.5 border transition-all duration-300"
+            :class="status.smsGranted ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
+        >
+            <div class="flex items-start gap-2.5">
+                <div class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300"
+                    :class="status.smsGranted ? 'bg-green-500/20' : 'bg-zinc-800'">
+                    <svg class="w-4 h-4 transition-colors duration-300" :class="status.smsGranted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h7.5m-7.5 3h4.5m-10.5 6a3 3 0 0 1 3-3h11.25a3 3 0 0 1 3 3v3.75l-3.75-2.25H5.25a3 3 0 0 1-3-3V6.75a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v4.5" />
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-black text-[13px]">SMS</span>
+                        <span x-show="status.smsGranted" class="text-[9px] font-black text-green-400 uppercase tracking-widest flex items-center gap-0.5">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                            Granted
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-zinc-400 leading-normal">Read incoming M-Pesa payment messages to detect customer payments.</p>
+                    <button
+                        x-show="!status.smsGranted"
+                        x-cloak
+                        @click="requestRuntimePermissions()"
+                        :disabled="requesting"
+                        class="mt-1.5 inline-flex items-center px-3 py-1 rounded-lg bg-white text-zinc-950 text-[10px] font-black uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
+                    >
+                        Grant Access
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- Notifications --}}
+        <div
+            class="rounded-xl py-2 px-3.5 border transition-all duration-300"
+            :class="status.notificationsGranted ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
+        >
+            <div class="flex items-start gap-2.5">
+                <div class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300"
+                    :class="status.notificationsGranted ? 'bg-green-500/20' : 'bg-zinc-800'">
+                    <svg class="w-4 h-4 transition-colors duration-300" :class="status.notificationsGranted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-black text-[13px]">Notifications</span>
+                        <span x-show="status.notificationsGranted" class="text-[9px] font-black text-green-400 uppercase tracking-widest flex items-center gap-0.5">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                            Granted
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-zinc-400 leading-normal">Send alerts when transactions complete or fail.</p>
+                    <button
+                        x-show="!status.notificationsGranted"
+                        x-cloak
+                        @click="requestRuntimePermissions()"
+                        :disabled="requesting"
+                        class="mt-1.5 inline-flex items-center px-3 py-1 rounded-lg bg-white text-zinc-950 text-[10px] font-black uppercase tracking-widest transition active:scale-95 disabled:opacity-50"
+                    >
+                        Grant Access
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- Battery Unrestricted --}}
+        <div
+            class="rounded-xl py-2 px-3.5 border transition-all duration-300"
+            :class="status.batteryUnrestricted ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
+        >
+            <div class="flex items-start gap-2.5">
+                <div class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300"
+                    :class="status.batteryUnrestricted ? 'bg-green-500/20' : 'bg-zinc-800'">
+                    <svg class="w-4 h-4 transition-colors duration-300" :class="status.batteryUnrestricted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-black text-[13px]">Battery Unrestricted</span>
+                        <span x-show="status.batteryUnrestricted" class="text-[9px] font-black text-green-400 uppercase tracking-widest flex items-center gap-0.5">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                            Granted
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-zinc-400 leading-normal">Keep Bingwa running in the background without Android killing it.</p>
+                    <button
+                        x-show="!status.batteryUnrestricted"
+                        x-cloak
+                        @click="openBatterySettings()"
+                        class="mt-1.5 inline-flex items-center px-3 py-1 rounded-lg bg-white text-zinc-950 text-[10px] font-black uppercase tracking-widest transition active:scale-95"
+                    >
+                        Grant Access
+                    </button>
+                </div>
+            </div>
+        </div>
+
         {{-- Display Over Apps --}}
         <div
-            class="rounded-2xl p-5 border transition-all duration-300"
+            class="rounded-xl py-2 px-3.5 border transition-all duration-300"
             :class="status.overlayGranted ? 'bg-green-950/40 border-green-800/40' : 'bg-zinc-900 border-zinc-800'"
         >
-            <div class="flex items-start gap-4">
-                <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-colors duration-300"
+            <div class="flex items-start gap-2.5">
+                <div class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300"
                     :class="status.overlayGranted ? 'bg-green-500/20' : 'bg-zinc-800'">
-                    <svg class="w-5 h-5 transition-colors duration-300" :class="status.overlayGranted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <svg class="w-4 h-4 transition-colors duration-300" :class="status.overlayGranted ? 'text-green-400' : 'text-zinc-400'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h6c.621 0 1.125.504 1.125 1.125v3.75c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 0 1-1.125-1.125v-3.75ZM14.25 8.625c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v8.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 0 1-1.125-1.125v-8.25ZM3.75 16.125c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 0 1-1.125-1.125v-2.25Z"/>
                     </svg>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                        <span class="font-black text-[15px]">Display Over Apps</span>
-                        <span x-show="status.overlayGranted" class="text-[10px] font-black text-green-400 uppercase tracking-widest flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-black text-[13px]">Display Over Apps</span>
+                        <span x-show="status.overlayGranted" class="text-[9px] font-black text-green-400 uppercase tracking-widest flex items-center gap-0.5">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
                             Granted
                         </span>
                     </div>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed">Show a USSD overlay so the screen stays on while processing transactions.</p>
+                    <p class="text-[11px] text-zinc-400 leading-normal">Show a USSD overlay to keep screen awake.</p>
                     <button
                         x-show="!status.overlayGranted"
                         x-cloak
                         @click="openOverlaySettings()"
-                        class="mt-3 inline-flex items-center px-4 py-2 rounded-xl bg-white text-zinc-950 text-[11px] font-black uppercase tracking-widest transition active:scale-95"
+                        class="mt-1.5 inline-flex items-center px-3 py-1 rounded-lg bg-white text-zinc-950 text-[10px] font-black uppercase tracking-widest transition active:scale-95"
                     >
                         Grant Access
                     </button>

@@ -261,9 +261,16 @@ class UssdAccessibilityService : AccessibilityService() {
                 cancelBtn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 Log.d(TAG, "closeDialog: clicked cancel button")
             } else {
-                // Fallback to global back
-                performGlobalAction(GLOBAL_ACTION_BACK)
-                Log.d(TAG, "closeDialog: performed global back action")
+                // If there's no edit text (terminal dialog), the send/OK button acts as a dismiss button
+                val sendBtn = findSendButton(root)
+                if (sendBtn != null && findEditTextNode(root) == null) {
+                    sendBtn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    Log.d(TAG, "closeDialog: clicked send/OK button for dialog without input")
+                } else {
+                    // Fallback to global back
+                    performGlobalAction(GLOBAL_ACTION_BACK)
+                    Log.d(TAG, "closeDialog: performed global back action")
+                }
             }
         }
     }

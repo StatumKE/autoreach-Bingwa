@@ -179,44 +179,67 @@ class UssdExecutor(private val context: Context) {
             }
         }
 
-        // Drain any stale accessibility channel data first
-        while (UssdAccessibilityService.responseChannel.tryReceive().isSuccess) { /* drain */ }
+        // Set up local receiver and channel for IPC
+        val executorChannel = Channel<String>(Channel.CONFLATED)
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                if (intent == null) return
+                if (intent.action == UssdAccessibilityService.ACTION_USSD_DIALOG) {
+                    val text = intent.getStringExtra(UssdAccessibilityService.EXTRA_TEXT)
+                    if (text != null) {
+                        Log.d(TAG, "UssdExecutor received dialog broadcast in Express: $text")
+                        executorChannel.trySend(text)
+                    }
+                }
+            }
+        }
+
+        val filter = IntentFilter(UssdAccessibilityService.ACTION_USSD_DIALOG)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
 
         try {
             telephonyManager.sendUssdRequest(code, callback, handler)
-        } catch (exception: Exception) {
-            Log.e(TAG, "sendUssdRequest threw exception", exception)
-            return UssdResult(success = false, message = exception.message ?: "Unknown error")
-        }
 
-        // Race between the telephony callback and the accessibility service channel
-        val result = select<UssdResult> {
-            resultChannel.onReceive { it }
+            // Race between the telephony callback and the accessibility service channel
+            val result = select<UssdResult> {
+                resultChannel.onReceive { it }
 
-            // Only listen to accessibility if the service is running/connected
-            if (UssdAccessibilityService.instance != null) {
-                UssdAccessibilityService.responseChannel.onReceive { dialogText ->
+                executorChannel.onReceive { dialogText ->
                     Log.d(TAG, "Express USSD captured via Accessibility: $dialogText")
-
-                    // Click OK/Send to dismiss/close the system dialog automatically
-                    UssdAccessibilityService.instance?.injectInput("")
-                    UssdAccessibilityService.instance?.dismiss()
-
                     UssdResult(
                         success = isPurchaseSuccessMessage(dialogText),
                         message = dialogText
                     )
                 }
             }
+
+            // If telephony callback won, check if a dialog appears within 1.5 seconds to dismiss it
+            if (result.message.isNotEmpty() && !executorChannel.tryReceive().isSuccess) {
+                withTimeoutOrNull(1500) {
+                    executorChannel.receive()
+                    Log.d(TAG, "Express USSD dialog appeared after telephony callback")
+                }
+            }
+
+            return result
+        } catch (exception: Exception) {
+            Log.e(TAG, "sendUssdRequest threw exception", exception)
+            return UssdResult(success = false, message = exception.message ?: "Unknown error")
+        } finally {
+            // Dismiss via broadcast
+            val dismissIntent = Intent(UssdAccessibilityService.ACTION_USSD_DISMISS)
+            context.sendBroadcast(dismissIntent)
+
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to unregister receiver in finally block of runExpress", e)
+            }
         }
-
-        // Drain any accessibility response that wasn't consumed by the select above.
-        // If the telephony callback won the race, the accessibility service may have already
-        // buffered a dialog text that will never be read. Clear it now so it doesn't
-        // contaminate the next advanced-mode session's first dialog read.
-        while (UssdAccessibilityService.responseChannel.tryReceive().isSuccess) { /* drain */ }
-
-        return result
     }
 
     // -------------------------------------------------------------------------

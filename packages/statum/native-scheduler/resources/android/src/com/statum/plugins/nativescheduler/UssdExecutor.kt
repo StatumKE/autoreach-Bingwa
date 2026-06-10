@@ -196,7 +196,7 @@ class UssdExecutor(private val context: Context) {
 
         val filter = IntentFilter(UssdAccessibilityService.ACTION_USSD_DIALOG)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             context.registerReceiver(receiver, filter)
         }
@@ -302,7 +302,7 @@ class UssdExecutor(private val context: Context) {
 
         val filter = IntentFilter(UssdAccessibilityService.ACTION_USSD_DIALOG)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             context.registerReceiver(receiver, filter)
         }

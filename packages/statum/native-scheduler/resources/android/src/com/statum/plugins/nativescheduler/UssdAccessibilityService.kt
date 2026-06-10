@@ -121,7 +121,7 @@ class UssdAccessibilityService : AccessibilityService() {
             addAction(ACTION_USSD_SET_SIM)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(commandReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(commandReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             registerReceiver(commandReceiver, filter)
         }

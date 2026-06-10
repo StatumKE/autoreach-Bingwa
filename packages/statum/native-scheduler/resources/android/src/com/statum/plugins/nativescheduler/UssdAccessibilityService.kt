@@ -2,6 +2,10 @@ package com.statum.plugins.nativescheduler
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -31,6 +35,15 @@ class UssdAccessibilityService : AccessibilityService() {
     companion object {
         private const val TAG = "UssdAccessibility"
 
+        const val ACTION_USSD_DIALOG = "com.statum.plugins.nativescheduler.ACTION_USSD_DIALOG"
+        const val ACTION_USSD_INJECT = "com.statum.plugins.nativescheduler.ACTION_USSD_INJECT"
+        const val ACTION_USSD_DISMISS = "com.statum.plugins.nativescheduler.ACTION_USSD_DISMISS"
+        const val ACTION_USSD_SET_SIM = "com.statum.plugins.nativescheduler.ACTION_USSD_SET_SIM"
+
+        const val EXTRA_TEXT = "text"
+        const val EXTRA_INPUT = "input"
+        const val EXTRA_SIM_SLOT = "simSlot"
+
         /**
          * Live singleton set on connect, cleared on destroy.
          * [UssdExecutor] uses this to call [injectInput] and [dismiss] directly.
@@ -55,6 +68,30 @@ class UssdAccessibilityService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())
 
+    private val commandReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent == null) return
+            when (intent.action) {
+                ACTION_USSD_INJECT -> {
+                    val input = intent.getStringExtra(EXTRA_INPUT) ?: ""
+                    Log.d(TAG, "Broadcast received: ACTION_USSD_INJECT with '$input'")
+                    injectInput(input)
+                }
+                ACTION_USSD_DISMISS -> {
+                    Log.d(TAG, "Broadcast received: ACTION_USSD_DISMISS")
+                    dismiss()
+                }
+                ACTION_USSD_SET_SIM -> {
+                    val slot = intent.getIntExtra(EXTRA_SIM_SLOT, -1)
+                    if (slot != -1) {
+                        activeSimSlot = slot
+                        Log.d(TAG, "Broadcast received: ACTION_USSD_SET_SIM set to $slot")
+                    }
+                }
+            }
+        }
+    }
+
     /**
      * Track whether we have already sent the current dialog's text to [responseChannel].
      * This prevents duplicate sends when the dialog fires multiple events for the same state.
@@ -77,7 +114,18 @@ class UssdAccessibilityService : AccessibilityService() {
             notificationTimeout = 100
             packageNames = null
         }
-        Log.i(TAG, "Accessibility service connected")
+
+        val filter = android.content.IntentFilter().apply {
+            addAction(ACTION_USSD_INJECT)
+            addAction(ACTION_USSD_DISMISS)
+            addAction(ACTION_USSD_SET_SIM)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(commandReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(commandReceiver, filter)
+        }
+        Log.i(TAG, "Accessibility service connected and BroadcastReceiver registered")
     }
 
     override fun onInterrupt() {
@@ -86,6 +134,12 @@ class UssdAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         instance = null
+        try {
+            unregisterReceiver(commandReceiver)
+            Log.i(TAG, "BroadcastReceiver unregistered on destroy")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to unregister receiver", e)
+        }
         super.onDestroy()
     }
 
@@ -132,6 +186,11 @@ class UssdAccessibilityService : AccessibilityService() {
         lastSentDialogText = dialogText
 
         Log.d(TAG, "USSD dialog detected: $dialogText")
+
+        val intent = Intent(ACTION_USSD_DIALOG).apply {
+            putExtra(EXTRA_TEXT, dialogText)
+        }
+        sendBroadcast(intent)
 
         responseChannel.trySend(dialogText)
     }

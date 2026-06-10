@@ -1,8 +1,10 @@
 package com.statum.plugins.nativescheduler
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -90,7 +92,7 @@ class UssdExecutor(private val context: Context) {
                 else -> runExpress(code, subId)
             }
         } ?: run {
-            val isAccessibilityEnabled = UssdAccessibilityService.instance != null
+            val isAccessibilityEnabled = isAccessibilityServiceEnabled(context)
             val hint = if (!isAccessibilityEnabled) {
                 " (Accessibility service is not active; please enable 'Bingwa USSD Automation' in Settings)"
             } else {
@@ -243,8 +245,8 @@ class UssdExecutor(private val context: Context) {
      *   so it is safe to call it from a coroutine running on Dispatchers.IO.
      */
     private suspend fun runAdvanced(code: String, subId: Int, simSlot: Int, timeoutMs: Long): UssdResult {
-        val service = awaitAccessibilityService()
-        if (service == null) {
+        val hasService = awaitAccessibilityService()
+        if (!hasService) {
             Log.w(TAG, "Accessibility service not active — redirecting user to Settings")
             try {
                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
@@ -260,8 +262,27 @@ class UssdExecutor(private val context: Context) {
             )
         }
 
-        // Drain any stale responses left over from a previous session
-        while (UssdAccessibilityService.responseChannel.tryReceive().isSuccess) { /* drain */ }
+        // Set up local receiver and channel for IPC
+        val executorChannel = Channel<String>(Channel.CONFLATED)
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                if (intent == null) return
+                if (intent.action == UssdAccessibilityService.ACTION_USSD_DIALOG) {
+                    val text = intent.getStringExtra(UssdAccessibilityService.EXTRA_TEXT)
+                    if (text != null) {
+                        Log.d(TAG, "UssdExecutor received dialog broadcast: $text")
+                        executorChannel.trySend(text)
+                    }
+                }
+            }
+        }
+
+        val filter = IntentFilter(UssdAccessibilityService.ACTION_USSD_DIALOG)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
 
         val parsedFlow = parseAdvancedUssdFlow(code)
         Log.i(
@@ -269,8 +290,11 @@ class UssdExecutor(private val context: Context) {
             "Advanced USSD flow parsed: base=${parsedFlow.baseDialCode}, replies=${parsedFlow.replies}"
         )
 
-        // Pass active sim slot to the accessibility service to handle dual-sim chooser dialogs
-        UssdAccessibilityService.activeSimSlot = simSlot
+        // Pass active sim slot to the accessibility service via broadcast
+        val simIntent = Intent(UssdAccessibilityService.ACTION_USSD_SET_SIM).apply {
+            putExtra(UssdAccessibilityService.EXTRA_SIM_SLOT, simSlot)
+        }
+        context.sendBroadcast(simIntent)
 
         // Acquire WakeLock to wake the screen and keep CPU running
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -285,71 +309,75 @@ class UssdExecutor(private val context: Context) {
             // Dial only the base USSD code — replies are submitted step-by-step after the dialog opens.
             dialUssd(parsedFlow.baseDialCode, subId)
 
-        val dialogTimeoutMs = dialogTimeoutMs(timeoutMs)
-        val dialogText = awaitDialogText(timeoutMs = dialogTimeoutMs)
-            ?: run {
-                Log.w(TAG, "Advanced USSD first dialog timeout after ${dialogTimeoutMs}ms")
-                return UssdResult(success = false, message = "No USSD dialog detected by accessibility service")
-            }
-
-        Log.d(TAG, "Advanced USSD dialog text: $dialogText")
-
-        var resolvedDialogText = dialogText
-        var lastCompletedStep = 0
-        // Tracks whether the carrier returned a terminal response on the final reply step
-        // (no follow-up dialog expected — the session ended normally from the carrier side).
-        var carrierTerminatedOnFinalStep = false
-
-        for ((index, reply) in parsedFlow.replies.withIndex()) {
-            val stepNum = index + 1
-            val totalReplies = parsedFlow.replies.size
-            Log.d(TAG, "Advanced USSD reply step $stepNum/$totalReplies: $reply")
-
-            service.injectInput(reply)
-
-            val nextDialogText = awaitFollowUpDialog(resolvedDialogText, dialogTimeoutMs)
-            if (nextDialogText.isNullOrBlank()) {
-                Log.w(TAG, "No follow-up USSD dialog after reply step $stepNum/$totalReplies: $reply")
-                // If this was the last reply step, the absence of a follow-up dialog is expected —
-                // the carrier closed the session after processing the final input.
-                if (stepNum == totalReplies) {
-                    carrierTerminatedOnFinalStep = true
+            val dialogTimeoutMs = dialogTimeoutMs(timeoutMs)
+            val dialogText = awaitDialogText(executorChannel, timeoutMs = dialogTimeoutMs)
+                ?: run {
+                    Log.w(TAG, "Advanced USSD first dialog timeout after ${dialogTimeoutMs}ms")
+                    return UssdResult(success = false, message = "No USSD dialog detected by accessibility service")
                 }
-                break
-            }
 
-            resolvedDialogText = nextDialogText
-            lastCompletedStep = index + 1
-            Log.d(TAG, "Advanced USSD dialog after reply step ${index + 1}: $resolvedDialogText")
-        }
+            Log.d(TAG, "Advanced USSD dialog text: $dialogText")
 
-        UssdAccessibilityService.responseChannel.tryReceive()
+            var resolvedDialogText = dialogText
+            var lastCompletedStep = 0
+            var carrierTerminatedOnFinalStep = false
 
-        // Use the raw carrier message when:
-        //   (a) all reply steps completed and a final dialog was received, or
-        //   (b) the carrier closed the session immediately after the last reply step.
-        // Only wrap with the "interrupted" message when the session genuinely dropped
-        // before all reply steps could be submitted.
-        val finalMessage = when {
-            lastCompletedStep >= parsedFlow.replies.size || carrierTerminatedOnFinalStep -> {
-                Log.d(TAG, "Advanced USSD carrier terminal response: $resolvedDialogText")
-                resolvedDialogText
-            }
-            else -> {
-                val replyOption = parsedFlow.replies[lastCompletedStep]
-                val replyNum = lastCompletedStep + 1
+            for ((index, reply) in parsedFlow.replies.withIndex()) {
+                val stepNum = index + 1
                 val totalReplies = parsedFlow.replies.size
-                val cleanMenu = cleanMenuMessage(resolvedDialogText)
-                "USSD session interrupted after selecting option '$replyOption' (Reply step $replyNum of $totalReplies). Response: $cleanMenu"
-            }
-        }
+                Log.d(TAG, "Advanced USSD reply step $stepNum/$totalReplies: $reply")
 
-        return UssdResult(
-            success = isPurchaseSuccessMessage(finalMessage),
-            message = finalMessage,
-        )
+                // Inject reply via broadcast
+                val injectIntent = Intent(UssdAccessibilityService.ACTION_USSD_INJECT).apply {
+                    putExtra(UssdAccessibilityService.EXTRA_INPUT, reply)
+                }
+                context.sendBroadcast(injectIntent)
+
+                val nextDialogText = awaitFollowUpDialog(executorChannel, resolvedDialogText, dialogTimeoutMs)
+                if (nextDialogText.isNullOrBlank()) {
+                    Log.w(TAG, "No follow-up USSD dialog after reply step $stepNum/$totalReplies: $reply")
+                    if (stepNum == totalReplies) {
+                        carrierTerminatedOnFinalStep = true
+                    }
+                    break
+                }
+
+                resolvedDialogText = nextDialogText
+                lastCompletedStep = index + 1
+                Log.d(TAG, "Advanced USSD dialog after reply step ${index + 1}: $resolvedDialogText")
+            }
+
+            executorChannel.tryReceive()
+
+            val finalMessage = when {
+                lastCompletedStep >= parsedFlow.replies.size || carrierTerminatedOnFinalStep -> {
+                    Log.d(TAG, "Advanced USSD carrier terminal response: $resolvedDialogText")
+                    resolvedDialogText
+                }
+                else -> {
+                    val replyOption = parsedFlow.replies[lastCompletedStep]
+                    val replyNum = lastCompletedStep + 1
+                    val totalReplies = parsedFlow.replies.size
+                    val cleanMenu = cleanMenuMessage(resolvedDialogText)
+                    "USSD session interrupted after selecting option '$replyOption' (Reply step $replyNum of $totalReplies). Response: $cleanMenu"
+                }
+            }
+
+            return UssdResult(
+                success = isPurchaseSuccessMessage(finalMessage),
+                message = finalMessage,
+            )
         } finally {
-            service.dismiss()
+            // Dismiss via broadcast
+            val dismissIntent = Intent(UssdAccessibilityService.ACTION_USSD_DISMISS)
+            context.sendBroadcast(dismissIntent)
+
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to unregister receiver in finally block", e)
+            }
+
             if (wakeLock?.isHeld == true) {
                 wakeLock.release()
                 Log.d(TAG, "Advanced USSD released WakeLock")
@@ -357,21 +385,33 @@ class UssdExecutor(private val context: Context) {
         }
     }
 
-    /**
-     * Wait briefly for the accessibility service singleton to become available.
-     *
-     * The service may already be enabled in Settings but still be reconnecting after
-     * a process restart. Failing immediately turns a recoverable timing race into a false error.
-     */
-    private suspend fun awaitAccessibilityService(timeoutMs: Long = 5_000L): UssdAccessibilityService? {
+    private suspend fun awaitAccessibilityService(timeoutMs: Long = 5_000L): Boolean {
         val deadline = System.currentTimeMillis() + timeoutMs
 
         while (System.currentTimeMillis() < deadline) {
-            UssdAccessibilityService.instance?.let { return it }
+            if (isAccessibilityServiceEnabled(context)) {
+                return true
+            }
             delay(200L)
         }
 
-        return UssdAccessibilityService.instance
+        return isAccessibilityServiceEnabled(context)
+    }
+
+    private fun isAccessibilityServiceEnabled(context: Context): Boolean {
+        val expectedServiceName = "${context.packageName}/${UssdAccessibilityService::class.java.name}"
+        val enabledServices = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: return false
+        if (!enabledServices.split(':').any { it.equals(expectedServiceName, ignoreCase = true) }) {
+            return false
+        }
+        val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager
+        val runningServices = am?.getEnabledAccessibilityServiceList(android.view.accessibility.AccessibilityEvent.TYPES_ALL_MASK)
+        return runningServices?.any { service ->
+            service.id.equals(expectedServiceName, ignoreCase = true)
+        } ?: false
     }
 
     private fun dialogTimeoutMs(totalTimeoutMs: Long): Long {
@@ -381,12 +421,13 @@ class UssdExecutor(private val context: Context) {
     }
 
     private suspend fun awaitFollowUpDialog(
+        responseChannel: Channel<String>,
         initialDialogText: String,
         timeoutMs: Long,
     ): String? {
         return withTimeoutOrNull(timeoutMs) {
             while (true) {
-                val nextDialogText = UssdAccessibilityService.responseChannel
+                val nextDialogText = responseChannel
                     .receiveCatching()
                     .getOrNull()
                     ?: break
@@ -400,10 +441,13 @@ class UssdExecutor(private val context: Context) {
         }
     }
 
-    private suspend fun awaitDialogText(timeoutMs: Long): String? {
+    private suspend fun awaitDialogText(
+        responseChannel: Channel<String>,
+        timeoutMs: Long
+    ): String? {
         return withTimeoutOrNull(timeoutMs) {
             while (true) {
-                val nextDialogText = UssdAccessibilityService.responseChannel
+                val nextDialogText = responseChannel
                     .receiveCatching()
                     .getOrNull()
                     ?: break

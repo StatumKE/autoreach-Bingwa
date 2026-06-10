@@ -139,14 +139,22 @@ class SyncBingwaFcmTokenJob implements ShouldBeUnique, ShouldQueue
                     return;
                 }
 
-                PushNotifications::enroll();
-                $this->enrollmentRequested = true;
+                if (function_exists('nativephp_can') && nativephp_can('PushNotification.RequestPermission')) {
+                    PushNotifications::enroll();
+                    Log::debug('Bingwa FCM enrollment requested from backend job.', [
+                        'component' => 'fcm_sync',
+                        'user_id' => $user->getKey(),
+                        'flow_id' => $flowId,
+                    ]);
+                } else {
+                    Log::debug('Skipped PushNotifications::enroll() as RequestPermission is not available in this context (e.g. queue worker).', [
+                        'component' => 'fcm_sync',
+                        'user_id' => $user->getKey(),
+                        'flow_id' => $flowId,
+                    ]);
+                }
 
-                Log::debug('Bingwa FCM enrollment requested from backend job.', [
-                    'component' => 'fcm_sync',
-                    'user_id' => $user->getKey(),
-                    'flow_id' => $flowId,
-                ]);
+                $this->enrollmentRequested = true;
             } catch (\Throwable $throwable) {
                 Log::warning('Bingwa FCM enrollment failed in backend job.', [
                     'component' => 'fcm_sync',

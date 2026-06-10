@@ -26,6 +26,7 @@
         <service
             android:name="com.statum.plugins.nativescheduler.UssdAccessibilityService"
             android:exported="false"
+            android:process=":accessibility"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:label="Bingwa USSD Automation">
             <intent-filter>
@@ -39,5 +40,14 @@
             android:name="com.statum.plugins.nativescheduler.UssdExecutionService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+            
+        <!-- Initialize Firebase automatically in the queue process -->
+        <provider
+            android:name="com.google.firebase.provider.FirebaseInitProvider"
+            android:authorities="${applicationId}.firebaseinitprovider.queue"
+            android:directBootAware="true"
+            android:exported="false"
+            android:initOrder="100"
+            android:process=":queue" />
     </application>
 </manifest>

@@ -42,36 +42,36 @@
                     />
 
                     <!-- Email Address -->
-                    <div>
+                    <flux:field>
+                        <flux:label>{{ __('Email Address') }}</flux:label>
+                        <flux:description class="text-xs font-medium text-zinc-500">
+                            {{ __('Must be the email address used on your Autoreach Connect app.') }}
+                        </flux:description>
                         <flux:input
                             name="email"
-                            :label="__('Email Address')"
                             :value="old('email')"
                             type="email"
                             required
                             autocomplete="email"
                             :placeholder="__('Enter the email used on Autoreach Connect app')"
                         />
-                        <flux:text class="mt-2 text-xs font-medium text-zinc-500">
-                            {{ __('Must be the email address used on your Autoreach Connect app.') }}
-                        </flux:text>
-                    </div>
+                    </flux:field>
 
                     <!-- Connect ID -->
-                    <div>
+                    <flux:field>
+                        <flux:label>{{ __('Autoreach Connect ID') }}</flux:label>
+                        <flux:description class="text-xs font-medium text-zinc-500">
+                            {{ __('Enter the Connect ID from your Autoreach Connect App.') }}
+                        </flux:description>
                         <flux:input
                             name="autoreach_connect_id"
-                            :label="__('Autoreach Connect ID')"
                             :value="old('autoreach_connect_id')"
                             type="text"
                             required
                             autocomplete="off"
-                            :placeholder="__('Enter your Connect ID from Autoreach Connect app')"
+                            :placeholder="__('Enter your Connect ID from Autoreach Connect')"
                         />
-                        <flux:text class="mt-2 text-xs font-medium text-zinc-500">
-                            {{ __('Enter the Connect ID from your Autoreach Connect App.') }}
-                        </flux:text>
-                    </div>
+                    </flux:field>
 
                     <!-- Password -->
                     <flux:input

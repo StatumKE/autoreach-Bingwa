@@ -222,7 +222,12 @@
 .auth-layout input[data-flux-control],
 .auth-layout textarea[data-flux-control],
 .auth-layout select[data-flux-control] {
-    @apply min-h-10 rounded-xl bg-white/95 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900/90 dark:ring-white/10 py-1.5 px-3;
+    @apply min-h-9 rounded-xl bg-white/95 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900/90 dark:ring-white/10 py-1.5 px-3 text-[13px];
+}
+
+.auth-layout input[data-flux-control]::placeholder,
+.auth-layout textarea[data-flux-control]::placeholder {
+    @apply text-zinc-400 text-xs;
 }
 
 input:focus[data-flux-control],

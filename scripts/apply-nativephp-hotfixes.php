@@ -1457,6 +1457,76 @@ KOTLIN;
     }
 }
 
+function patch_mobile_firebase_initialize_app(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile-firebase/resources/android/PushNotificationFunctions.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/firebase/PushNotificationFunctions.kt'),
+    ];
+
+    $originalImport = <<<'KOTLIN'
+import com.google.firebase.messaging.FirebaseMessaging
+KOTLIN;
+
+    $patchedImport = <<<'KOTLIN'
+import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.FirebaseApp
+KOTLIN;
+
+    $originalExecute = <<<'KOTLIN'
+    class GetToken(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            Log.d("PushNotification", "GetToken called")
+
+            // Try to get cached token first
+KOTLIN;
+
+    $patchedExecute = <<<'KOTLIN'
+    class GetToken(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            Log.d("PushNotification", "GetToken called")
+
+            try {
+                if (FirebaseApp.getApps(context).isEmpty()) {
+                    Log.d("PushNotification", "Initializing default FirebaseApp in non-main process")
+                    FirebaseApp.initializeApp(context)
+                }
+            } catch (e: Exception) {
+                Log.e("PushNotification", "Failed to initialize FirebaseApp: ${e.localizedMessage}", e)
+            }
+
+            // Try to get cached token first
+KOTLIN;
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (! str_contains($contents, 'import com.google.firebase.FirebaseApp')) {
+            $contents = replace_or_fail(
+                $contents,
+                $originalImport,
+                $patchedImport,
+                'PushNotificationFunctions FirebaseApp import'
+            );
+        }
+
+        if (! str_contains($contents, 'FirebaseApp.getApps(context)')) {
+            $contents = replace_or_fail(
+                $contents,
+                $originalExecute,
+                $patchedExecute,
+                'PushNotificationFunctions FirebaseApp initialization check'
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
+
 try {
 
     patch_mobile_firebase_dispatch_command();
@@ -1482,6 +1552,7 @@ try {
     patch_mobile_manifest_workmanager_and_application();
     patch_mobile_firebase_nativephp_json();
     patch_mobile_firebase_context_registrations();
+    patch_mobile_firebase_initialize_app();
 } catch (Throwable $throwable) {
     fwrite(STDERR, $throwable->getMessage().PHP_EOL);
 

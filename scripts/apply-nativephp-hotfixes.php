@@ -217,6 +217,17 @@ KOTLIN;
                             val cmd = pendingCommands.poll() ?: break
                             val output = phpBridge.nativeEphemeralArtisan(cmd)
                             Log.d(TAG, "Data message event dispatched (output=${output.take(200)})")
+                            
+                            // Wake the PHPQueueWorker immediately so it picks up the queued job
+                            try {
+                                val intent = android.content.Intent(applicationContext, com.nativephp.mobile.bridge.PHPQueueService::class.java).apply {
+                                    action = "WAKE_WORKER"
+                                }
+                                applicationContext.startService(intent)
+                                Log.i(TAG, "WAKE_WORKER intent sent to PHPQueueService from PushNotificationService")
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to send WAKE_WORKER intent: ${e.message}")
+                            }
                         }
                     } finally {
                         phpBridge.nativeEphemeralShutdown()
@@ -1175,6 +1186,9 @@ class PHPQueueService : Service() {
                     }
                 }.start()
             }
+        } else if (intent != null && intent.action == "WAKE_WORKER") {
+            Log.i(TAG, "QueueService waking worker thread")
+            queueWorker?.wake()
         } else {
             Log.i(TAG, "QueueService starting worker thread")
             queueWorker?.start()
@@ -1526,6 +1540,44 @@ KOTLIN;
         write_if_changed($target, $contents);
     }
 }
+function patch_mobile_device_functions_empty_name(): void
+{
+    $targets = [
+        project_path('vendor/nativephp/mobile-device/resources/android/DeviceFunctions.kt'),
+        project_path('nativephp/android/app/src/main/java/com/nativephp/device/DeviceFunctions.kt'),
+    ];
+
+    $original = <<<'KOTLIN'
+                            val deviceName = Settings.Global.getString(context.contentResolver, "device_name")
+                                ?: Settings.Secure.getString(context.contentResolver, "bluetooth_name")
+                                ?: "${Build.MANUFACTURER} ${Build.MODEL}"
+KOTLIN;
+
+    $patched = <<<'KOTLIN'
+                            val deviceName = Settings.Global.getString(context.contentResolver, "device_name")?.takeIf { it.isNotBlank() }
+                                ?: Settings.Secure.getString(context.contentResolver, "bluetooth_name")?.takeIf { it.isNotBlank() }
+                                ?: "${Build.MANUFACTURER} ${Build.MODEL}"
+KOTLIN;
+
+    foreach ($targets as $target) {
+        if (! file_exists($target)) {
+            continue;
+        }
+
+        $contents = (string) file_get_contents($target);
+
+        if (! str_contains($contents, 'takeIf { it.isNotBlank() }')) {
+            $contents = replace_or_fail(
+                $contents,
+                $original,
+                $patched,
+                'DeviceFunctions empty name fallback'
+            );
+        }
+
+        write_if_changed($target, $contents);
+    }
+}
 
 try {
 
@@ -1553,6 +1605,7 @@ try {
     patch_mobile_firebase_nativephp_json();
     patch_mobile_firebase_context_registrations();
     patch_mobile_firebase_initialize_app();
+    patch_mobile_device_functions_empty_name();
 } catch (Throwable $throwable) {
     fwrite(STDERR, $throwable->getMessage().PHP_EOL);
 

@@ -1,0 +1,248 @@
+--------- beginning of main
+06-10 04:54:08.229  7802  7802 I Zygote  : Process 7802 created for com.autoreach.bingwa:queue
+06-10 04:54:08.229  7802  7802 I ch.bingwa:queue: Using CollectorTypeCMC GC.
+06-10 04:54:08.235  7802  7802 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+06-10 04:54:08.236  7802  7802 D ActivityThread: setConscryptValidator
+06-10 04:54:08.237  7802  7802 D ActivityThread: setConscryptValidator - put
+06-10 04:54:08.244  7802  7802 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+06-10 04:54:08.244  7802  7802 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
+06-10 04:54:08.246  7802  7802 D nativeloader: Configuring clns-9 for other apk /data/app/~~rQT2_X5rLyypT-KfyNJr7Q==/com.autoreach.bingwa-Yh8e8syL3vwni_zqsFM83Q==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~rQT2_X5rLyypT-KfyNJr7Q==/com.autoreach.bingwa-Yh8e8syL3vwni_zqsFM83Q==/lib/arm64:/data/app/~~rQT2_X5rLyypT-KfyNJr7Q==/com.autoreach.bingwa-Yh8e8syL3vwni_zqsFM83Q==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.autoreach.bingwa
+06-10 04:54:08.249  7802  7802 V GraphicsEnvironment: Currently set values for:
+06-10 04:54:08.249  7802  7802 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+06-10 04:54:08.249  7802  7802 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+06-10 04:54:08.249  7802  7802 V GraphicsEnvironment: com.autoreach.bingwa is not listed in per-application setting
+06-10 04:54:08.249  7802  7802 V GraphicsEnvironment: ANGLE allowlist from config: com.dreamgames.royalmatch com.dts.freefiremax com.dxx.firenow com.gramgames.mergedragons com.ludo.king com.mojang.minecraftpe com.my.defense com.nintendo.zaka com.os.airforce com.playrix.fishdomdd.gplay io.teslatech.callbreak jp.konami.prospia net.peakgames.toonblast
+06-10 04:54:08.249  7802  7802 V GraphicsEnvironment: No special selections for ANGLE, returning default driver choice
+06-10 04:54:08.249  7802  7802 V GraphicsEnvironment: App is not on the allowlist for updatable production driver.
+06-10 04:54:08.251  7802  7802 I MainApplication: MainApplication onCreate - process: 7802
+06-10 04:54:08.252  7802  7802 I PHPQueueService: QueueService created in separate process
+06-10 04:54:08.258  7802  7802 I LINKER  : LOADED: /data/app/~~rQT2_X5rLyypT-KfyNJr7Q==/com.autoreach.bingwa-Yh8e8syL3vwni_zqsFM83Q==/lib/arm64/libphp_wrapper.so
+06-10 04:54:08.258  7802  7802 I PHP-Wrapper: Re-opened libphp_wrapper.so with RTLD_GLOBAL
+06-10 04:54:08.258  7802  7802 D nativeloader: Load /data/app/~~rQT2_X5rLyypT-KfyNJr7Q==/com.autoreach.bingwa-Yh8e8syL3vwni_zqsFM83Q==/lib/arm64/libphp_wrapper.so using class loader ns clns-9 (caller=/data/app/~~rQT2_X5rLyypT-KfyNJr7Q==/com.autoreach.bingwa-Yh8e8syL3vwni_zqsFM83Q==/base.apk): ok
+06-10 04:54:08.259  7802  7802 I BridgeJNI: 🔌 BridgeJNI: InitializeBridgeJNI called
+06-10 04:54:08.259  7802  7802 I BridgeJNI: 🔍 BridgeJNI: Looking for com/nativephp/mobile/bridge/BridgeRouterKt class...
+06-10 04:54:08.259  7802  7802 I BridgeJNI: ✅ BridgeJNI: Found BridgeRouterKt class
+06-10 04:54:08.259  7802  7802 I BridgeJNI: BridgeJNI: Initialization successful
+06-10 04:54:08.259  7802  7802 I PHPQueueService: QueueService starting worker thread
+06-10 04:54:08.259  7802  7802 I PHPQueueWorker: Queue worker thread launched
+06-10 04:54:08.259  7802  7829 I PHPQueueWorker: Queue worker starting (ephemeral context)
+06-10 04:54:08.260  7802  7829 D LaravelEnvironment: ⚡ Read bundle_meta.json: version=1.4.4, bifrost=null, runtime_mode=persistent
+06-10 04:54:08.260  7802  7829 D LaravelEnvironment: No BIFROST_APP_ID found in bundled .env
+06-10 04:54:08.260  7802  7829 D LaravelEnvironment: No BIFROST_APP_ID found in extracted .env
+06-10 04:54:08.260  7802  7829 D LaravelEnvironment: 🔍 DEBUG: embeddedVersion from bundle = '1.4.4'
+06-10 04:54:08.261  7802  7829 D LaravelEnvironment: 🔍 DEBUG: currentVersion = '1.4.4'
+06-10 04:54:08.261  7802  7829 D LaravelEnvironment: 🔍 DEBUG: embeddedVersion.clean = '1.4.4'
+06-10 04:54:08.261  7802  7829 D LaravelEnvironment: 🔍 DEBUG: isDebugOverride = false
+06-10 04:54:08.261  7802  7829 D LaravelEnvironment: 🔍 DEBUG: isUpToDate = true
+06-10 04:54:08.261  7802  7829 D LaravelEnvironment: 🔍 DEBUG: apkChanged = false
+06-10 04:54:08.261  7802  7829 D LaravelEnvironment: 🔍 DEBUG: shouldExtract = false
+06-10 04:54:08.261  7802  7829 D LaravelEnvironment: ✅ Laravel already up to date (version 1.4.4)
+06-10 04:54:08.261  7802  7829 D LaravelEnvironment: ✅ Found valid APP_KEY in file
+06-10 04:54:08.262  7802  7829 D LaravelEnvironment: ✅ Environment variables configured
+06-10 04:54:08.262  7802  7829 D LaravelEnvironment: PHP session path set to: /data/user/0/com.autoreach.bingwa/app_storage/php_sessions
+06-10 04:54:08.262  7802  7829 D LaravelEnvironment: 🔍 Certificate copy - DEBUG mode: false
+06-10 04:54:08.265  7802  7829 D LaravelEnvironment: 📋 Asset cacert.pem already up to date (checksum match)
+06-10 04:54:08.265  7802  7829 D LaravelEnvironment: ✅ PHP ini configured with certificate path
+06-10 04:54:08.265  7802  7829 D LaravelEnvironment: Background environment initialized
+06-10 04:54:08.265  7802  7829 I PHPQueueWorker: Cold boot detected — registering context-only bridge functions
+06-10 04:54:08.265  7802  7829 D PHPQueueWorker: Calling nativeEphemeralBoot...
+06-10 04:54:08.265  7802  7829 I PHP-Native: ephemeral_boot: initializing with bootstrap=/data/user/0/com.autoreach.bingwa/app_storage/laravel/vendor/nativephp/mobile/bootstrap/android/persistent.php
+06-10 04:54:08.265  7802  7829 I PHP-Native: ephemeral_embed_init: cold path — full PHP bootstrap
+06-10 04:54:08.270  7802  7829 I NativePHP: NativePHP module initializing
+06-10 04:54:08.273  7802  7829 I PHP-Native: SAPI header: X-Powered-By: PHP/8.5.6
+06-10 04:54:08.273  7802  7829 I PHP-Native: ephemeral_embed_init: cold path ready
+06-10 04:54:08.461  7802  7829 I NativePHP: nativephp_call() called with method: BackgroundTasks.Register
+06-10 04:54:08.461  7802  7829 I BridgeJNI: 🚀 BridgeJNI: NativePHPCall called with function='BackgroundTasks.Register'
+06-10 04:54:08.461  7802  7829 I BridgeJNI: 📦 BridgeJNI: Parameters JSON: {"tasks":[{"command":"bingwa:heartbeat","identifier":"com.nativephp.task.bingwa-heartbeat","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:sync-transactions","identifier":"com.nativephp.task.bingwa-sync-transactions","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:process-auto-renewals","identifier":"com.nativephp.task.bingwa-process-auto-renewals","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:fetch-airtime-balance","identifier":"com.nativephp.task.bingwa-fetch-airtime-balance","interval_minutes":15,"constraints":[],"long_running":false}]}
+06-10 04:54:08.461  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got JNIEnv successfully
+06-10 04:54:08.461  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for function name
+06-10 04:54:08.461  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for parameters
+06-10 04:54:08.461  7802  7829 I BridgeJNI: 🔄 BridgeJNI: Calling Kotlin nativePHPCall method...
+06-10 04:54:08.461  7802  7829 I BackgroundTaskManager: Registering 4 background task(s)
+06-10 04:54:08.464  7802  7829 D WM-PackageManagerHelper: Skipping component enablement for androidx.work.impl.background.systemjob.SystemJobService
+06-10 04:54:08.464  7802  7829 D WM-Schedulers: Created SystemJobScheduler and enabled SystemJobService
+06-10 04:54:08.464  7802  7829 I BackgroundTaskManager: Registered: bingwa:heartbeat (every 15min) [no constraints]
+06-10 04:54:08.464  7802  7829 I BackgroundTaskManager: Registered: bingwa:sync-transactions (every 15min) [no constraints]
+06-10 04:54:08.464  7802  7851 D WM-ForceStopRunnable: The default process name was not specified.
+06-10 04:54:08.464  7802  7829 I BackgroundTaskManager: Registered: bingwa:process-auto-renewals (every 15min) [no constraints]
+06-10 04:54:08.464  7802  7829 I BackgroundTaskManager: Registered: bingwa:fetch-airtime-balance (every 15min) [no constraints]
+06-10 04:54:08.464  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got non-null result from Kotlin
+06-10 04:54:08.464  7802  7851 D WM-ForceStopRunnable: Performing cleanup operations.
+06-10 04:54:08.464  7802  7829 I BridgeJNI: 📤 BridgeJNI: Result JSON: {"success":true,"registered":4}
+06-10 04:54:08.464  7802  7829 I BridgeJNI: ✅ BridgeJNI: NativePHPCall('BackgroundTasks.Register') completed successfully
+06-10 04:54:08.468  7802  7851 E ashmem  : Pinning is deprecated since Android Q. Please use trim or other methods.
+06-10 04:54:08.481  7802  7829 I PHP-Native: ephemeral_boot: ephemeral PHP interpreter ready
+06-10 04:54:08.481  7802  7829 D PHPQueueWorker: nativeEphemeralBoot result: 0
+06-10 04:54:08.481  7802  7829 I PHPQueueWorker: Ephemeral runtime booted, processing one queue job
+06-10 04:54:08.481  7802  7829 I PHP-Native: ephemeral_artisan: queue:work --once --timeout=360
+06-10 04:54:08.713  7802  7829 I PHP-Native: ephemeral_shutdown: shutting down ephemeral interpreter
+06-10 04:54:08.714  7802  7829 I PHP-Native: ephemeral_embed_shutdown: cold path — full php_embed_shutdown
+06-10 04:54:08.719  7802  7829 I NativePHP: NativePHP module shutting down
+06-10 04:54:08.724  7802  7829 I PHP-Native: ephemeral_embed_shutdown: done
+06-10 04:54:08.724  7802  7829 I PHP-Native: ephemeral_shutdown: done
+06-10 04:54:08.724  7802  7829 D PHPQueueWorker: Queue worker output:   2026-06-10 04:54:08 App\Jobs\PrefetchSubscriptionPlansJob .......... RUNNING
+06-10 04:54:08.724  7802  7829 D PHPQueueWorker:   2026-06-10 04:54:08 App\Jobs\PrefetchSubscriptionPlansJob ..... 18.49ms DONE
+06-10 04:54:08.725  7802  7829 D PHPQueueWorker: Job processed, looping back in 50ms
+06-10 04:54:08.775  7802  7829 D PHPQueueWorker: Calling nativeEphemeralBoot...
+06-10 04:54:08.775  7802  7829 I PHP-Native: ephemeral_boot: initializing with bootstrap=/data/user/0/com.autoreach.bingwa/app_storage/laravel/vendor/nativephp/mobile/bootstrap/android/persistent.php
+06-10 04:54:08.775  7802  7829 I PHP-Native: ephemeral_embed_init: cold path — full PHP bootstrap
+06-10 04:54:08.780  7802  7829 I NativePHP: NativePHP module initializing
+06-10 04:54:08.783  7802  7829 I PHP-Native: SAPI header: X-Powered-By: PHP/8.5.6
+06-10 04:54:08.783  7802  7829 I PHP-Native: ephemeral_embed_init: cold path ready
+06-10 04:54:09.003  7802  7829 I NativePHP: nativephp_call() called with method: BackgroundTasks.Register
+06-10 04:54:09.003  7802  7829 I BridgeJNI: 🚀 BridgeJNI: NativePHPCall called with function='BackgroundTasks.Register'
+06-10 04:54:09.003  7802  7829 I BridgeJNI: 📦 BridgeJNI: Parameters JSON: {"tasks":[{"command":"bingwa:heartbeat","identifier":"com.nativephp.task.bingwa-heartbeat","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:sync-transactions","identifier":"com.nativephp.task.bingwa-sync-transactions","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:process-auto-renewals","identifier":"com.nativephp.task.bingwa-process-auto-renewals","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:fetch-airtime-balance","identifier":"com.nativephp.task.bingwa-fetch-airtime-balance","interval_minutes":15,"constraints":[],"long_running":false}]}
+06-10 04:54:09.003  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got JNIEnv successfully
+06-10 04:54:09.003  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for function name
+06-10 04:54:09.003  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for parameters
+06-10 04:54:09.003  7802  7829 I BridgeJNI: 🔄 BridgeJNI: Calling Kotlin nativePHPCall method...
+06-10 04:54:09.003  7802  7829 I BackgroundTaskManager: Registering 4 background task(s)
+06-10 04:54:09.004  7802  7829 I BackgroundTaskManager: Registered: bingwa:heartbeat (every 15min) [no constraints]
+06-10 04:54:09.004  7802  7829 I BackgroundTaskManager: Registered: bingwa:sync-transactions (every 15min) [no constraints]
+06-10 04:54:09.004  7802  7829 I BackgroundTaskManager: Registered: bingwa:process-auto-renewals (every 15min) [no constraints]
+06-10 04:54:09.004  7802  7829 I BackgroundTaskManager: Registered: bingwa:fetch-airtime-balance (every 15min) [no constraints]
+06-10 04:54:09.004  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got non-null result from Kotlin
+06-10 04:54:09.004  7802  7829 I BridgeJNI: 📤 BridgeJNI: Result JSON: {"success":true,"registered":4}
+06-10 04:54:09.004  7802  7829 I BridgeJNI: ✅ BridgeJNI: NativePHPCall('BackgroundTasks.Register') completed successfully
+06-10 04:54:09.024  7802  7829 I PHP-Native: ephemeral_boot: ephemeral PHP interpreter ready
+06-10 04:54:09.024  7802  7829 D PHPQueueWorker: nativeEphemeralBoot result: 0
+06-10 04:54:09.024  7802  7829 I PHPQueueWorker: Ephemeral runtime booted, processing one queue job
+06-10 04:54:09.024  7802  7829 I PHP-Native: ephemeral_artisan: queue:work --once --timeout=360
+06-10 04:54:12.279  7802  7829 I PHP-Native: ephemeral_shutdown: shutting down ephemeral interpreter
+06-10 04:54:12.282  7802  7829 I PHP-Native: ephemeral_embed_shutdown: cold path — full php_embed_shutdown
+06-10 04:54:12.289  7802  7829 I NativePHP: NativePHP module shutting down
+06-10 04:54:12.295  7802  7829 I PHP-Native: ephemeral_embed_shutdown: done
+06-10 04:54:12.295  7802  7829 I PHP-Native: ephemeral_shutdown: done
+06-10 04:54:12.295  7802  7829 D PHPQueueWorker: Queue empty — blocking for up to 30000ms
+06-10 04:54:27.257  7802  7816 W ch.bingwa:queue: userfaultfd: MOVE ioctl seems unsupported: Connection timed out
+06-10 04:54:42.296  7802  7829 D PHPQueueWorker: Calling nativeEphemeralBoot...
+06-10 04:54:42.297  7802  7829 I PHP-Native: ephemeral_boot: initializing with bootstrap=/data/user/0/com.autoreach.bingwa/app_storage/laravel/vendor/nativephp/mobile/bootstrap/android/persistent.php
+06-10 04:54:42.297  7802  7829 I PHP-Native: ephemeral_embed_init: cold path — full PHP bootstrap
+06-10 04:54:42.305  7802  7829 I NativePHP: NativePHP module initializing
+06-10 04:54:42.307  7802  7829 I PHP-Native: SAPI header: X-Powered-By: PHP/8.5.6
+06-10 04:54:42.307  7802  7829 I PHP-Native: ephemeral_embed_init: cold path ready
+06-10 04:54:42.565  7802  7829 I NativePHP: nativephp_call() called with method: BackgroundTasks.Register
+06-10 04:54:42.566  7802  7829 I BridgeJNI: 🚀 BridgeJNI: NativePHPCall called with function='BackgroundTasks.Register'
+06-10 04:54:42.566  7802  7829 I BridgeJNI: 📦 BridgeJNI: Parameters JSON: {"tasks":[{"command":"bingwa:heartbeat","identifier":"com.nativephp.task.bingwa-heartbeat","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:sync-transactions","identifier":"com.nativephp.task.bingwa-sync-transactions","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:process-auto-renewals","identifier":"com.nativephp.task.bingwa-process-auto-renewals","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:fetch-airtime-balance","identifier":"com.nativephp.task.bingwa-fetch-airtime-balance","interval_minutes":15,"constraints":[],"long_running":false}]}
+06-10 04:54:42.566  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got JNIEnv successfully
+06-10 04:54:42.566  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for function name
+06-10 04:54:42.566  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for parameters
+06-10 04:54:42.566  7802  7829 I BridgeJNI: 🔄 BridgeJNI: Calling Kotlin nativePHPCall method...
+06-10 04:54:42.566  7802  7829 I BackgroundTaskManager: Registering 4 background task(s)
+06-10 04:54:42.567  7802  7829 I BackgroundTaskManager: Registered: bingwa:heartbeat (every 15min) [no constraints]
+06-10 04:54:42.567  7802  7829 I BackgroundTaskManager: Registered: bingwa:sync-transactions (every 15min) [no constraints]
+06-10 04:54:42.567  7802  7829 I BackgroundTaskManager: Registered: bingwa:process-auto-renewals (every 15min) [no constraints]
+06-10 04:54:42.567  7802  7829 I BackgroundTaskManager: Registered: bingwa:fetch-airtime-balance (every 15min) [no constraints]
+06-10 04:54:42.567  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got non-null result from Kotlin
+06-10 04:54:42.567  7802  7829 I BridgeJNI: 📤 BridgeJNI: Result JSON: {"success":true,"registered":4}
+06-10 04:54:42.567  7802  7829 I BridgeJNI: ✅ BridgeJNI: NativePHPCall('BackgroundTasks.Register') completed successfully
+06-10 04:54:42.588  7802  7829 I PHP-Native: ephemeral_boot: ephemeral PHP interpreter ready
+06-10 04:54:42.588  7802  7829 D PHPQueueWorker: nativeEphemeralBoot result: 0
+06-10 04:54:42.588  7802  7829 I PHPQueueWorker: Ephemeral runtime booted, processing one queue job
+06-10 04:54:42.588  7802  7829 I PHP-Native: ephemeral_artisan: queue:work --once --timeout=360
+06-10 04:54:42.923  7802  7829 I NativePHP: nativephp_can() called with method: PushNotification.GetToken
+06-10 04:54:42.923  7802  7829 I BridgeJNI: BridgeJNI: NativePHPCan('PushNotification.GetToken') = 1
+06-10 04:54:42.938  7802  7829 I NativePHP: nativephp_call() called with method: PushNotification.CheckPermission
+06-10 04:54:42.938  7802  7829 I BridgeJNI: 🚀 BridgeJNI: NativePHPCall called with function='PushNotification.CheckPermission'
+06-10 04:54:42.938  7802  7829 I BridgeJNI: 📦 BridgeJNI: Parameters JSON: {}
+06-10 04:54:42.938  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got JNIEnv successfully
+06-10 04:54:42.938  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for function name
+06-10 04:54:42.938  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for parameters
+06-10 04:54:42.938  7802  7829 I BridgeJNI: 🔄 BridgeJNI: Calling Kotlin nativePHPCall method...
+06-10 04:54:42.938  7802  7829 D PushNotification: CheckPermission called
+06-10 04:54:42.939  7802  7829 D PushNotification: CheckPermission status: granted
+06-10 04:54:42.939  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got non-null result from Kotlin
+06-10 04:54:42.939  7802  7829 I BridgeJNI: 📤 BridgeJNI: Result JSON: {"status":"granted"}
+06-10 04:54:42.939  7802  7829 I BridgeJNI: ✅ BridgeJNI: NativePHPCall('PushNotification.CheckPermission') completed successfully
+06-10 04:54:42.946  7802  7829 I NativePHP: nativephp_call() called with method: PushNotification.RequestPermission
+06-10 04:54:42.946  7802  7829 I BridgeJNI: 🚀 BridgeJNI: NativePHPCall called with function='PushNotification.RequestPermission'
+06-10 04:54:42.946  7802  7829 I BridgeJNI: 📦 BridgeJNI: Parameters JSON: {"id":"60127fd2-fbff-42ff-b7dc-eb590c7f5389","event":"Native\\Mobile\\Events\\PushNotification\\TokenGenerated"}
+06-10 04:54:42.946  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got JNIEnv successfully
+06-10 04:54:42.946  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for function name
+06-10 04:54:42.946  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for parameters
+06-10 04:54:42.946  7802  7829 I BridgeJNI: 🔄 BridgeJNI: Calling Kotlin nativePHPCall method...
+06-10 04:54:42.946  7802  7829 E BridgeRouter: ❌ Function 'PushNotification.RequestPermission' not found
+06-10 04:54:42.947  7802  7829 I BridgeJNI: ⚠️ BridgeJNI: NativePHPCall returned null
+06-10 04:54:42.947  7802  7829 I NativePHP: nativephp_call() called with method: PushNotification.GetToken
+06-10 04:54:42.947  7802  7829 I BridgeJNI: 🚀 BridgeJNI: NativePHPCall called with function='PushNotification.GetToken'
+06-10 04:54:42.947  7802  7829 I BridgeJNI: 📦 BridgeJNI: Parameters JSON: {}
+06-10 04:54:42.947  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got JNIEnv successfully
+06-10 04:54:42.947  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for function name
+06-10 04:54:42.947  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for parameters
+06-10 04:54:42.947  7802  7829 I BridgeJNI: 🔄 BridgeJNI: Calling Kotlin nativePHPCall method...
+06-10 04:54:42.947  7802  7829 D PushNotification: GetToken called
+06-10 04:54:42.948  7802  7829 D PushNotification: No cached token available, requesting fresh token
+06-10 04:54:42.949  7802  7829 E BridgeRouter: ❌ Function 'PushNotification.GetToken' unexpected error: Default FirebaseApp is not initialized in this process com.autoreach.bingwa:queue. Make sure to call FirebaseApp.initializeApp(Context) first.
+06-10 04:54:42.949  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got non-null result from Kotlin
+06-10 04:54:42.949  7802  7829 I BridgeJNI: 📤 BridgeJNI: Result JSON: {"status":"error","code":"UNKNOWN_ERROR","message":"Unexpected error: Default FirebaseApp is not initialized in this process com.autoreach.bingwa:queue. Make sure to call FirebaseApp.initializeApp(Context) first.","data":{}}
+06-10 04:54:42.949  7802  7829 I BridgeJNI: ✅ BridgeJNI: NativePHPCall('PushNotification.GetToken') completed successfully
+06-10 04:54:42.951  7802  7829 I PHP-Native: ephemeral_shutdown: shutting down ephemeral interpreter
+06-10 04:54:42.952  7802  7829 I PHP-Native: ephemeral_embed_shutdown: cold path — full php_embed_shutdown
+06-10 04:54:42.956  7802  7829 I NativePHP: NativePHP module shutting down
+06-10 04:54:42.960  7802  7829 I PHP-Native: ephemeral_embed_shutdown: done
+06-10 04:54:42.960  7802  7829 I PHP-Native: ephemeral_shutdown: done
+06-10 04:54:42.960  7802  7829 D PHPQueueWorker: Queue worker output:   2026-06-10 04:54:42 App\Jobs\SyncBingwaFcmTokenJob ................. RUNNING
+06-10 04:54:42.960  7802  7829 D PHPQueueWorker:   2026-06-10 04:54:42 App\Jobs\SyncBingwaFcmTokenJob ............ 31.04ms DONE
+06-10 04:54:42.961  7802  7829 D PHPQueueWorker: Job processed, looping back in 50ms
+06-10 04:54:43.012  7802  7829 D PHPQueueWorker: Calling nativeEphemeralBoot...
+06-10 04:54:43.013  7802  7829 I PHP-Native: ephemeral_boot: initializing with bootstrap=/data/user/0/com.autoreach.bingwa/app_storage/laravel/vendor/nativephp/mobile/bootstrap/android/persistent.php
+06-10 04:54:43.013  7802  7829 I PHP-Native: ephemeral_embed_init: cold path — full PHP bootstrap
+06-10 04:54:43.019  7802  7829 I NativePHP: NativePHP module initializing
+06-10 04:54:43.025  7802  7829 I PHP-Native: SAPI header: X-Powered-By: PHP/8.5.6
+06-10 04:54:43.025  7802  7829 I PHP-Native: ephemeral_embed_init: cold path ready
+06-10 04:54:43.242  7802  7829 I NativePHP: nativephp_call() called with method: BackgroundTasks.Register
+06-10 04:54:43.242  7802  7829 I BridgeJNI: 🚀 BridgeJNI: NativePHPCall called with function='BackgroundTasks.Register'
+06-10 04:54:43.242  7802  7829 I BridgeJNI: 📦 BridgeJNI: Parameters JSON: {"tasks":[{"command":"bingwa:heartbeat","identifier":"com.nativephp.task.bingwa-heartbeat","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:sync-transactions","identifier":"com.nativephp.task.bingwa-sync-transactions","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:process-auto-renewals","identifier":"com.nativephp.task.bingwa-process-auto-renewals","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:fetch-airtime-balance","identifier":"com.nativephp.task.bingwa-fetch-airtime-balance","interval_minutes":15,"constraints":[],"long_running":false}]}
+06-10 04:54:43.242  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got JNIEnv successfully
+06-10 04:54:43.242  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for function name
+06-10 04:54:43.242  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for parameters
+06-10 04:54:43.242  7802  7829 I BridgeJNI: 🔄 BridgeJNI: Calling Kotlin nativePHPCall method...
+06-10 04:54:43.242  7802  7829 I BackgroundTaskManager: Registering 4 background task(s)
+06-10 04:54:43.242  7802  7829 I BackgroundTaskManager: Registered: bingwa:heartbeat (every 15min) [no constraints]
+06-10 04:54:43.242  7802  7829 I BackgroundTaskManager: Registered: bingwa:sync-transactions (every 15min) [no constraints]
+06-10 04:54:43.243  7802  7829 I BackgroundTaskManager: Registered: bingwa:process-auto-renewals (every 15min) [no constraints]
+06-10 04:54:43.243  7802  7829 I BackgroundTaskManager: Registered: bingwa:fetch-airtime-balance (every 15min) [no constraints]
+06-10 04:54:43.243  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got non-null result from Kotlin
+06-10 04:54:43.243  7802  7829 I BridgeJNI: 📤 BridgeJNI: Result JSON: {"success":true,"registered":4}
+06-10 04:54:43.243  7802  7829 I BridgeJNI: ✅ BridgeJNI: NativePHPCall('BackgroundTasks.Register') completed successfully
+06-10 04:54:43.259  7802  7829 I PHP-Native: ephemeral_boot: ephemeral PHP interpreter ready
+06-10 04:54:43.259  7802  7829 D PHPQueueWorker: nativeEphemeralBoot result: 0
+06-10 04:54:43.260  7802  7829 I PHPQueueWorker: Ephemeral runtime booted, processing one queue job
+06-10 04:54:43.260  7802  7829 I PHP-Native: ephemeral_artisan: queue:work --once --timeout=360
+06-10 04:54:46.560  7802  7829 I PHP-Native: ephemeral_shutdown: shutting down ephemeral interpreter
+06-10 04:54:46.563  7802  7829 I PHP-Native: ephemeral_embed_shutdown: cold path — full php_embed_shutdown
+06-10 04:54:46.571  7802  7829 I NativePHP: NativePHP module shutting down
+06-10 04:54:46.577  7802  7829 I PHP-Native: ephemeral_embed_shutdown: done
+06-10 04:54:46.577  7802  7829 I PHP-Native: ephemeral_shutdown: done
+06-10 04:54:46.577  7802  7829 D PHPQueueWorker: Queue empty — blocking for up to 30000ms
+06-10 04:55:16.578  7802  7829 D PHPQueueWorker: Calling nativeEphemeralBoot...
+06-10 04:55:16.583  7802  7829 I PHP-Native: ephemeral_boot: initializing with bootstrap=/data/user/0/com.autoreach.bingwa/app_storage/laravel/vendor/nativephp/mobile/bootstrap/android/persistent.php
+06-10 04:55:16.583  7802  7829 I PHP-Native: ephemeral_embed_init: cold path — full PHP bootstrap
+06-10 04:55:16.592  7802  7829 I NativePHP: NativePHP module initializing
+06-10 04:55:16.595  7802  7829 I PHP-Native: SAPI header: X-Powered-By: PHP/8.5.6
+06-10 04:55:16.595  7802  7829 I PHP-Native: ephemeral_embed_init: cold path ready
+06-10 04:55:16.816  7802  7829 I NativePHP: nativephp_call() called with method: BackgroundTasks.Register
+06-10 04:55:16.816  7802  7829 I BridgeJNI: 🚀 BridgeJNI: NativePHPCall called with function='BackgroundTasks.Register'
+06-10 04:55:16.816  7802  7829 I BridgeJNI: 📦 BridgeJNI: Parameters JSON: {"tasks":[{"command":"bingwa:heartbeat","identifier":"com.nativephp.task.bingwa-heartbeat","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:sync-transactions","identifier":"com.nativephp.task.bingwa-sync-transactions","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:process-auto-renewals","identifier":"com.nativephp.task.bingwa-process-auto-renewals","interval_minutes":15,"constraints":[],"long_running":false},{"command":"bingwa:fetch-airtime-balance","identifier":"com.nativephp.task.bingwa-fetch-airtime-balance","interval_minutes":15,"constraints":[],"long_running":false}]}
+06-10 04:55:16.816  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got JNIEnv successfully
+06-10 04:55:16.816  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for function name
+06-10 04:55:16.816  7802  7829 I BridgeJNI: ✅ BridgeJNI: Created jstring for parameters
+06-10 04:55:16.816  7802  7829 I BridgeJNI: 🔄 BridgeJNI: Calling Kotlin nativePHPCall method...
+06-10 04:55:16.816  7802  7829 I BackgroundTaskManager: Registering 4 background task(s)
+06-10 04:55:16.817  7802  7829 I BackgroundTaskManager: Registered: bingwa:heartbeat (every 15min) [no constraints]
+06-10 04:55:16.817  7802  7829 I BackgroundTaskManager: Registered: bingwa:sync-transactions (every 15min) [no constraints]
+06-10 04:55:16.817  7802  7829 I BackgroundTaskManager: Registered: bingwa:process-auto-renewals (every 15min) [no constraints]
+06-10 04:55:16.817  7802  7829 I BackgroundTaskManager: Registered: bingwa:fetch-airtime-balance (every 15min) [no constraints]
+06-10 04:55:16.817  7802  7829 I BridgeJNI: ✅ BridgeJNI: Got non-null result from Kotlin
+06-10 04:55:16.817  7802  7829 I BridgeJNI: 📤 BridgeJNI: Result JSON: {"success":true,"registered":4}
+06-10 04:55:16.817  7802  7829 I BridgeJNI: ✅ BridgeJNI: NativePHPCall('BackgroundTasks.Register') completed successfully
+06-10 04:55:16.835  7802  7829 I PHP-Native: ephemeral_boot: ephemeral PHP interpreter ready
+06-10 04:55:16.835  7802  7829 D PHPQueueWorker: nativeEphemeralBoot result: 0
+06-10 04:55:16.835  7802  7829 I PHPQueueWorker: Ephemeral runtime booted, processing one queue job
+06-10 04:55:16.835  7802  7829 I PHP-Native: ephemeral_artisan: queue:work --once --timeout=360
+06-10 04:55:20.141  7802  7829 I PHP-Native: ephemeral_shutdown: shutting down ephemeral interpreter
+06-10 04:55:20.143  7802  7829 I PHP-Native: ephemeral_embed_shutdown: cold path — full php_embed_shutdown
+06-10 04:55:20.153  7802  7829 I NativePHP: NativePHP module shutting down
+06-10 04:55:20.159  7802  7829 I PHP-Native: ephemeral_embed_shutdown: done
+06-10 04:55:20.159  7802  7829 I PHP-Native: ephemeral_shutdown: done
+06-10 04:55:20.160  7802  7829 D PHPQueueWorker: Queue empty — blocking for up to 30000ms

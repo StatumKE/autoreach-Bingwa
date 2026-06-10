@@ -105,13 +105,12 @@ class RegisterBingwaDevice
                         'platform' => $decoded['platform'] ?? null,
                         'is_virtual' => $decoded['isVirtual'] ?? $decoded['is_virtual'] ?? null,
                         'uuid' => $hardwareId,
-                    ], static fn ($value): bool => $value !== null);
+                    ], static fn ($value): bool => $value !== null && $value !== '');
                 }
             }
         }
 
-        return array_merge([
-            'name' => 'Generic Android Device',
+        $merged = array_merge([
             'model' => 'Generic',
             'manufacturer' => 'Unknown',
             'os_name' => 'Android',
@@ -120,6 +119,13 @@ class RegisterBingwaDevice
             'is_virtual' => false,
             'uuid' => $hardwareId,
         ], $deviceInfo);
+
+        if (! isset($merged['name'])) {
+            $name = trim(($merged['manufacturer'] !== 'Unknown' ? $merged['manufacturer'] : '') . ' ' . ($merged['model'] !== 'Generic' ? $merged['model'] : ''));
+            $merged['name'] = $name !== '' ? $name : 'Generic Android Device';
+        }
+
+        return $merged;
     }
 
     private function throwValidationException(Response $response): never
@@ -241,6 +247,6 @@ class RegisterBingwaDevice
             'platform' => $decodedDeviceInfo['platform'] ?? null,
             'is_virtual' => $decodedDeviceInfo['isVirtual'] ?? $decodedDeviceInfo['is_virtual'] ?? null,
             'uuid' => $hardwareId,
-        ], static fn ($value): bool => $value !== null);
+        ], static fn ($value): bool => $value !== null && $value !== '');
     }
 }

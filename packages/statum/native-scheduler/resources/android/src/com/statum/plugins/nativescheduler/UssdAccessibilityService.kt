@@ -245,33 +245,13 @@ class UssdAccessibilityService : AccessibilityService() {
         Log.d(TAG, "USSD dialog dismissed")
     }
 
-    /**
-     * Attempts to physically close the system dialog.
-     */
     fun closeDialog() {
         handler.post {
-            val root = rootInActiveWindow ?: run {
-                Log.w(TAG, "closeDialog: no active window to dismiss")
-                return@post
-            }
-            
-            // Try to click cancel/close first
-            val cancelBtn = findCancelButton(root)
-            if (cancelBtn != null) {
-                cancelBtn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                Log.d(TAG, "closeDialog: clicked cancel button")
-            } else {
-                // If there's no edit text (terminal dialog), the send/OK button acts as a dismiss button
-                val sendBtn = findSendButton(root)
-                if (sendBtn != null && findEditTextNode(root) == null) {
-                    sendBtn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    Log.d(TAG, "closeDialog: clicked send/OK button for dialog without input")
-                } else {
-                    // Fallback to global back
-                    performGlobalAction(GLOBAL_ACTION_BACK)
-                    Log.d(TAG, "closeDialog: performed global back action")
-                }
-            }
+            // USSD dialogs are universally dismissed by the Back button.
+            // Clicking buttons is often unreliable because OEMs use non-standard widget trees 
+            // or require focus before clicking.
+            val success = performGlobalAction(GLOBAL_ACTION_BACK)
+            Log.d(TAG, "closeDialog: performed global back action (success=$success)")
         }
     }
 
@@ -343,16 +323,12 @@ class UssdAccessibilityService : AccessibilityService() {
         return textParts.joinToString("\n").trim()
     }
 
-    /**
-     * Finds the Send/OK button in a USSD dialog.
-     *
-     * Strategy: Match known localized labels first, then fall back to the last button in the
-     * tree (which is typically the "confirm" button by dialog layout convention).
-     */
     private fun findSendButton(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         var fallbackButton: AccessibilityNodeInfo? = null
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
+
+        val cancelLabels = setOf("cancel", "close", "dismiss", "abort")
 
         while (queue.isNotEmpty()) {
             val node = queue.removeFirst()
@@ -361,9 +337,10 @@ class UssdAccessibilityService : AccessibilityService() {
             val isButton = className.contains("Button", ignoreCase = true) || (node.isClickable && text.isNotEmpty())
 
             if (isButton) {
-                fallbackButton = node
                 if (text in CONFIRM_LABELS) {
                     return node
+                } else if (text !in cancelLabels) {
+                    fallbackButton = node
                 }
             }
 

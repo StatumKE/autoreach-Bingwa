@@ -44,15 +44,16 @@
                     <!-- Email Address -->
                     <flux:field>
                         <flux:label>{{ __('Email Address') }}</flux:label>
-                        <flux:description class="text-xs font-medium text-zinc-500">
+                        <div class="mb-2 text-xs font-medium text-zinc-500">
                             {{ __('Must be the email address used on your Autoreach Connect app.') }}
-                        </flux:description>
+                        </div>
                         <flux:input
                             name="email"
                             :value="old('email')"
                             type="email"
                             required
                             autocomplete="email"
+                            class="placeholder:text-xs"
                             :placeholder="__('Enter the email used on Autoreach Connect app')"
                         />
                     </flux:field>
@@ -60,15 +61,16 @@
                     <!-- Connect ID -->
                     <flux:field>
                         <flux:label>{{ __('Autoreach Connect ID') }}</flux:label>
-                        <flux:description class="text-xs font-medium text-zinc-500">
+                        <div class="mb-2 text-xs font-medium text-zinc-500">
                             {{ __('Enter the Connect ID from your Autoreach Connect App.') }}
-                        </flux:description>
+                        </div>
                         <flux:input
                             name="autoreach_connect_id"
                             :value="old('autoreach_connect_id')"
                             type="text"
                             required
                             autocomplete="off"
+                            class="placeholder:text-xs"
                             :placeholder="__('Enter your Connect ID from Autoreach Connect')"
                         />
                     </flux:field>

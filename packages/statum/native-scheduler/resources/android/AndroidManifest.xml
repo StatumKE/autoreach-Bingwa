@@ -41,13 +41,5 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
             
-        <!-- Initialize Firebase automatically in the queue process -->
-        <provider
-            android:name="com.google.firebase.provider.FirebaseInitProvider"
-            android:authorities="${applicationId}.firebaseinitprovider.queue"
-            android:directBootAware="true"
-            android:exported="false"
-            android:initOrder="100"
-            android:process=":queue" />
     </application>
 </manifest>

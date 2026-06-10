@@ -25,7 +25,8 @@ class RefreshAirtimeBalance
         $settings = $this->ensureSettings($user);
 
         $simSlot = $settings->primary_transaction_sim === 'slot_2' ? 1 : 0;
-        $preferredMode = $settings->app_interface_mode ?? 'express';
+        // Airtime balance checks must run entirely in the background as express mode to avoid noisy overlays
+        $preferredMode = 'express';
 
         $response = $this->executeBalanceQuery(
             $simSlot,
@@ -34,29 +35,6 @@ class RefreshAirtimeBalance
         );
 
         $balance = $response !== null ? $this->parseBalance($response) : null;
-
-        if ($balance === null && $preferredMode === 'express') {
-            Log::info('Express airtime USSD query did not yield a valid balance; attempting advanced mode fallback.', [
-                'component' => 'airtime_balance',
-                'user_id' => $user->id,
-                'sim_slot' => $simSlot,
-                'raw_response' => $response,
-            ]);
-
-            $fallbackResponse = $this->executeBalanceQuery(
-                $simSlot,
-                (int) ($settings->ussd_timeout_seconds ?? 60),
-                'advanced'
-            );
-
-            if ($fallbackResponse !== null) {
-                $fallbackBalance = $this->parseBalance($fallbackResponse);
-                if ($fallbackBalance !== null) {
-                    $response = $fallbackResponse;
-                    $balance = $fallbackBalance;
-                }
-            }
-        }
 
         if ($balance === null || $response === null) {
             Log::warning('Bingwa airtime balance refresh failed: Could not retrieve or parse balance.', [

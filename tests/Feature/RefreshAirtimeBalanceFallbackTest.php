@@ -28,41 +28,34 @@ afterEach(function (): void {
     unset($GLOBALS['nativephp_call_calls']);
 });
 
-test('it falls back to advanced mode when express mode returns general failure and preferred mode is express', function (): void {
+test('it does not fall back to advanced mode when express mode fails', function (): void {
     $user = User::factory()->create();
     DeviceSetting::factory()->for($user)->create([
         'primary_transaction_sim' => 'slot_1',
         'app_interface_mode' => 'express',
         'airtime_balance' => 10.0,
+        'airtime_balance_raw_response' => 'Initial response',
     ]);
 
     $GLOBALS['custom_nativephp_call_mock'] = function (string $function, ?string $payload): string {
-        $decoded = json_decode($payload, true);
-        if ($decoded['mode'] === 'express') {
-            return '{"success":false,"message":"Network returned a general failure"}';
-        }
-        if ($decoded['mode'] === 'advanced') {
-            return '{"success":true,"message":"Airtime Bal: 150.00KSH"}';
-        }
-
-        return '{"success":false,"message":"Unknown mode"}';
+        return '{"success":false,"message":"Network returned a general failure"}';
     };
 
     $result = app(RefreshAirtimeBalance::class)->refresh($user);
 
-    expect($result['balance'])->toBe(150.0);
-    expect($result['raw_response'])->toBe('Airtime Bal: 150.00KSH');
+    // Should return cached values because express failed and fallback did not run
+    expect($result['balance'])->toBe(10.0);
+    expect($result['raw_response'])->toBe('Initial response');
 
     $this->assertDatabaseHas('device_settings', [
         'user_id' => $user->id,
-        'airtime_balance' => 150.0,
-        'airtime_balance_raw_response' => 'Airtime Bal: 150.00KSH',
+        'airtime_balance' => 10.0,
+        'airtime_balance_raw_response' => 'Initial response',
     ]);
 
-    // Verify both express and advanced mode queries were dispatched sequentially
-    expect($GLOBALS['nativephp_call_calls'])->toHaveCount(2);
+    // Verify only express mode query was attempted (count = 1)
+    expect($GLOBALS['nativephp_call_calls'])->toHaveCount(1);
     expect($GLOBALS['nativephp_call_calls'][0]['payload']['mode'])->toBe('express');
-    expect($GLOBALS['nativephp_call_calls'][1]['payload']['mode'])->toBe('advanced');
 });
 
 test('it does not trigger fallback when express mode succeeds directly', function (): void {
@@ -97,7 +90,7 @@ test('it does not trigger fallback when express mode succeeds directly', functio
     expect($GLOBALS['nativephp_call_calls'][0]['payload']['mode'])->toBe('express');
 });
 
-test('it preserves cached balance when both express and fallback advanced mode query fail', function (): void {
+test('it preserves cached balance when express mode query fails', function (): void {
     $user = User::factory()->create();
     DeviceSetting::factory()->for($user)->create([
         'primary_transaction_sim' => 'slot_1',
@@ -122,13 +115,12 @@ test('it preserves cached balance when both express and fallback advanced mode q
         'airtime_balance_raw_response' => 'Initial raw response',
     ]);
 
-    // Verify both express and advanced mode queries were attempted
-    expect($GLOBALS['nativephp_call_calls'])->toHaveCount(2);
+    // Verify only express query was attempted
+    expect($GLOBALS['nativephp_call_calls'])->toHaveCount(1);
     expect($GLOBALS['nativephp_call_calls'][0]['payload']['mode'])->toBe('express');
-    expect($GLOBALS['nativephp_call_calls'][1]['payload']['mode'])->toBe('advanced');
 });
 
-test('it queries advanced mode directly if app interface mode is set to advanced', function (): void {
+test('it queries express mode even if app interface mode is set to advanced', function (): void {
     $user = User::factory()->create();
     DeviceSetting::factory()->for($user)->create([
         'primary_transaction_sim' => 'slot_1',
@@ -138,7 +130,7 @@ test('it queries advanced mode directly if app interface mode is set to advanced
 
     $GLOBALS['custom_nativephp_call_mock'] = function (string $function, ?string $payload): string {
         $decoded = json_decode($payload, true);
-        if ($decoded['mode'] === 'advanced') {
+        if ($decoded['mode'] === 'express') {
             return '{"success":true,"message":"KSh 45.20"}';
         }
 
@@ -155,7 +147,7 @@ test('it queries advanced mode directly if app interface mode is set to advanced
         'airtime_balance' => 45.20,
     ]);
 
-    // Verify only advanced mode query was dispatched
+    // Verify only express mode query was dispatched, even though settings preferred advanced
     expect($GLOBALS['nativephp_call_calls'])->toHaveCount(1);
-    expect($GLOBALS['nativephp_call_calls'][0]['payload']['mode'])->toBe('advanced');
+    expect($GLOBALS['nativephp_call_calls'][0]['payload']['mode'])->toBe('express');
 });

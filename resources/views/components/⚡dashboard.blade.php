@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -54,7 +55,17 @@ new #[Title('Dashboard')] class extends Component
         $this->hydrateAirtimeBalance();
         $this->isProcessingEnabled = \App\Models\DeviceSetting::isTransactionProcessingEnabledForUser((int) Auth::id());
 
-        \App\Jobs\PrefetchSubscriptionPlansJob::dispatch((int) Auth::id());
+        // Dispatch is best-effort: if SQLite is locked by the background queue worker,
+        // swallow the exception rather than returning a 500. The job is ShouldBeUnique
+        // so it will be re-dispatched on the next mount anyway.
+        try {
+            \App\Jobs\PrefetchSubscriptionPlansJob::dispatch((int) Auth::id());
+        } catch (\Throwable $e) {
+            Log::warning('Dashboard mount: PrefetchSubscriptionPlansJob dispatch skipped (database contention).', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         Log::debug('Bingwa dashboard airtime response ready.', [
             'user_id' => Auth::id(),
@@ -362,6 +373,7 @@ new #[Title('Dashboard')] class extends Component
     }
 
 
+    #[On('open-transaction-details')]
     public function openTransactionDetails(int $transactionId): void
     {
         $this->selectedTransactionId = $transactionId;
@@ -800,11 +812,11 @@ new #[Title('Dashboard')] class extends Component
                             @endphp
 
                             <div 
-                                wire:click="openTransactionDetails({{ $tx->id }})"
+                                @click="$dispatch('open-transaction-details', { transactionId: {{ $tx->id }} })"
                                 role="button"
                                 tabindex="0"
                                 @class([
-                                'px-3 py-2 text-left transition cursor-pointer',
+                                'px-3 py-2 text-left transition cursor-pointer active:scale-[0.99]',
                                 'bg-emerald-50/40 hover:bg-emerald-50/60' => $isSuccess,
                                 'bg-rose-50/40 hover:bg-rose-50/60' => $isFailed,
                                 'bg-zinc-50/40 hover:bg-zinc-50/60' => ! $isSuccess && ! $isFailed,

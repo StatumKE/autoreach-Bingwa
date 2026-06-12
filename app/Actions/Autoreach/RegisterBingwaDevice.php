@@ -121,7 +121,7 @@ class RegisterBingwaDevice
         ], $deviceInfo);
 
         if (! isset($merged['name'])) {
-            $name = trim(($merged['manufacturer'] !== 'Unknown' ? $merged['manufacturer'] : '') . ' ' . ($merged['model'] !== 'Generic' ? $merged['model'] : ''));
+            $name = trim(($merged['manufacturer'] !== 'Unknown' ? $merged['manufacturer'] : '').' '.($merged['model'] !== 'Generic' ? $merged['model'] : ''));
             $merged['name'] = $name !== '' ? $name : 'Generic Android Device';
         }
 

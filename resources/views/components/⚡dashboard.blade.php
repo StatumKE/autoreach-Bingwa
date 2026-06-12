@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Flux\Flux;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -29,6 +30,10 @@ new #[Title('Dashboard')] class extends Component
     public bool $callPhonePermissionDenied = false;
 
     public bool $isProcessingEnabled = true;
+
+    public bool $showTransactionDetails = false;
+
+    public ?int $selectedTransactionId = null;
 
     /**
      * Guards against concurrent USSD bridge calls from overlapping polls.
@@ -356,6 +361,66 @@ new #[Title('Dashboard')] class extends Component
         return 'dashboard:recent-transactions:'.Auth::id();
     }
 
+
+    public function openTransactionDetails(int $transactionId): void
+    {
+        $this->selectedTransactionId = $transactionId;
+        $this->showTransactionDetails = true;
+    }
+
+    public function closeTransactionDetails(): void
+    {
+        $this->showTransactionDetails = false;
+        $this->selectedTransactionId = null;
+    }
+
+    #[Computed]
+    public function selectedTransaction(): ?Transaction
+    {
+        if ($this->selectedTransactionId === null) {
+            return null;
+        }
+
+        return Transaction::query()
+            ->with(['offer:id,name,ussd_code,ussd_mode'])
+            ->where('user_id', Auth::id())
+            ->find($this->selectedTransactionId);
+    }
+
+    public function transactionProductLabel(Transaction $transaction): string
+    {
+        return $transaction->offer?->name
+            ?? ($transaction->matched_offer['offer_name'] ?? $transaction->offer_name ?? '—');
+    }
+
+    public function resolvedUssdCode(Transaction $transaction): string
+    {
+        $ussdCode = (string) ($transaction->offer?->ussd_code ?? '');
+
+        if ($ussdCode === '') {
+            return '—';
+        }
+
+        return str_replace('PN', (string) $transaction->sender_phone, $ussdCode);
+    }
+
+    public function formatDetailValue(mixed $value): string
+    {
+        if (is_array($value)) {
+            return json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '—';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        return (string) $value;
+    }
+
 }; ?>
 
 <div
@@ -440,38 +505,63 @@ new #[Title('Dashboard')] class extends Component
             x-transition:leave="transition ease-in duration-200"
             x-transition:leave-start="opacity-100 translate-y-0 scale-100"
             x-transition:leave-end="opacity-0 -translate-y-2 scale-95"
-            class="rounded-xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-amber-500/5 border border-red-500/20 px-4 py-3 shadow-sm ring-1 ring-red-500/10 flex items-start gap-3 transition-all hover:border-red-500/30"
+            class="rounded-[1.5rem] border border-amber-400/20 bg-gradient-to-br from-amber-400/12 via-rose-500/10 to-white/[0.04] px-4 py-4 shadow-xl shadow-black/10 ring-1 ring-amber-400/10 backdrop-blur-xl transition-all hover:border-amber-400/30"
             x-cloak
         >
-            <flux:icon.exclamation-circle class="mt-0.5 size-4 shrink-0 text-red-500 animate-pulse" />
-            <div class="min-w-0 flex-1">
-                <div class="text-xs font-black text-red-900 leading-tight">{{ __('Accessibility Service Off') }}</div>
-                <div class="mt-1 text-[11px] leading-snug text-red-800/90 font-semibold">
-                    {{ __('USSD automated package delivery cannot run without the accessibility service.') }}
+            <div class="flex items-start gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-400/10">
+                    <flux:icon.exclamation-circle class="size-5 text-amber-200" />
                 </div>
-                <div class="mt-1.5 text-[10px] leading-relaxed text-red-800/80">
-                    Tap <strong class="font-bold text-red-900">Enable Service</strong> below. On <strong class="font-bold text-red-900">Samsung</strong>: tap <strong class="font-bold text-red-900">Installed apps</strong>. On <strong class="font-bold text-red-900">Xiaomi, Oppo, Realme, Tecno, Infinix & Pixel</strong>: look for <strong class="font-bold text-red-900">Downloaded apps</strong>, <strong class="font-bold text-red-900">Downloaded services</strong> or <strong class="font-bold text-red-900">Installed services</strong>. Turn on <strong class="font-bold text-red-900">Bingwa USSD Automation</strong>.
-                </div>
-                <div class="mt-1.5 text-[9.5px] leading-relaxed text-red-700/80 border-t border-red-500/10 pt-1.5">
-                    If blocked by a <strong class="font-bold text-red-900">"Restricted Setting"</strong> pop-up: Open App Info, tap the three dots (<strong class="font-bold text-red-900">More</strong>) in the top-right corner, select <strong class="font-bold text-red-900">"Allow restricted settings"</strong>, and then enable it.
-                </div>
-                <div class="mt-2 flex items-center gap-2">
-                    <button
-                        type="button"
-                        id="btn-enable-accessibility"
-                        @click="openAccessibility"
-                        class="rounded-lg bg-red-600 text-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition hover:bg-red-700 active:scale-95 shadow-sm hover:shadow"
-                    >
-                        {{ __('Enable Service') }}
-                    </button>
-                    <button
-                        type="button"
-                        id="btn-open-app-info"
-                        @click="openAppInfo"
-                        class="rounded-lg bg-zinc-800 text-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700 active:scale-95 shadow-sm hover:shadow"
-                    >
-                        {{ __('Open App Info') }}
-                    </button>
+
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="text-xs font-black uppercase tracking-[0.24em] text-amber-100/90">{{ __('Accessibility service off') }}</div>
+                        <span class="inline-flex items-center rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.24em] text-zinc-200">
+                            {{ __('Required') }}
+                        </span>
+                    </div>
+
+                    <div class="mt-1 text-[11px] leading-snug text-zinc-200/90">
+                        {{ __('Bingwa needs accessibility enabled to read USSD replies and confirm a successful transaction.') }}
+                    </div>
+
+                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-white/10 bg-black/20 p-3">
+                            <div class="text-[9px] font-black uppercase tracking-[0.26em] text-amber-100/80">{{ __('Quick path') }}</div>
+                            <p class="mt-1 text-[10px] leading-5 text-zinc-300">
+                                {{ __('Tap Open Accessibility, then turn on Bingwa USSD Automation.') }}
+                            </p>
+                            <p class="mt-2 text-[10px] leading-5 text-zinc-400">
+                                <strong class="font-bold text-white">{{ __('Samsung') }}</strong>{{ __(': choose Installed apps.') }} <strong class="font-bold text-white">{{ __('Other Android phones') }}</strong>{{ __(': look for Downloaded services or Installed services.') }}
+                            </p>
+                        </div>
+
+                        <div class="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-3">
+                            <div class="text-[9px] font-black uppercase tracking-[0.26em] text-amber-100/90">{{ __('If restricted') }}</div>
+                            <p class="mt-1 text-[10px] leading-5 text-zinc-200/90">
+                                {{ __('Open App Info, tap More, then Allow restricted settings before enabling the service.') }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <button
+                            type="button"
+                            id="btn-enable-accessibility"
+                            @click="openAccessibility"
+                            class="inline-flex h-11 items-center justify-center rounded-2xl bg-white px-4 text-[10px] font-black uppercase tracking-[0.24em] text-zinc-950 transition active:scale-[0.98]"
+                        >
+                            {{ __('Open Accessibility') }}
+                        </button>
+                        <button
+                            type="button"
+                            id="btn-open-app-info"
+                            @click="openAppInfo"
+                            class="inline-flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 text-[10px] font-black uppercase tracking-[0.24em] text-white transition hover:bg-white/10 active:scale-[0.98]"
+                        >
+                            {{ __('Open App Info') }}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -709,8 +799,12 @@ new #[Title('Dashboard')] class extends Component
                                 $isFailed = $status === 'failed';
                             @endphp
 
-                            <div @class([
-                                'px-3 py-2 text-left transition',
+                            <div 
+                                wire:click="openTransactionDetails({{ $tx->id }})"
+                                role="button"
+                                tabindex="0"
+                                @class([
+                                'px-3 py-2 text-left transition cursor-pointer',
                                 'bg-emerald-50/40 hover:bg-emerald-50/60' => $isSuccess,
                                 'bg-rose-50/40 hover:bg-rose-50/60' => $isFailed,
                                 'bg-zinc-50/40 hover:bg-zinc-50/60' => ! $isSuccess && ! $isFailed,
@@ -817,5 +911,174 @@ new #[Title('Dashboard')] class extends Component
                 </div>
             </div>
         </flux:modal>
+
+    <flux:modal
+        name="transaction-details"
+        wire:model.self="showTransactionDetails"
+        class="w-[min(100vw-1rem,48rem)] max-w-3xl"
+        @close="closeTransactionDetails"
+        scroll="body"
+    >
+        @php
+            $selectedTransaction = $this->selectedTransaction;
+        @endphp
+
+        @if ($selectedTransaction)
+            <div x-data="{ copied: false }" class="space-y-3">
+                <div class="space-y-0.5">
+                    <flux:heading size="md">{{ __('Transaction Details') }}</flux:heading>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    {{-- Status Card --}}
+                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
+                        <div class="grid @if($selectedTransaction->next_attempt_at) grid-cols-2 gap-4 @else grid-cols-1 @endif">
+                            <div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Status') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900">
+                                    {{ blank($selectedTransaction->status) ? __('Pending') : $selectedTransaction->status }}
+                                    @if ($selectedTransaction->status === 'failed' && $selectedTransaction->next_attempt_at)
+                                        <span class="ml-2 inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber-600">
+                                            {{ __('Rescheduled') }}
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                            @if ($selectedTransaction->next_attempt_at)
+                                <div>
+                                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Rescheduled For') }}</div>
+                                    <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ AppTimezone::format($selectedTransaction->next_attempt_at, 'H:i, M j, Y') }}</div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- Amount and Sender Card --}}
+                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Amount') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900">Ksh {{ number_format((float) $selectedTransaction->amount) }}</div>
+                            </div>
+                            <div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Sender') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $selectedTransaction->sender_name ?: __('Unknown sender') }}</div>
+                                <div class="mt-0.5 flex items-center gap-2">
+                                    <div class="text-[10px] text-zinc-500">{{ $selectedTransaction->sender_phone }}</div>
+                                    @if (filled($selectedTransaction->sender_phone))
+                                        <flux:button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            class="!h-5 px-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500"
+                                            data-phone="{{ $selectedTransaction->sender_phone }}"
+                                            x-on:click="
+                                                let phone = $el.getAttribute('data-phone');
+                                                let fallbackCopy = function(text) {
+                                                    let ta = document.createElement('textarea');
+                                                    ta.value = text;
+                                                    ta.style.position = 'fixed';
+                                                    ta.style.left = '-9999px';
+                                                    ta.style.top = '0';
+                                                    ta.setAttribute('readonly', '');
+                                                    document.body.appendChild(ta);
+                                                    ta.select();
+                                                    ta.setSelectionRange(0, 99999);
+                                                    document.execCommand('copy');
+                                                    document.body.removeChild(ta);
+                                                };
+                                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                                    navigator.clipboard.writeText(phone).catch(() => fallbackCopy(phone));
+                                                } else {
+                                                    fallbackCopy(phone);
+                                                }
+                                                copied = true;
+                                                setTimeout(() => copied = false, 1200);
+                                            "
+                                        >
+                                            <span x-show="!copied">{{ __('Copy') }}</span>
+                                            <span x-show="copied" x-cloak>{{ __('Copied') }}</span>
+                                        </flux:button>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- M-PESA Code and Matched Offer Card --}}
+                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('M-PESA Code') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $selectedTransaction->mpesa_code ?: '—' }}</div>
+                            </div>
+                            <div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Matched App Product') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $this->transactionProductLabel($selectedTransaction) }}</div>
+                                <div class="mt-0.5 text-[10px] text-zinc-500">{{ $selectedTransaction->offer_type ?: '—' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- USSD Code Card --}}
+                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
+                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('USSD Code') }}</div>
+                        <div class="mt-0.5 font-mono text-xs font-bold text-zinc-900 break-all">{{ $this->resolvedUssdCode($selectedTransaction) }}</div>
+                        <div class="mt-0.5 text-[10px] text-zinc-500">{{ $selectedTransaction->offer?->ussd_mode ?: '—' }}</div>
+                    </div>
+                </div>
+
+                {{-- Compact grouped dates panel --}}
+                <div class="rounded-xl bg-zinc-50/50 p-2.5 px-3 ring-1 ring-zinc-200">
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-2.5">
+                        <div>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Occurred At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->occurred_at) }}</span>
+                        </div>
+                        <div>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Processed At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->processed_at) }}</span>
+                        </div>
+                        <div>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Created At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->created_at) }}</span>
+                        </div>
+                        <div>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Updated At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->updated_at) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                @if ($selectedTransaction->raw_sms)
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Raw SMS') }}</div>
+                        <div class="rounded-xl bg-zinc-50 p-2.5 text-xs leading-relaxed text-zinc-800 ring-1 ring-zinc-200 break-words">
+                            {{ $selectedTransaction->raw_sms }}
+                        </div>
+                    </div>
+                @endif
+
+                <div class="space-y-1">
+                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('USSD Result') }}</div>
+                    <div class="rounded-xl bg-zinc-50 p-2.5 text-xs leading-relaxed text-zinc-800 ring-1 ring-zinc-200">
+                        {{ $selectedTransaction->status_desc ?: __('—') }}
+                    </div>
+                </div>
+
+                @if ($selectedTransaction->balance)
+                    <div class="space-y-1">
+                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Balance Payload') }}</div>
+                        <pre class="overflow-x-auto rounded-xl bg-zinc-950 p-2.5 text-[10px] leading-relaxed text-zinc-100 ring-1 ring-zinc-900">{{ $this->formatDetailValue($selectedTransaction->balance) }}</pre>
+                    </div>
+                @endif
+            </div>
+        @else
+            <div class="space-y-3">
+                <flux:heading size="lg">{{ __('Transaction details') }}</flux:heading>
+                <flux:text class="text-sm text-zinc-500">{{ __('Select a transaction to view the full USSD trail.') }}</flux:text>
+            </div>
+        @endif
+    </flux:modal>
     </div>
 </div>

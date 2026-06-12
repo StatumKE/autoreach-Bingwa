@@ -266,12 +266,30 @@ test('the setup screen uses inline alpine state and visible permission button la
     expect($setupComponent)
         ->toContain('x-data="{')
         ->toContain("nativeCall('RequestSetupPermissions', { force: true })")
-        ->toContain('Grant Access')
-        ->toContain('Restricted settings')
-        ->toContain('Open App Info')
+        ->toContain('Set up your phone')
+        ->toContain('Accessibility service')
         ->toContain('Open Accessibility')
+        ->toContain('Open App Info')
+        ->toContain('Allow restricted settings')
+        ->toContain('Samsung')
+        ->toContain('Grant Access')
         ->not->toContain('x-data="bingwaSetup()"')
         ->not->toContain('function bingwaSetup()')
         ->not->toContain('RequestRuntimePermissions')
         ->not->toContain("x-text=\"requesting ? 'Requesting");
+});
+
+test('the dashboard accessibility alert uses the same onboarding guidance', function () {
+    $dashboardComponent = File::get(base_path('resources/views/components/⚡dashboard.blade.php'));
+
+    expect($dashboardComponent)
+        ->toContain('Accessibility service off')
+        ->toContain('Bingwa needs accessibility enabled to read USSD replies and confirm a successful transaction.')
+        ->toContain('Open Accessibility')
+        ->toContain('Open App Info')
+        ->toContain('Allow restricted settings')
+        ->toContain('Samsung')
+        ->toContain('Other Android phones')
+        ->toContain('btn-enable-accessibility')
+        ->not->toContain('Enable Service');
 });

@@ -517,40 +517,40 @@ new #[Title('Dashboard')] class extends Component
             x-transition:leave="transition ease-in duration-200"
             x-transition:leave-start="opacity-100 translate-y-0 scale-100"
             x-transition:leave-end="opacity-0 -translate-y-2 scale-95"
-            class="rounded-[1.5rem] border border-amber-400/20 bg-gradient-to-br from-amber-400/12 via-rose-500/10 to-white/[0.04] px-4 py-4 shadow-xl shadow-black/10 ring-1 ring-amber-400/10 backdrop-blur-xl transition-all hover:border-amber-400/30"
+            class="rounded-[1.5rem] border border-amber-300/60 bg-gradient-to-br from-amber-500/10 via-rose-500/5 to-amber-500/5 px-4 py-4 shadow-xl shadow-black/[0.03] ring-1 ring-amber-300/20 backdrop-blur-xl transition-all hover:border-amber-300/80"
             x-cloak
         >
             <div class="flex items-start gap-3">
-                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-400/10">
-                    <flux:icon.exclamation-circle class="size-5 text-amber-200" />
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-100/80">
+                    <flux:icon.exclamation-circle class="size-5 text-amber-700" />
                 </div>
 
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
-                        <div class="text-xs font-black uppercase tracking-[0.24em] text-amber-100/90">{{ __('Accessibility service off') }}</div>
-                        <span class="inline-flex items-center rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.24em] text-zinc-200">
+                        <div class="text-xs font-black uppercase tracking-[0.24em] text-amber-900">{{ __('Accessibility service off') }}</div>
+                        <span class="inline-flex items-center rounded-full border border-amber-300 bg-amber-200/50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.24em] text-amber-900">
                             {{ __('Required') }}
                         </span>
                     </div>
 
-                    <div class="mt-1 text-[11px] leading-snug text-zinc-200/90">
+                    <div class="mt-1 text-[11px] leading-snug text-zinc-700">
                         {{ __('Bingwa needs accessibility enabled to read USSD replies and confirm a successful transaction.') }}
                     </div>
 
                     <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                        <div class="rounded-2xl border border-white/10 bg-black/20 p-3">
-                            <div class="text-[9px] font-black uppercase tracking-[0.26em] text-amber-100/80">{{ __('Quick path') }}</div>
-                            <p class="mt-1 text-[10px] leading-5 text-zinc-300">
+                        <div class="rounded-2xl border border-amber-200 bg-amber-50/50 p-3">
+                            <div class="text-[9px] font-black uppercase tracking-[0.26em] text-amber-800">{{ __('Quick path') }}</div>
+                            <p class="mt-1 text-[10px] leading-5 text-zinc-600">
                                 {{ __('Tap Open Accessibility, then turn on Bingwa USSD Automation.') }}
                             </p>
-                            <p class="mt-2 text-[10px] leading-5 text-zinc-400">
-                                <strong class="font-bold text-white">{{ __('Samsung') }}</strong>{{ __(': choose Installed apps.') }} <strong class="font-bold text-white">{{ __('Other Android phones') }}</strong>{{ __(': look for Downloaded services or Installed services.') }}
+                            <p class="mt-2 text-[10px] leading-5 text-zinc-500">
+                                <strong class="font-bold text-zinc-800">{{ __('Samsung') }}</strong>{{ __(': choose Installed apps.') }} <strong class="font-bold text-zinc-800">{{ __('Other Android phones') }}</strong>{{ __(': look for Downloaded services or Installed services.') }}
                             </p>
                         </div>
 
-                        <div class="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-3">
-                            <div class="text-[9px] font-black uppercase tracking-[0.26em] text-amber-100/90">{{ __('If restricted') }}</div>
-                            <p class="mt-1 text-[10px] leading-5 text-zinc-200/90">
+                        <div class="rounded-2xl border border-rose-200 bg-rose-50/30 p-3">
+                            <div class="text-[9px] font-black uppercase tracking-[0.26em] text-rose-800">{{ __('If restricted') }}</div>
+                            <p class="mt-1 text-[10px] leading-5 text-zinc-600">
                                 {{ __('Open App Info, tap More, then Allow restricted settings before enabling the service.') }}
                             </p>
                         </div>
@@ -561,7 +561,7 @@ new #[Title('Dashboard')] class extends Component
                             type="button"
                             id="btn-enable-accessibility"
                             @click="openAccessibility"
-                            class="inline-flex h-11 items-center justify-center rounded-2xl bg-white px-4 text-[10px] font-black uppercase tracking-[0.24em] text-zinc-950 transition active:scale-[0.98]"
+                            class="inline-flex h-11 items-center justify-center rounded-2xl bg-amber-600 hover:bg-amber-700 active:bg-amber-850 px-4 text-[10px] font-black uppercase tracking-[0.24em] text-white transition active:scale-[0.98]"
                         >
                             {{ __('Open Accessibility') }}
                         </button>
@@ -569,7 +569,7 @@ new #[Title('Dashboard')] class extends Component
                             type="button"
                             id="btn-open-app-info"
                             @click="openAppInfo"
-                            class="inline-flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 text-[10px] font-black uppercase tracking-[0.24em] text-white transition hover:bg-white/10 active:scale-[0.98]"
+                            class="inline-flex h-11 items-center justify-center rounded-2xl border border-amber-200 bg-white px-4 text-[10px] font-black uppercase tracking-[0.24em] text-amber-800 transition hover:bg-amber-50 active:scale-[0.98]"
                         >
                             {{ __('Open App Info') }}
                         </button>

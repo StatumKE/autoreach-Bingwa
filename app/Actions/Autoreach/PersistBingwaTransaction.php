@@ -31,7 +31,7 @@ class PersistBingwaTransaction
         $registration = $user->bingwaDeviceRegistration;
 
         if ($registration === null || blank($registration->device_token)) {
-            Log::debug('Bingwa transaction persist skipped because the user has no device token.', [
+            Log::warning('Bingwa transaction persist skipped because the user has no device token.', [
                 'user_id' => $user->getKey(),
                 'transaction_id' => $payload['transaction_id'] ?? null,
                 'mpesa_code' => $payload['mpesa_code'] ?? null,
@@ -68,7 +68,7 @@ class PersistBingwaTransaction
             $existingTransaction !== null
             && in_array($existingTransaction->status, ['processing', 'completed', 'failed'], true)
         ) {
-            Log::debug('Bingwa transaction persist skipped because the transaction already exists in a final state.', [
+            Log::info('Bingwa transaction persist skipped because the transaction already exists in a final state.', [
                 'user_id' => $user->getKey(),
                 'transaction_id' => $transactionId,
                 'status' => $existingTransaction->status,
@@ -133,9 +133,25 @@ class PersistBingwaTransaction
         if (! $activePlan) {
             $status = 'failed';
             $statusDesc = __('No active subscription plan found.');
+            Log::warning('Bingwa transaction persisted locally with no active plan.', [
+                'user_id' => $user->getKey(),
+                'transaction_id' => $transactionId,
+                'offer_type' => $payload['offer_type'] ?? $fallbackOfferType ?? $payload['service'] ?? 'broadcast',
+                'amount' => $amount,
+                'status' => $status,
+                'status_desc' => $statusDesc,
+            ]);
         } elseif (! $matchedOffer) {
             $status = 'failed';
             $statusDesc = __("Price mismatch: No active offer found for amount {$amount}.");
+            Log::warning('Bingwa transaction persisted locally with a price mismatch.', [
+                'user_id' => $user->getKey(),
+                'transaction_id' => $transactionId,
+                'offer_type' => $payload['offer_type'] ?? $fallbackOfferType ?? $payload['service'] ?? 'broadcast',
+                'amount' => $amount,
+                'status' => $status,
+                'status_desc' => $statusDesc,
+            ]);
         }
 
         $occurredAt = $this->normalizeOccurredAt($payload['occurred_at'] ?? null);
@@ -173,7 +189,7 @@ class PersistBingwaTransaction
             );
         }
 
-        Log::debug('Bingwa transaction persisted locally.', [
+        Log::info('Bingwa transaction persisted locally.', [
             'user_id' => $user->getKey(),
             'transaction_id' => $transaction->transaction_id,
             'status' => $transaction->status,

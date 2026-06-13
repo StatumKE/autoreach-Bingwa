@@ -3,7 +3,8 @@
 namespace App\Listeners;
 
 use App\Jobs\SyncBingwaTransactionsJob;
-use App\Models\User;
+use App\Models\BingwaDeviceRegistration;
+use App\Services\BingwaDeviceContext;
 use Illuminate\Support\Facades\Log;
 use Native\Mobile\Events\PushNotification\PushNotificationReceived;
 
@@ -30,20 +31,34 @@ class HandleNativePushNotificationReceived
             return;
         }
 
-        $user = User::query()
-            ->with('bingwaDeviceRegistration')
-            ->whereHas('bingwaDeviceRegistration', function ($query) use ($backendDeviceId): void {
-                $query->where('backend_device_id', $backendDeviceId);
-            })
+        $registration = BingwaDeviceRegistration::query()
+            ->with('user')
+            ->where('backend_device_id', $backendDeviceId)
             ->first();
+
+        if ($registration === null) {
+            $registration = app(BingwaDeviceContext::class)->registration();
+        }
+
+        $user = $registration?->user;
 
         if ($user === null) {
             Log::warning('Bingwa push notification ignored because no matching user/device was found.', [
                 'backend_device_id' => $backendDeviceId,
+                'local_backend_device_id' => $registration?->backend_device_id,
                 'data' => $data,
             ]);
 
             return;
+        }
+
+        if ($registration->backend_device_id !== $backendDeviceId) {
+            Log::warning('Bingwa push notification backend_device_id did not match the local registration, falling back to the current device registration.', [
+                'backend_device_id' => $backendDeviceId,
+                'local_backend_device_id' => $registration->backend_device_id,
+                'user_id' => $user->getKey(),
+                'data' => $data,
+            ]);
         }
 
         SyncBingwaTransactionsJob::dispatch($user->getKey(), $data);

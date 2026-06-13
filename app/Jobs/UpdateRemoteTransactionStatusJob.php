@@ -112,13 +112,19 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
         }
 
         if ($response->status() === 409) {
-            Log::warning("Autoreach backend returned 409 Conflict for transaction {$this->remoteTransactionId}. Transaction might not be in dispatched/executing state.");
+            Log::warning("Autoreach backend returned 409 Conflict for transaction {$this->remoteTransactionId}. Transaction might not be in dispatched/executing state.", [
+                'body' => $response->body(),
+                'payload' => $payload,
+            ]);
 
             return;
         }
 
         if ($response->status() === 404) {
-            Log::warning("Autoreach backend returned 404 Not Found for transaction {$this->remoteTransactionId}. Device might not own it.");
+            Log::warning("Autoreach backend returned 404 Not Found for transaction {$this->remoteTransactionId}. Device might not own it.", [
+                'body' => $response->body(),
+                'payload' => $payload,
+            ]);
 
             return;
         }
@@ -126,6 +132,7 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
         if ($response->status() === 422) {
             Log::error("Autoreach backend returned 422 Unprocessable Content for transaction {$this->remoteTransactionId}. Permanent failure.", [
                 'body' => $response->body(),
+                'payload' => $payload,
             ]);
 
             $exception = new RuntimeException('Failed to update remote status due to validation error: '.$response->body());
@@ -134,6 +141,13 @@ class UpdateRemoteTransactionStatusJob implements ShouldQueue
         }
 
         if (! $response->successful()) {
+            Log::warning('Autoreach backend rejected the remote transaction status update.', [
+                'remote_transaction_id' => $this->remoteTransactionId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'payload' => $payload,
+            ]);
+
             throw new RuntimeException('Failed to update remote transaction status. API returned: '.$response->status().' '.$response->body());
         }
 

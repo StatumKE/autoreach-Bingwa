@@ -45,6 +45,8 @@ class FetchNextBingwaJobs
 
         $baseUrl = rtrim((string) config('services.autoreach.backend_url'), '/');
         $token = $registration->device_token;
+        $originalToken = $token;
+        $recoveryAttempted = false;
 
         $synced = 0;
         $skipped = 0;
@@ -122,6 +124,15 @@ class FetchNextBingwaJobs
                 continue;
             }
 
+            Log::info('Bingwa transaction sync endpoint response received.', [
+                'component' => 'transaction_sync',
+                'user_id' => $user->getKey(),
+                'endpoint' => $type,
+                'url' => $url,
+                'status' => $response->status(),
+                'response_body' => Str::limit(trim($response->body()), 1000, ''),
+            ]);
+
             // 403 — backend reports the device as stopped.
             if ($response->status() === 403) {
                 $failed++;
@@ -150,6 +161,8 @@ class FetchNextBingwaJobs
                     limit: $limit,
                     currentResponse: $response,
                     currentToken: $token,
+                    originalToken: $originalToken,
+                    recoveryAttempted: $recoveryAttempted,
                     failed: $failed,
                 );
 
@@ -239,6 +252,15 @@ class FetchNextBingwaJobs
                 $jobs = $jobGroup['jobs'];
 
                 foreach ($jobs as $job) {
+                    Log::info('Bingwa transaction sync persisting backend job.', [
+                        'component' => 'transaction_sync',
+                        'user_id' => $user->getKey(),
+                        'endpoint' => $type,
+                        'transaction_id' => $job['transaction_id'] ?? null,
+                        'offer_type' => $job['offer_type'] ?? null,
+                        'service' => $job['service'] ?? null,
+                    ]);
+
                     $result = app(PersistBingwaTransaction::class)->persist($user, $job, null, null, $type);
 
                     if ($result['skipped']) {
@@ -288,6 +310,8 @@ class FetchNextBingwaJobs
         int $limit,
         Response $currentResponse,
         string $currentToken,
+        string $originalToken,
+        bool &$recoveryAttempted,
         int &$failed,
     ): array {
         Log::warning('Bingwa transaction sync received unauthorized response.', [
@@ -298,6 +322,73 @@ class FetchNextBingwaJobs
             'status' => $currentResponse->status(),
             'response_body' => $this->responseContext($currentResponse)['response_body'],
         ]);
+
+        if ($currentToken !== $originalToken) {
+            Log::info('Bingwa transaction sync skipping token recovery API call; utilizing already recovered token.', [
+                'component' => 'transaction_sync',
+                'user_id' => $user->getKey(),
+                'endpoint' => $type,
+            ]);
+
+            try {
+                $retried = Http::acceptJson()
+                    ->withToken($currentToken)
+                    ->timeout(30)
+                    ->get("{$baseUrl}{$endpoint}", ['limit' => $limit]);
+
+                if ($retried->status() === 403) {
+                    $failed++;
+                    $this->logRequestFailure(
+                        user: $user,
+                        endpoint: $type,
+                        url: $url,
+                        reason: 'backend_stopped',
+                        context: array_merge(
+                            $this->responseContext($retried),
+                            ['token_recovery' => 'already_recovered'],
+                        ),
+                    );
+                    report(new \RuntimeException(
+                        "Autoreach backend reported the device as stopped after token recovery for {$type} jobs.",
+                    ));
+
+                    return [null, $currentToken];
+                }
+
+                return [$retried, $currentToken];
+            } catch (Throwable $e) {
+                $failed++;
+                $this->logRequestFailure(
+                    user: $user,
+                    endpoint: $type,
+                    url: $url,
+                    reason: 'token_recovery_retry_failed',
+                    context: array_merge(
+                        $this->responseContext($currentResponse),
+                        [
+                            'token_recovery' => 'already_recovered',
+                            'token_recovery_exception' => $e::class,
+                            'token_recovery_error' => $e->getMessage(),
+                        ],
+                    ),
+                );
+                report(new \RuntimeException('Failed to retry request with already-recovered token: '.$e->getMessage(), 0, $e));
+
+                return [null, $currentToken];
+            }
+        }
+
+        if ($recoveryAttempted) {
+            Log::warning('Bingwa transaction sync skipping token recovery API call; recovery was already attempted and failed during this sync run.', [
+                'component' => 'transaction_sync',
+                'user_id' => $user->getKey(),
+                'endpoint' => $type,
+            ]);
+
+            return [null, $currentToken];
+        }
+
+        $recoveryAttempted = true;
 
         try {
             $recoveredRegistration = app(RecoverBingwaDeviceToken::class)->recover($user);

@@ -431,3 +431,44 @@ test('bingwa transaction sync logs invalid payloads with endpoint context', func
         'foo' => 'bar',
     ]);
 });
+
+test('bingwa transaction sync recovers the device token only once when multiple pooled responses return unauthorized', function () {
+    Http::fake(function ($request) {
+        if ($request->url() === 'https://backend.statum.co.ke/api/v1/auth/device/token/recover') {
+            return Http::response([
+                'status' => 'success',
+                'message' => 'Device token recovered.',
+                'device_token' => 'recovered-device-token-once',
+                'device_id' => 456,
+                'bhc_code' => 'BHC-ZXCVB',
+            ], 200);
+        }
+
+        if (str_contains($request->url(), '/api/v1/jobs/next/')
+            && $request->hasHeader('Authorization', 'Bearer raw-device-token')) {
+            return Http::response([
+                'status' => 'failed',
+                'message' => 'Unauthorized device token',
+            ], 401);
+        }
+
+        if (str_contains($request->url(), '/api/v1/jobs/next/')
+            && $request->hasHeader('Authorization', 'Bearer recovered-device-token-once')) {
+            return Http::response('', 204);
+        }
+
+        return Http::response([], 404);
+    });
+
+    $result = $this->action->sync($this->user, 1);
+
+    expect($result)->toMatchArray([
+        'synced' => 0,
+        'skipped' => 0,
+        'failed' => 0,
+    ]);
+
+    expect($this->user->refresh()->bingwaDeviceRegistration?->device_token)->toBe('recovered-device-token-once');
+
+    Http::assertSentCount(7);
+});

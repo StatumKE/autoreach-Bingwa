@@ -426,13 +426,13 @@ new #[Title('Transactions')] class extends Component
 };
 ?>
 
-<div class="flex flex-col gap-3 px-4 pb-24 pt-3 bg-app-bg text-zinc-900 min-h-screen">
+<div class="flex flex-col gap-3 px-4 pb-24 pt-3 bg-app-bg text-zinc-900 dark:text-zinc-100 min-h-screen">
     @php
         $transactions = $this->transactions();
     @endphp
 
     <div class="flex items-center justify-between px-1">
-        <div class="text-xl font-bold text-zinc-900">{{ __('Transactions') }}</div>
+        <div class="text-xl font-bold text-zinc-900 dark:text-zinc-100">{{ __('Transactions') }}</div>
         <flux:button
             type="button"
             variant="ghost"
@@ -457,19 +457,19 @@ new #[Title('Transactions')] class extends Component
         <flux:input 
             wire:model.live.debounce.400ms="search" 
             placeholder="{{ __('Search phone, name, or M-PESA code…') }}" 
-            class="rounded-xl shadow-sm bg-white ring-1 ring-zinc-200 text-zinc-900"
+            class="rounded-xl shadow-sm bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-800 text-zinc-900 dark:text-zinc-100"
         >
             <x-slot name="icon">
-                <flux:icon.magnifying-glass class="text-zinc-500" />
+                <flux:icon.magnifying-glass class="text-zinc-500 dark:text-zinc-400 dark:text-zinc-500" />
             </x-slot>
         </flux:input>
 
         <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
             @foreach ([
-                'all' => ['label' => __('All'), 'active' => 'bg-green-600 text-white shadow-sm ring-1 ring-inset ring-green-700/20', 'inactive' => 'bg-white text-zinc-500 ring-1 ring-inset ring-zinc-200 hover:bg-zinc-50 hover:text-zinc-900'],
-                'success' => ['label' => __('Success'), 'active' => 'bg-green-600 text-white shadow-sm ring-1 ring-inset ring-green-700/20', 'inactive' => 'bg-white text-zinc-500 ring-1 ring-inset ring-zinc-200 hover:bg-zinc-50 hover:text-zinc-900'],
-                'failed' => ['label' => __('Failed'), 'active' => 'bg-rose-600 text-white shadow-sm ring-1 ring-inset ring-rose-700/20', 'inactive' => 'bg-white text-zinc-500 ring-1 ring-inset ring-zinc-200 hover:bg-zinc-50 hover:text-zinc-900'],
-                'queued' => ['label' => __('Queued'), 'active' => 'bg-amber-500 text-white shadow-sm ring-1 ring-inset ring-amber-600/20', 'inactive' => 'bg-white text-zinc-500 ring-1 ring-inset ring-zinc-200 hover:bg-zinc-50 hover:text-zinc-900'],
+                'all' => ['label' => __('All'), 'active' => 'bg-green-600 text-white shadow-sm ring-1 ring-inset ring-green-700/20', 'inactive' => 'bg-white text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 ring-1 ring-inset ring-zinc-200 dark:ring-zinc-800 hover:bg-zinc-50 dark:bg-zinc-950/40 hover:text-zinc-900 dark:text-zinc-100'],
+                'success' => ['label' => __('Success'), 'active' => 'bg-green-600 text-white shadow-sm ring-1 ring-inset ring-green-700/20', 'inactive' => 'bg-white text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 ring-1 ring-inset ring-zinc-200 dark:ring-zinc-800 hover:bg-zinc-50 dark:bg-zinc-950/40 hover:text-zinc-900 dark:text-zinc-100'],
+                'failed' => ['label' => __('Failed'), 'active' => 'bg-rose-600 text-white shadow-sm ring-1 ring-inset ring-rose-700/20', 'inactive' => 'bg-white text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 ring-1 ring-inset ring-zinc-200 dark:ring-zinc-800 hover:bg-zinc-50 dark:bg-zinc-950/40 hover:text-zinc-900 dark:text-zinc-100'],
+                'queued' => ['label' => __('Queued'), 'active' => 'bg-amber-500 text-white shadow-sm ring-1 ring-inset ring-amber-600/20', 'inactive' => 'bg-white text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 ring-1 ring-inset ring-zinc-200 dark:ring-zinc-800 hover:bg-zinc-50 dark:bg-zinc-950/40 hover:text-zinc-900 dark:text-zinc-100'],
             ] as $value => $styles)
                 <flux:button
                     type="button"
@@ -494,7 +494,7 @@ new #[Title('Transactions')] class extends Component
     </div>
 
     @if ($this->loaded && ! empty($this->selectedIds))
-        <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-green-50 px-3 py-2.5 ring-1 ring-green-100">
+        <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-green-50 dark:bg-green-950/20 px-3 py-2.5 ring-1 ring-green-100 dark:ring-green-900/50">
             <div class="text-xs font-bold text-green-800 shrink-0">
                 {{ count($this->selectedIds) === 1 ? __('1 selected') : __(':count selected', ['count' => count($this->selectedIds)]) }}
             </div>
@@ -504,7 +504,7 @@ new #[Title('Transactions')] class extends Component
                     <flux:button
                         type="button"
                         variant="ghost"
-                        class="!h-7 px-2 text-[9px] shrink-0 font-bold uppercase tracking-wider text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                        class="!h-7 px-2 text-[9px] shrink-0 font-bold uppercase tracking-wider text-rose-600 hover:text-rose-700 dark:text-rose-455 hover:bg-rose-50"
                     >
                         <flux:icon.trash variant="mini" class="size-3 mr-1 text-rose-600" />
                         {{ __('Delete') }}
@@ -542,10 +542,10 @@ new #[Title('Transactions')] class extends Component
     @if (! $this->loaded)
         <div class="flex flex-col gap-4">
             @for ($i = 0; $i < 4; $i++)
-                <div class="relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 animate-pulse">
-                    <div class="relative h-4 w-24 rounded bg-zinc-100"></div>
-                    <div class="relative mt-4 h-6 w-40 rounded bg-zinc-100"></div>
-                    <div class="relative mt-4 h-16 w-full rounded bg-zinc-100/70"></div>
+                <div class="relative overflow-hidden rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 dark:ring-zinc-800 animate-pulse">
+                    <div class="relative h-4 w-24 rounded bg-zinc-100 dark:bg-zinc-900"></div>
+                    <div class="relative mt-4 h-6 w-40 rounded bg-zinc-100 dark:bg-zinc-900"></div>
+                    <div class="relative mt-4 h-16 w-full rounded bg-zinc-100 dark:bg-zinc-900/70"></div>
                 </div>
             @endfor
         </div>
@@ -554,14 +554,14 @@ new #[Title('Transactions')] class extends Component
             {{ $this->errorMessage }}
         </div>
     @elseif ($transactions->isEmpty())
-        <div class="flex flex-col items-center justify-center rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-zinc-200">
-            <div class="flex size-12 items-center justify-center rounded-2xl bg-green-50 text-green-600 mb-4 shadow-inner">
+        <div class="flex flex-col items-center justify-center rounded-xl bg-white dark:bg-zinc-900 p-8 text-center shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800">
+            <div class="flex size-12 items-center justify-center rounded-2xl bg-green-50 dark:bg-green-950/20 text-green-600 mb-4 shadow-inner">
                 <flux:icon.banknotes class="size-6" />
             </div>
-            <div class="text-base font-bold text-zinc-900">
+            <div class="text-base font-bold text-zinc-900 dark:text-zinc-100">
                 {{ __('Empty Ledger') }}
             </div>
-            <flux:text class="mt-1 text-sm text-zinc-500 max-w-[200px] mx-auto">
+            <flux:text class="mt-1 text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 max-w-[200px] mx-auto">
                 {{ __('Once payments arrive, the transaction history will appear here.') }}
             </flux:text>
         </div>
@@ -583,10 +583,10 @@ new #[Title('Transactions')] class extends Component
                         class="peer sr-only"
                         id="select-all-checkbox"
                     >
-                    <div class="flex size-4 items-center justify-center rounded border-2 bg-white transition-all border-zinc-200 peer-checked:border-green-600 peer-checked:bg-green-600 peer-checked:[&>svg]:scale-100">
+                    <div class="flex size-4 items-center justify-center rounded border-2 bg-white dark:bg-zinc-950 transition-all border-zinc-200 dark:border-zinc-800 peer-checked:border-green-600 peer-checked:bg-green-600 peer-checked:[&>svg]:scale-100">
                         <flux:icon.check variant="mini" class="size-3 text-white transition-transform scale-0" />
                     </div>
-                    <span class="text-xs font-bold text-zinc-500 uppercase tracking-widest">{{ __('Select All') }}</span>
+                    <span class="text-xs font-bold text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">{{ __('Select All') }}</span>
                 </label>
             @endif
 
@@ -607,8 +607,8 @@ new #[Title('Transactions')] class extends Component
                     x-data="{
                         get isSelected() { return $wire.selectedIds.includes('{{ $transaction->id }}') || $wire.selectedIds.includes({{ $transaction->id }}); }
                     }"
-                    :class="isSelected ? 'ring-green-500/50 bg-green-50/10' : 'ring-zinc-200'"
-                    class="group relative rounded-xl bg-white p-2 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:ring-green-500/30 cursor-pointer"
+                    :class="isSelected ? 'ring-green-500/50 bg-green-50 dark:bg-green-950/20' : 'ring-zinc-200 dark:ring-zinc-800 bg-white dark:bg-zinc-900'"
+                    class="group relative rounded-xl p-2 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:ring-green-500/30 cursor-pointer"
                 >
                     <div class="flex items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
@@ -620,7 +620,7 @@ new #[Title('Transactions')] class extends Component
                                     x-on:click.stop
                                     class="peer absolute inset-0 z-10 cursor-pointer opacity-0"
                                 >
-                                <div class="flex size-4 items-center justify-center rounded border-2 bg-white transition-all border-zinc-200 peer-checked:border-green-600 peer-checked:bg-green-600 peer-checked:[&>svg]:scale-100">
+                                <div class="flex size-4 items-center justify-center rounded border-2 bg-white dark:bg-zinc-950 transition-all border-zinc-200 dark:border-zinc-800 peer-checked:border-green-600 peer-checked:bg-green-600 peer-checked:[&>svg]:scale-100">
                                     <flux:icon.check variant="mini" class="size-3 text-white transition-transform scale-0" />
                                 </div>
                             </div>
@@ -630,7 +630,7 @@ new #[Title('Transactions')] class extends Component
                                     'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400' => $isSuccess,
                                     'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' => $isFailed,
                                     'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400' => $status === 'queued',
-                                    'bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700' => ! $isSuccess && ! $isFailed && $status !== 'queued',
+                                    'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 ring-1 ring-zinc-200 dark:ring-zinc-800 dark:bg-zinc-800 dark:text-zinc-400 dark:text-zinc-500 dark:ring-zinc-700' => ! $isSuccess && ! $isFailed && $status !== 'queued',
                                 ])>
                                     {{ blank($transaction->status) ? __('Pending') : $transaction->status }}
                                 </span>
@@ -642,14 +642,14 @@ new #[Title('Transactions')] class extends Component
                                 @endif
                             </div>
 
-                            <div class="flex items-center gap-2 text-xs font-medium text-zinc-700">
+                            <div class="flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                                 @if ($transaction->sender_name || $transaction->sender_phone)
                                     <span>{{ $transaction->sender_name ?: $transaction->sender_phone }}</span>
                                     @if ($transaction->sender_phone && $transaction->sender_name)
-                                        <span class="text-[10px] text-zinc-400">({{ $transaction->sender_phone }})</span>
+                                        <span class="text-[10px] text-zinc-400 dark:text-zinc-500">({{ $transaction->sender_phone }})</span>
                                     @endif
                                 @else
-                                    <span class="text-zinc-400 italic">{{ __('Unknown sender') }}</span>
+                                    <span class="text-zinc-400 dark:text-zinc-500 italic">{{ __('Unknown sender') }}</span>
                                 @endif
                             </div>
                         </div>
@@ -658,19 +658,19 @@ new #[Title('Transactions')] class extends Component
                             <div @class([
                                 'text-xs font-bold tracking-tight',
                                 'text-green-600' => $isSuccess,
-                                'text-zinc-900' => ! $isSuccess,
+                                'text-zinc-900 dark:text-zinc-100' => ! $isSuccess,
                             ])>
                                 Ksh {{ number_format((float) ($transaction->amount ?? 0)) }}
                             </div>
-                            <span class="text-[9px] font-bold text-zinc-400 uppercase tracking-widest whitespace-nowrap">
+                            <span class="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest whitespace-nowrap">
                                 {{ AppTimezone::format($transaction->occurred_at, 'H:i, M j') }}
                             </span>
                         </div>
                     </div>
 
-                    <div class="mt-2 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+                    <div class="mt-2 flex flex-wrap items-center gap-2 border-t border-zinc-100 dark:border-zinc-800 pt-2 dark:border-zinc-800">
                         @if (! empty($transaction->mpesa_code))
-                            <span class="inline-flex items-center gap-1.5 rounded-md bg-green-50 px-1.5 py-0.5 text-[9px] font-bold text-green-700 ring-1 ring-green-100 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20">
+                            <span class="inline-flex items-center gap-1.5 rounded-md bg-green-50 dark:bg-green-950/20 px-1.5 py-0.5 text-[9px] font-bold text-green-700 dark:text-green-400 dark:text-green-455 ring-1 ring-green-100 dark:ring-green-900/50 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20">
                                 <span class="text-[7px] opacity-60 uppercase tracking-widest">{{ __('M-PESA') }}</span>
                                 {{ $transaction->mpesa_code }}
                             </span>
@@ -678,7 +678,7 @@ new #[Title('Transactions')] class extends Component
 
 
                         @if ($productLabel !== '—')
-                            <span class="inline-flex items-center gap-1.5 rounded-md bg-zinc-50 px-1.5 py-0.5 text-[9px] font-bold text-zinc-600 ring-1 ring-zinc-200 dark:bg-zinc-800/50 dark:text-zinc-400 dark:ring-zinc-700/50">
+                            <span class="inline-flex items-center gap-1.5 rounded-md bg-zinc-50 dark:bg-zinc-950/40 px-1.5 py-0.5 text-[9px] font-bold text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 ring-1 ring-zinc-200 dark:ring-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-400 dark:text-zinc-500 dark:ring-zinc-700/50">
                                 <span class="text-[7px] opacity-60 uppercase tracking-widest">{{ __('Product') }}</span>
                                 <span class="truncate max-w-[120px]">{{ $productLabel }}</span>
                             </span>
@@ -689,9 +689,9 @@ new #[Title('Transactions')] class extends Component
                     @if (filled($transaction->status_desc))
                         <div @class([
                             'mt-2 rounded-lg px-2 py-1.5 text-[10px] font-medium leading-snug ring-1',
-                            'bg-green-50 text-green-800 ring-green-100 dark:bg-green-500/10 dark:text-green-300 dark:ring-green-500/20' => $isSuccess,
+                            'bg-green-50 dark:bg-green-950/20 text-green-800 ring-green-100 dark:ring-green-900/50 dark:bg-green-500/10 dark:text-green-300 dark:ring-green-500/20' => $isSuccess,
                             'bg-rose-50 text-rose-800 ring-rose-100 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/20' => $isFailed,
-                            'bg-zinc-50 text-zinc-700 ring-zinc-200 dark:bg-zinc-800/60 dark:text-zinc-300 dark:ring-zinc-700' => ! $isSuccess && ! $isFailed,
+                            'bg-zinc-50 dark:bg-zinc-950/40 text-zinc-700 dark:text-zinc-300 ring-zinc-200 dark:ring-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-300 dark:ring-zinc-700' => ! $isSuccess && ! $isFailed,
                         ])>
                             <span class="mr-2 text-[8px] font-black uppercase tracking-widest opacity-60">{{ __('USSD') }}</span>
                             {{ $transaction->status_desc }}
@@ -756,11 +756,11 @@ new #[Title('Transactions')] class extends Component
 
                 <div class="flex flex-col gap-2">
                     {{-- Status Card --}}
-                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
+                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800">
                         <div class="grid @if($selectedTransaction->next_attempt_at) grid-cols-2 gap-4 @else grid-cols-1 @endif">
                             <div>
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Status') }}</div>
-                                <div class="mt-0.5 text-xs font-bold text-zinc-900">
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Status') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">
                                     {{ blank($selectedTransaction->status) ? __('Pending') : $selectedTransaction->status }}
                                     @if ($selectedTransaction->status === 'failed' && $selectedTransaction->next_attempt_at)
                                         <span class="ml-2 inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber-600">
@@ -771,31 +771,31 @@ new #[Title('Transactions')] class extends Component
                             </div>
                             @if ($selectedTransaction->next_attempt_at)
                                 <div>
-                                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Rescheduled For') }}</div>
-                                    <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ AppTimezone::format($selectedTransaction->next_attempt_at, 'H:i, M j, Y') }}</div>
+                                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Rescheduled For') }}</div>
+                                    <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ AppTimezone::format($selectedTransaction->next_attempt_at, 'H:i, M j, Y') }}</div>
                                 </div>
                             @endif
                         </div>
                     </div>
 
                     {{-- Amount and Sender Card --}}
-                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
+                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800">
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Amount') }}</div>
-                                <div class="mt-0.5 text-xs font-bold text-zinc-900">Ksh {{ number_format((float) $selectedTransaction->amount) }}</div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Amount') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">Ksh {{ number_format((float) $selectedTransaction->amount) }}</div>
                             </div>
                             <div>
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Sender') }}</div>
-                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $selectedTransaction->sender_name ?: __('Unknown sender') }}</div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Sender') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ $selectedTransaction->sender_name ?: __('Unknown sender') }}</div>
                                 <div class="mt-0.5 flex items-center gap-2">
-                                    <div class="text-[10px] text-zinc-500">{{ $selectedTransaction->sender_phone }}</div>
+                                    <div class="text-[10px] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ $selectedTransaction->sender_phone }}</div>
                                     @if (filled($selectedTransaction->sender_phone))
                                         <flux:button
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            class="!h-5 px-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500"
+                                            class="!h-5 px-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 dark:text-zinc-500"
                                             data-phone="{{ $selectedTransaction->sender_phone }}"
                                             x-on:click="
                                                 let phone = $el.getAttribute('data-phone');
@@ -831,69 +831,69 @@ new #[Title('Transactions')] class extends Component
                     </div>
 
                     {{-- M-PESA Code and Matched Offer Card --}}
-                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
+                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800">
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('M-PESA Code') }}</div>
-                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $selectedTransaction->mpesa_code ?: '—' }}</div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('M-PESA Code') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ $selectedTransaction->mpesa_code ?: '—' }}</div>
                             </div>
                             <div>
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Matched App Product') }}</div>
-                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $this->transactionProductLabel($selectedTransaction) }}</div>
-                                <div class="mt-0.5 text-[10px] text-zinc-500">{{ $selectedTransaction->offer_type ?: '—' }}</div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Matched App Product') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ $this->transactionProductLabel($selectedTransaction) }}</div>
+                                <div class="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ $selectedTransaction->offer_type ?: '—' }}</div>
                             </div>
                         </div>
                     </div>
 
                     {{-- USSD Code Card --}}
-                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('USSD Code') }}</div>
-                        <div class="mt-0.5 font-mono text-xs font-bold text-zinc-900 break-all">{{ $this->resolvedUssdCode($selectedTransaction) }}</div>
-                        <div class="mt-0.5 text-[10px] text-zinc-500">{{ $selectedTransaction->offer?->ussd_mode ?: '—' }}</div>
+                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800">
+                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('USSD Code') }}</div>
+                        <div class="mt-0.5 font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100 break-all">{{ $this->resolvedUssdCode($selectedTransaction) }}</div>
+                        <div class="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ $selectedTransaction->offer?->ussd_mode ?: '—' }}</div>
                     </div>
                 </div>
 
                 {{-- Compact grouped dates panel --}}
-                <div class="rounded-xl bg-zinc-50/50 p-2.5 px-3 ring-1 ring-zinc-200">
+                <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40/50 dark:bg-zinc-950/20 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800">
                     <div class="grid grid-cols-2 gap-x-4 gap-y-2.5">
                         <div>
-                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Occurred At') }}</span>
-                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->occurred_at) }}</span>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Occurred At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->occurred_at) }}</span>
                         </div>
                         <div>
-                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Processed At') }}</span>
-                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->processed_at) }}</span>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Processed At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->processed_at) }}</span>
                         </div>
                         <div>
-                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Created At') }}</span>
-                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->created_at) }}</span>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Created At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->created_at) }}</span>
                         </div>
                         <div>
-                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Updated At') }}</span>
-                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->updated_at) }}</span>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Updated At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->updated_at) }}</span>
                         </div>
                     </div>
                 </div>
 
                 @if ($selectedTransaction->raw_sms)
                     <div class="space-y-1">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Raw SMS') }}</div>
-                        <div class="rounded-xl bg-zinc-50 p-2.5 text-xs leading-relaxed text-zinc-800 ring-1 ring-zinc-200 break-words">
+                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Raw SMS') }}</div>
+                        <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 text-xs leading-relaxed text-zinc-800 dark:text-zinc-200 ring-1 ring-zinc-200 dark:ring-zinc-800 break-words">
                             {{ $selectedTransaction->raw_sms }}
                         </div>
                     </div>
                 @endif
 
                 <div class="space-y-1">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('USSD Result') }}</div>
-                    <div class="rounded-xl bg-zinc-50 p-2.5 text-xs leading-relaxed text-zinc-800 ring-1 ring-zinc-200">
+                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('USSD Result') }}</div>
+                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 text-xs leading-relaxed text-zinc-800 dark:text-zinc-200 ring-1 ring-zinc-200 dark:ring-zinc-800">
                         {{ $selectedTransaction->status_desc ?: __('—') }}
                     </div>
                 </div>
 
                 @if ($selectedTransaction->balance)
                     <div class="space-y-1">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Balance Payload') }}</div>
+                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Balance Payload') }}</div>
                         <pre class="overflow-x-auto rounded-xl bg-zinc-950 p-2.5 text-[10px] leading-relaxed text-zinc-100 ring-1 ring-zinc-900">{{ $this->formatDetailValue($selectedTransaction->balance) }}</pre>
                     </div>
                 @endif
@@ -901,7 +901,7 @@ new #[Title('Transactions')] class extends Component
         @else
             <div class="space-y-3">
                 <flux:heading size="lg">{{ __('Transaction details') }}</flux:heading>
-                <flux:text class="text-sm text-zinc-500">{{ __('Select a transaction to view the full USSD trail.') }}</flux:text>
+                <flux:text class="text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Select a transaction to view the full USSD trail.') }}</flux:text>
             </div>
         @endif
     </flux:modal>
@@ -910,7 +910,7 @@ new #[Title('Transactions')] class extends Component
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">{{ __('Delete Transactions') }}</flux:heading>
-                <flux:text class="mt-2 text-sm text-zinc-500">
+                <flux:text class="mt-2 text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
                     {{ __('Are you sure you want to delete the selected transactions? This action cannot be undone.') }}
                 </flux:text>
             </div>

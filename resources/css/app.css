@@ -74,16 +74,16 @@
 
 @layer theme {
     .dark {
-        --color-surface: var(--color-zinc-950);
+        --color-surface: #111814;
         --color-on-surface: #f8fafc;
-        --color-surface-variant: var(--color-zinc-900);
-        --color-on-surface-variant: #a1a1aa;
-        --color-app-bg: #07111f;
-        --color-app-shell: #02130d;
-        --color-app-drawer: #0f1720;
-        --color-app-active: #1f2937;
-        --color-accent: var(--color-green-500);
-        --color-accent-content: var(--color-green-300);
+        --color-surface-variant: #1a241f;
+        --color-on-surface-variant: #94a3b8;
+        --color-app-bg: #0a0f0d;
+        --color-app-shell: #040a06;
+        --color-app-drawer: #0d1410;
+        --color-app-active: #1e2e24;
+        --color-accent: #22c55e;
+        --color-accent-content: #4ade80;
         --color-accent-foreground: var(--color-white);
     }
 }

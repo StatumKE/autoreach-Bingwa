@@ -3,7 +3,7 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg antialiased dark:bg-zinc-950">
+    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 dark:text-zinc-50 antialiased">
         <div class="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
             <div class="flex w-full max-w-sm flex-col gap-10">
                 <a href="{{ route('home') }}" class="flex flex-col items-center gap-4 font-medium" wire:navigate>

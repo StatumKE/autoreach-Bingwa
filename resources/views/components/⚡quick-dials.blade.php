@@ -190,93 +190,93 @@ new #[Title('Quick Dial')] class extends Component {
 
     <div class="flex flex-col gap-3">
         <div class="px-1">
-            <div class="text-xl font-bold text-zinc-900">{{ __('Quick Dial') }}</div>
+            <div class="text-xl font-bold text-zinc-900 dark:text-zinc-100">{{ __('Quick Dial') }}</div>
         </div>
 
-        <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+        <div class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 dark:ring-zinc-800">
             <div class="text-[10px] font-black uppercase tracking-widest text-green-600/70">
                 {{ __('Customer information') }}
             </div>
 
             <div class="mt-4 flex flex-col sm:flex-row gap-3">
                 <div class="relative flex-1 group">
-                    <flux:icon.device-phone-mobile class="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-zinc-500 group-focus-within:text-green-600 transition-colors" />
+                    <flux:icon.device-phone-mobile class="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 group-focus-within:text-green-600 transition-colors" />
                     <input
                         wire:model.live.debounce.500ms="customerPhone"
                         type="tel"
                         inputmode="tel"
                         autocomplete="tel"
                         placeholder="07XXXXXXXX"
-                        class="h-14 w-full rounded-2xl bg-zinc-50 pl-12 pr-4 text-base font-black text-zinc-950 outline-none ring-1 ring-zinc-200 transition focus:ring-2 focus:ring-green-500/50"
+                        class="h-14 w-full rounded-2xl bg-zinc-50 dark:bg-zinc-950/40 pl-12 pr-4 text-base font-black text-zinc-950 dark:text-white outline-none ring-1 ring-zinc-200 dark:ring-zinc-800 transition focus:ring-2 focus:ring-green-500/50"
                     >
                 </div>
             </div>
 
             @if ($this->normalizedCustomerPhone !== '')
-                <div class="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-zinc-50 px-5 py-4 text-sm ring-1 ring-zinc-200 shadow-inner">
+                <div class="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-zinc-50 dark:bg-zinc-950/40 px-5 py-4 text-sm ring-1 ring-zinc-200 dark:ring-zinc-800 shadow-inner">
                     <div class="min-w-0">
-                        <div class="truncate font-black text-zinc-950">
+                        <div class="truncate font-black text-zinc-950 dark:text-white">
                             {{ __('Manual entry') }}
                         </div>
                         <div class="text-[10px] font-black text-green-600/70 uppercase tracking-widest mt-0.5">{{ $this->normalizedCustomerPhone }}</div>
                     </div>
 
-                    <flux:button variant="ghost" size="sm" type="button" wire:click="clearSelectedContact" class="app-secondary-button text-zinc-700 hover:text-rose-500">
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="clearSelectedContact" class="app-secondary-button text-zinc-700 dark:text-zinc-300 hover:text-rose-500">
                         {{ __('Clear') }}
                     </flux:button>
                 </div>
             @endif
         </div>
 
-        <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
-            <div class="border-b border-zinc-200 px-8 py-6">
+        <div class="overflow-hidden rounded-xl bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 dark:ring-zinc-800">
+            <div class="border-b border-zinc-200 dark:border-zinc-800 px-8 py-6">
                 <div class="text-[10px] font-black uppercase tracking-widest text-green-600/70">
                     {{ __('Available offers') }}
                 </div>
             </div>
 
             @if ($awardMessage)
-                <div class="mx-8 mt-6 rounded-2xl bg-green-50 px-5 py-4 text-xs font-black text-green-700 ring-1 ring-green-100">
+                <div class="mx-8 mt-6 rounded-2xl bg-green-50 dark:bg-green-950/20 px-5 py-4 text-xs font-black text-green-700 dark:text-green-400 dark:text-green-455 ring-1 ring-green-100 dark:ring-green-900/50">
                     {{ $awardMessage }}
                 </div>
             @endif
 
             @if ($awardError)
-                <div class="mx-8 mt-6 rounded-2xl bg-rose-50 px-5 py-4 text-xs font-black text-rose-700 ring-1 ring-rose-100">
+                <div class="mx-8 mt-6 rounded-2xl bg-rose-50 px-5 py-4 text-xs font-black text-rose-700 dark:text-rose-455 ring-1 ring-rose-100">
                     {{ $awardError }}
                 </div>
             @endif
 
             @if (! $this->loaded)
-                <div class="divide-y divide-zinc-200">
+                <div class="divide-y divide-zinc-200 dark:divide-zinc-800">
                     @for ($i = 0; $i < 4; $i++)
                         <article class="flex items-center justify-between gap-4 px-8 py-6">
                             <div class="min-w-0 flex-1">
-                                <div class="h-4 w-40 animate-pulse rounded bg-zinc-100"></div>
-                                <div class="mt-3 h-3 w-24 animate-pulse rounded bg-zinc-100"></div>
+                                <div class="h-4 w-40 animate-pulse rounded bg-zinc-100 dark:bg-zinc-900"></div>
+                                <div class="mt-3 h-3 w-24 animate-pulse rounded bg-zinc-100 dark:bg-zinc-900"></div>
                             </div>
 
-                            <div class="h-12 w-24 animate-pulse rounded-[1.25rem] bg-zinc-100"></div>
+                            <div class="h-12 w-24 animate-pulse rounded-[1.25rem] bg-zinc-100 dark:bg-zinc-900"></div>
                         </article>
                     @endfor
                 </div>
             @elseif ($offers->isEmpty())
                 <div class="px-8 py-16 text-center">
-                    <div class="text-sm font-black text-zinc-600 uppercase tracking-widest italic">
+                    <div class="text-sm font-black text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 uppercase tracking-widest italic">
                         {{ __('No active offers found.') }}
                     </div>
                 </div>
             @else
-                <div class="divide-y divide-zinc-200">
+                <div class="divide-y divide-zinc-200 dark:divide-zinc-800">
                     @foreach ($offers as $offer)
-                        <article class="flex items-center justify-between gap-4 px-8 py-6 transition-colors hover:bg-zinc-50/80">
+                        <article class="flex items-center justify-between gap-4 px-8 py-6 transition-colors hover:bg-zinc-50 dark:bg-zinc-950/40/80">
                             <div class="min-w-0">
-                                <div class="truncate text-base font-black text-zinc-950 tracking-tight">{{ $offer->name }}</div>
+                                <div class="truncate text-base font-black text-zinc-950 dark:text-white tracking-tight">{{ $offer->name }}</div>
                                 <div class="mt-2 flex flex-wrap items-center gap-2">
-                                    <span class="inline-flex items-center rounded-xl bg-green-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-green-700/70 ring-1 ring-green-100">
+                                    <span class="inline-flex items-center rounded-xl bg-green-50 dark:bg-green-950/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-green-700 dark:text-green-400 dark:text-green-455/70 ring-1 ring-green-100 dark:ring-green-900/50">
                                         {{ $offer->category }}
                                     </span>
-                                    <span class="text-sm font-black text-green-700">
+                                    <span class="text-sm font-black text-green-700 dark:text-green-400 dark:text-green-455">
                                         KES {{ number_format($offer->price) }}
                                     </span>
                                 </div>
@@ -288,8 +288,8 @@ new #[Title('Quick Dial')] class extends Component {
                                 wire:click="prepareAwardOffer({{ $offer->id }})"
                                 @class([
                                     'h-12 rounded-[1.25rem] px-6 text-[10px] font-black uppercase tracking-widest transition active:scale-95',
-                                    'bg-green-50 text-zinc-950 shadow-sm ring-1 ring-green-100 hover:bg-green-100' => $this->canAward,
-                                    'bg-zinc-100 text-zinc-600 cursor-not-allowed ring-1 ring-zinc-300' => ! $this->canAward,
+                                    'bg-green-50 dark:bg-green-950/20 text-zinc-950 dark:text-white shadow-sm ring-1 ring-green-100 dark:ring-green-900/50 hover:bg-green-100' => $this->canAward,
+                                    'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 cursor-not-allowed ring-1 ring-zinc-300' => ! $this->canAward,
                                 ])
                             >
                                 {{ __('Award') }}
@@ -317,7 +317,7 @@ new #[Title('Quick Dial')] class extends Component {
                     aria-label="{{ __('Close quick dial confirmation') }}"
                 ></button>
 
-                <div class="relative z-10 w-full max-w-xl overflow-hidden rounded-[2rem] bg-white shadow-2xl ring-1 ring-zinc-200 plans-reveal">
+                <div class="relative z-10 w-full max-w-xl overflow-hidden rounded-[2rem] bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-zinc-200 dark:ring-zinc-800 plans-reveal">
                     <div class="bg-app-shell px-6 pb-5 pt-6 text-white">
                         <div class="flex items-start justify-between gap-4">
                             <div class="min-w-0">
@@ -339,24 +339,24 @@ new #[Title('Quick Dial')] class extends Component {
 
                     <div class="space-y-6 px-6 py-6">
                         <div class="grid grid-cols-2 gap-3">
-                            <div class="rounded-2xl bg-zinc-50 px-4 py-4 ring-1 ring-zinc-200">
-                                <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Customer') }}</div>
-                                <div class="mt-2 text-lg font-black text-zinc-950">{{ __('Manual entry') }}</div>
-                                <div class="mt-1 text-sm font-bold text-green-700">{{ $this->normalizedCustomerPhone }}</div>
+                            <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/40 px-4 py-4 ring-1 ring-zinc-200 dark:ring-zinc-800">
+                                <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Customer') }}</div>
+                                <div class="mt-2 text-lg font-black text-zinc-950 dark:text-white">{{ __('Manual entry') }}</div>
+                                <div class="mt-1 text-sm font-bold text-green-700 dark:text-green-400 dark:text-green-455">{{ $this->normalizedCustomerPhone }}</div>
                             </div>
 
-                            <div class="rounded-2xl bg-zinc-50 px-4 py-4 ring-1 ring-zinc-200">
-                                <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Amount') }}</div>
-                                <div class="mt-2 text-2xl font-black tracking-tight text-green-700">KES {{ number_format((float) $selectedOffer->price) }}</div>
+                            <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/40 px-4 py-4 ring-1 ring-zinc-200 dark:ring-zinc-800">
+                                <div class="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Amount') }}</div>
+                                <div class="mt-2 text-2xl font-black tracking-tight text-green-700 dark:text-green-400 dark:text-green-455">KES {{ number_format((float) $selectedOffer->price) }}</div>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.75rem] bg-zinc-50 p-4 ring-1 ring-zinc-200">
-                            <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-600">{{ __('Routing') }}</div>
+                        <div class="rounded-[1.75rem] bg-zinc-50 dark:bg-zinc-950/40 p-4 ring-1 ring-zinc-200 dark:ring-zinc-800">
+                            <div class="text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">{{ __('Routing') }}</div>
                             <div class="mt-3 flex items-center justify-between">
                                 <div>
-                                    <div class="text-sm font-black text-zinc-950">{{ __('Primary Transaction SIM') }}</div>
-                                    <div class="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-green-700">
+                                    <div class="text-sm font-black text-zinc-950 dark:text-white">{{ __('Primary Transaction SIM') }}</div>
+                                    <div class="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-green-700 dark:text-green-400 dark:text-green-455">
                                         {{ $this->primaryTransactionSimSlot() === 1 ? __('SIM 2') : __('SIM 1') }}
                                     </div>
                                 </div>

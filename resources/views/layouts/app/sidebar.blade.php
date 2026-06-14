@@ -3,7 +3,7 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 overscroll-y-none">
+    <body class="nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 dark:text-zinc-50 overscroll-y-none">
         @php
             $navigationLinks = [
                 ['label' => __('Dashboard'), 'href' => route('dashboard')],

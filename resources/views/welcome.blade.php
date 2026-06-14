@@ -4,7 +4,7 @@
         @include('partials.head')
         <title>{{ __('Welcome') }} - {{ config('app.name', 'Laravel') }}</title>
     </head>
-    <body class="nativephp-safe-area min-h-screen bg-app-bg antialiased dark:bg-zinc-950 flex flex-col items-center justify-center p-6">
+    <body class="nativephp-safe-area min-h-screen bg-app-bg text-zinc-950 dark:text-zinc-50 antialiased flex flex-col items-center justify-center p-6">
         <div class="w-full max-w-sm flex flex-col items-center gap-12">
             <!-- Logo Section -->
             <div class="flex flex-col items-center gap-4">

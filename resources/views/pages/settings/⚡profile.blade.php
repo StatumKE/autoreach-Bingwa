@@ -88,7 +88,7 @@ new #[Title('Profile settings')] class extends Component {
     <flux:heading class="sr-only">{{ __('Profile settings') }}</flux:heading>
 
     <x-pages::settings.layout :heading="__('Profile')" :subheading="__('Update your name and review your registered device details')">
-        <form wire:submit="updateProfileInformation" class="rounded-xl bg-white w-full space-y-4 p-4 shadow-sm ring-1 ring-zinc-200 md:p-6">
+        <form wire:submit="updateProfileInformation" class="rounded-xl bg-white dark:bg-zinc-900 w-full space-y-4 p-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 md:p-6">
                 <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
 
                 <div>
@@ -101,7 +101,7 @@ new #[Title('Profile settings')] class extends Component {
                         readonly
                     />
 
-                    <flux:text class="mt-3 text-xs font-medium text-zinc-500">
+                    <flux:text class="mt-3 text-xs font-medium text-zinc-500 dark:text-zinc-400">
                         {{ __('Email is linked to your device account and cannot be edited here.') }}
                     </flux:text>
                 </div>
@@ -116,7 +116,7 @@ new #[Title('Profile settings')] class extends Component {
                         readonly
                     />
 
-                    <flux:text class="mt-3 text-xs font-medium text-zinc-500">
+                    <flux:text class="mt-3 text-xs font-medium text-zinc-500 dark:text-zinc-400">
                         {{ __('Autoreach Connect ID is tied to the registered device and cannot be edited here.') }}
                     </flux:text>
                 </div>

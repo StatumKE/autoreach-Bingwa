@@ -4,7 +4,7 @@
         @include('partials.head')
     </head>
     <body 
-        class="auth-layout nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg antialiased selection:bg-green-500/30 dark:bg-zinc-950"
+        class="auth-layout nativephp-safe-area min-h-screen overflow-x-hidden bg-app-bg text-zinc-950 dark:text-zinc-50 antialiased selection:bg-green-500/30"
         x-data="bingwaPermissionSetup()"
         x-init="requestSetupPermissionsOnce()"
     >

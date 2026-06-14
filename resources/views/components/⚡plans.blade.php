@@ -288,7 +288,7 @@ new #[Title('Subscriptions')] class extends Component {
 
     <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between px-1">
-            <div class="text-xl font-bold text-zinc-900">{{ __('Subscriptions') }}</div>
+            <div class="text-xl font-bold text-zinc-900 dark:text-zinc-100">{{ __('Subscriptions') }}</div>
             <button
                 type="button"
                 wire:click="refreshPlans"
@@ -309,12 +309,12 @@ new #[Title('Subscriptions')] class extends Component {
         @if (! $this->loaded)
             <div class="grid gap-4 md:grid-cols-2">
                 @for ($i = 0; $i < 4; $i++)
-                <div class="relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+                <div class="relative overflow-hidden rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 dark:ring-zinc-800">
                         <div class="absolute inset-0 bg-gradient-to-r from-transparent via-green-500/5 to-transparent motion-safe:animate-[pulse_1.8s_ease-in-out_infinite]"></div>
-                        <div class="relative h-4 w-24 rounded bg-zinc-100"></div>
-                        <div class="relative mt-4 h-6 w-40 rounded bg-zinc-100"></div>
-                        <div class="relative mt-3 h-4 w-full rounded bg-zinc-100/70"></div>
-                        <div class="relative mt-2 h-4 w-2/3 rounded bg-zinc-100/70"></div>
+                        <div class="relative h-4 w-24 rounded bg-zinc-100 dark:bg-zinc-900"></div>
+                        <div class="relative mt-4 h-6 w-40 rounded bg-zinc-100 dark:bg-zinc-900"></div>
+                        <div class="relative mt-3 h-4 w-full rounded bg-zinc-100 dark:bg-zinc-900/70"></div>
+                        <div class="relative mt-2 h-4 w-2/3 rounded bg-zinc-100 dark:bg-zinc-900/70"></div>
                     </div>
                 @endfor
             </div>
@@ -326,7 +326,7 @@ new #[Title('Subscriptions')] class extends Component {
                     </div>
                     <div class="flex-1 space-y-1 py-1">
                         <flux:heading size="sm" class="text-xs font-black uppercase tracking-[0.2em] text-rose-600">{{ __('Action Required') }}</flux:heading>
-                        <flux:text class="text-sm font-bold text-rose-700 leading-relaxed">
+                        <flux:text class="text-sm font-bold text-rose-700 dark:text-rose-455 leading-relaxed">
                             {{ $this->errorMessage }}
                         </flux:text>
                     </div>
@@ -337,22 +337,22 @@ new #[Title('Subscriptions')] class extends Component {
                                 wire:click="requestSetupPermissions"
                                 wire:loading.attr="disabled"
                                 wire:target="requestSetupPermissions"
-                                class="app-secondary-button h-9 px-4 text-[9px] font-black uppercase tracking-[0.18em] text-rose-600 hover:text-rose-700"
+                                class="app-secondary-button h-9 px-4 text-[9px] font-black uppercase tracking-[0.18em] text-rose-600 hover:text-rose-700 dark:text-rose-455"
                             >
                                 <span wire:loading.remove wire:target="requestSetupPermissions">{{ __('Grant Access') }}</span>
                                 <span wire:loading wire:target="requestSetupPermissions">{{ __('Opening…') }}</span>
                             </button>
                         @endif
 
-                        <button type="button" wire:click="$set('errorMessage', null)" class="app-secondary-button h-9 w-9 p-0 text-rose-500 hover:text-rose-700 transition-colors">
+                        <button type="button" wire:click="$set('errorMessage', null)" class="app-secondary-button h-9 w-9 p-0 text-rose-500 hover:text-rose-700 dark:text-rose-455 transition-colors">
                             <flux:icon.x-mark class="size-5" />
                         </button>
                     </div>
                 </div>
             </div>
         @elseif ($this->plans === [])
-            <div class="rounded-xl bg-white p-6 text-center ring-1 ring-zinc-200 shadow-sm">
-                <div class="text-sm font-medium text-zinc-500">
+            <div class="rounded-xl bg-white dark:bg-zinc-900 p-6 text-center ring-1 ring-zinc-200 dark:ring-zinc-800 shadow-sm">
+                <div class="text-sm font-medium text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
                     {{ __('No active subscription plans were returned for this device right now.') }}
                 </div>
             </div>
@@ -421,21 +421,21 @@ new #[Title('Subscriptions')] class extends Component {
                                         <span class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">{{ __('Active Subscription') }}</span>
                                         <span class="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
                                     </div>
-                                    <h3 class="text-lg font-black text-zinc-900 mt-0.5 leading-tight">{{ $this->activePlan->name }}</h3>
+                                    <h3 class="text-lg font-black text-zinc-900 dark:text-zinc-100 mt-0.5 leading-tight">{{ $this->activePlan->name }}</h3>
                                 </div>
                             </div>
-                            <div class="rounded-xl bg-white px-3 py-1 text-[9px] font-black uppercase tracking-widest text-zinc-500 shadow-xs ring-1 ring-zinc-200">
+                            <div class="rounded-xl bg-white dark:bg-zinc-900 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 shadow-xs ring-1 ring-zinc-200 dark:ring-zinc-800">
                                 {{ str_replace('_', ' ', $this->activePlan->type) }}
                             </div>
                         </div>
 
                         <!-- Progress Bar Section -->
                         <div class="relative mt-6">
-                            <div class="flex items-center justify-between text-xs font-bold text-zinc-700 mb-2">
+                            <div class="flex items-center justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-2">
                                 <span>{{ $isTimePack ? __('Time remaining') : __('Usage tokens remaining') }}</span>
                                 <span class="text-emerald-700 font-extrabold">{{ $remainingTimeText }}</span>
                             </div>
-                            <div class="h-2 w-full rounded-full bg-zinc-100 overflow-hidden ring-1 ring-zinc-200/50">
+                            <div class="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-900 overflow-hidden ring-1 ring-zinc-200 dark:ring-zinc-800/50">
                                 <div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-green-600 transition-all duration-500" style="width: {{ $progressPercent }}%"></div>
                             </div>
                         </div>
@@ -443,15 +443,15 @@ new #[Title('Subscriptions')] class extends Component {
                         <!-- Stats Grid -->
                         <div class="relative mt-5 grid grid-cols-2 gap-4 border-t border-emerald-100/40 pt-4">
                             <div>
-                                <div class="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400">{{ __('Started') }}</div>
-                                <div class="mt-1 text-xs font-extrabold text-zinc-900">
+                                <div class="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">{{ __('Started') }}</div>
+                                <div class="mt-1 text-xs font-extrabold text-zinc-900 dark:text-zinc-100">
                                     {{ $this->activePlan->created_at ? AppTimezone::format($this->activePlan->created_at, 'd M, H:i') : __('N/A') }}
                                 </div>
                             </div>
 
                             <div>
-                                <div class="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400">{{ $isTimePack ? __('Expires') : __('Usage limit') }}</div>
-                                <div class="mt-1 text-xs font-extrabold text-zinc-900">
+                                <div class="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">{{ $isTimePack ? __('Expires') : __('Usage limit') }}</div>
+                                <div class="mt-1 text-xs font-extrabold text-zinc-900 dark:text-zinc-100">
                                     @if ($isTimePack)
                                         {{ $this->activePlan->expires_at ? AppTimezone::format($this->activePlan->expires_at, 'd M, H:i') : __('Never') }}
                                     @else
@@ -461,8 +461,8 @@ new #[Title('Subscriptions')] class extends Component {
                             </div>
                         </div>
 
-                        <div class="mt-4 flex items-center gap-2 text-[10px] font-bold leading-normal text-zinc-500">
-                            <flux:icon.lock-closed class="size-3.5 shrink-0 text-zinc-400" />
+                        <div class="mt-4 flex items-center gap-2 text-[10px] font-bold leading-normal text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
+                            <flux:icon.lock-closed class="size-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" />
                             <span>{{ __('Purchasing remains locked until your active subscription plan expires or is fully depleted.') }}</span>
                         </div>
                     </div>
@@ -480,7 +480,7 @@ new #[Title('Subscriptions')] class extends Component {
                             @class([
                                 'plans-reveal group relative overflow-hidden rounded-2xl transition-all duration-300 transform hover:-translate-y-0.5 shadow-sm hover:shadow border',
                                 'bg-gradient-to-br from-emerald-500/10 via-emerald-600/[0.03] to-green-600/[0.02] border-emerald-500 ring-2 ring-emerald-500/10' => $isSelected,
-                                'bg-white border-zinc-200/90 hover:border-zinc-300' => !$isSelected,
+                                'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800/90 hover:border-zinc-300' => !$isSelected,
                                 'opacity-70 grayscale-[0.2]' => $this->activePlan && !$isActive
                             ]) 
                             style="animation-delay: {{ $planDelay }}ms"
@@ -494,7 +494,7 @@ new #[Title('Subscriptions')] class extends Component {
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="space-y-1">
                                         <div class="flex flex-wrap items-center gap-1.5">
-                                            <span class="text-sm font-black tracking-tight text-zinc-950 group-hover:text-emerald-700 transition-colors">
+                                            <span class="text-sm font-black tracking-tight text-zinc-950 dark:text-white group-hover:text-emerald-700 transition-colors">
                                                 {{ $plan['name'] ?? __('Plan') }}
                                             </span>
                                             @if ($isActive)
@@ -504,22 +504,22 @@ new #[Title('Subscriptions')] class extends Component {
                                                 </span>
                                             @endif
                                         </div>
-                                        <div class="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest text-zinc-500 bg-zinc-100/80 px-2 py-0.5 rounded-full border border-zinc-200/60">
+                                        <div class="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-900/80 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-zinc-800/60">
                                             {{ str_replace('_', ' ', $plan['type'] ?? 'PLAN') }}
                                         </div>
                                     </div>
                                     <div class="text-right">
-                                        <div class="text-lg font-black text-zinc-950 leading-tight">
+                                        <div class="text-lg font-black text-zinc-950 dark:text-white leading-tight">
                                             KES {{ number_format((float) ($plan['price'] ?? 0)) }}
                                         </div>
-                                        <span class="text-[8px] font-bold uppercase tracking-widest text-zinc-400 block mt-0.5">{{ __('One-time') }}</span>
+                                        <span class="text-[8px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block mt-0.5">{{ __('One-time') }}</span>
                                     </div>
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-2">
                                     @if ($isUsage && !is_null($plan['ussd_requests_included']))
-                                        <div class="rounded-xl bg-zinc-50/80 p-2 border border-zinc-150 flex flex-col justify-center shadow-inner">
-                                            <span class="text-[7px] font-bold uppercase tracking-wider text-zinc-400 block">{{ __('USSD requests') }}</span>
+                                        <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40/80 p-2 border border-zinc-150 flex flex-col justify-center shadow-inner">
+                                            <span class="text-[7px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">{{ __('USSD requests') }}</span>
                                             <span class="text-[11px] font-extrabold text-zinc-850 mt-0.5 flex items-center gap-1">
                                                 <flux:icon.banknotes class="size-3 text-emerald-600" />
                                                 {{ number_format((int) $plan['ussd_requests_included']) }}
@@ -528,8 +528,8 @@ new #[Title('Subscriptions')] class extends Component {
                                     @endif
 
                                     @if (!empty($plan['duration_days']))
-                                        <div class="rounded-xl bg-zinc-50/80 p-2 border border-zinc-150 flex flex-col justify-center shadow-inner">
-                                            <span class="text-[7px] font-bold uppercase tracking-wider text-zinc-400 block">{{ __('Duration') }}</span>
+                                        <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40/80 p-2 border border-zinc-150 flex flex-col justify-center shadow-inner">
+                                            <span class="text-[7px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">{{ __('Duration') }}</span>
                                             <span class="text-[11px] font-extrabold text-zinc-850 mt-0.5 flex items-center gap-1">
                                                 <flux:icon.clock class="size-3 text-emerald-600" />
                                                 {{ trans_choice(':count day|:count days', (int) $plan['duration_days'], ['count' => (int) $plan['duration_days']]) }}
@@ -545,7 +545,7 @@ new #[Title('Subscriptions')] class extends Component {
                                     @class([
                                         'flex h-9 w-full items-center justify-center rounded-xl text-[9px] font-black uppercase tracking-widest transition-all duration-200 transform active:scale-95 disabled:pointer-events-none disabled:opacity-50 border shadow-sm',
                                         'bg-gradient-to-r from-emerald-600 to-green-600 text-white border-transparent shadow-emerald-500/10 hover:shadow-md' => $isSelected,
-                                        'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 hover:text-zinc-900' => !$isSelected,
+                                        'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:bg-zinc-950/40 hover:text-zinc-900 dark:text-zinc-100' => !$isSelected,
                                     ])
                                 >
                                     @if ($isActive)
@@ -577,15 +577,15 @@ new #[Title('Subscriptions')] class extends Component {
                             aria-label="{{ __('Close selected plan dialog') }}"
                         ></button>
 
-                        <div class="relative z-10 w-full max-w-md overflow-hidden rounded-[2.5rem] bg-white shadow-2xl ring-1 ring-zinc-200/80 plans-reveal">
+                        <div class="relative z-10 w-full max-w-md overflow-hidden rounded-[2.5rem] bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-zinc-200 dark:ring-zinc-800/80 plans-reveal">
                             @if ($this->purchaseInFlight)
-                                <div class="absolute inset-0 z-30 flex items-center justify-center bg-white/90 px-6 backdrop-blur-sm">
-                                    <div class="flex w-full max-w-xs flex-col items-center gap-4 rounded-3xl bg-white px-6 py-6 text-center shadow-2xl ring-1 ring-zinc-150">
+                                <div class="absolute inset-0 z-30 flex items-center justify-center bg-white/90 dark:bg-zinc-900/90 px-6 backdrop-blur-sm">
+                                    <div class="flex w-full max-w-xs flex-col items-center gap-4 rounded-3xl bg-white dark:bg-zinc-900 px-6 py-6 text-center shadow-2xl ring-1 ring-zinc-150 dark:ring-zinc-800">
                                         <flux:icon.loading variant="mini" class="size-8 text-emerald-600" />
-                                        <div class="text-xs font-black uppercase tracking-[0.2em] text-zinc-950">
+                                        <div class="text-xs font-black uppercase tracking-[0.2em] text-zinc-950 dark:text-white">
                                             {{ __('Processing purchase') }}
                                         </div>
-                                        <div class="text-[10px] font-medium leading-relaxed text-zinc-500">
+                                        <div class="text-[10px] font-medium leading-relaxed text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
                                             {{ __('Keep the app open while your phone handles the USSD session.') }}
                                         </div>
                                     </div>
@@ -598,7 +598,7 @@ new #[Title('Subscriptions')] class extends Component {
                                         <div class="text-[9px] font-bold uppercase tracking-[0.24em] text-emerald-400">{{ __('Confirm Purchase') }}</div>
                                         <div class="mt-2 text-xl font-black tracking-tight text-white">{{ $selectedPlan['name'] ?? __('Plan') }}</div>
                                         <div class="mt-1">
-                                            <span class="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-400 bg-zinc-800/80 px-2.5 py-0.5 rounded-full">
+                                            <span class="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 bg-zinc-800/80 px-2.5 py-0.5 rounded-full">
                                                 {{ str_replace('_', ' ', $selectedPlan['type'] ?? 'PLAN') }}
                                             </span>
                                         </div>
@@ -618,16 +618,16 @@ new #[Title('Subscriptions')] class extends Component {
 
                             <div @class(['space-y-6 px-6 py-6', 'opacity-40 pointer-events-none' => $this->purchaseInFlight])>
                                 <div class="grid grid-cols-2 gap-3.5">
-                                    <div class="rounded-2xl bg-zinc-50/80 px-4 py-3.5 border border-zinc-150 shadow-inner">
-                                        <div class="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Price') }}</div>
+                                    <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/40/80 px-4 py-3.5 border border-zinc-150 shadow-inner">
+                                        <div class="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Price') }}</div>
                                         <div class="mt-1 text-xl font-black tracking-tight text-emerald-700">
                                             KES {{ number_format((float) ($selectedPlan['price'] ?? 0)) }}
                                         </div>
                                     </div>
 
-                                    <div class="rounded-2xl bg-zinc-50/80 px-4 py-3.5 border border-zinc-150 shadow-inner">
-                                        <div class="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-500">{{ __('Duration') }}</div>
-                                        <div class="mt-1 text-sm font-black text-zinc-950">
+                                    <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/40/80 px-4 py-3.5 border border-zinc-150 shadow-inner">
+                                        <div class="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Duration') }}</div>
+                                        <div class="mt-1 text-sm font-black text-zinc-950 dark:text-white">
                                             @if (! empty($selectedPlan['duration_days']))
                                                 {{ trans_choice(':count day|:count days', (int) $selectedPlan['duration_days'], ['count' => (int) $selectedPlan['duration_days']]) }}
                                             @elseif (($selectedPlan['type'] ?? null) === 'usage_pack' && ! is_null($selectedPlan['ussd_requests_included']))
@@ -640,8 +640,8 @@ new #[Title('Subscriptions')] class extends Component {
                                 </div>
 
                                 @if ($this->sambazaLine)
-                                    <div class="rounded-2xl bg-zinc-50/80 p-4 border border-zinc-150">
-                                        <div class="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-600 mb-3 block">{{ __('Choose SIM Slot') }}</div>
+                                    <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/40/80 p-4 border border-zinc-150">
+                                        <div class="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mb-3 block">{{ __('Choose SIM Slot') }}</div>
                                         <div class="grid grid-cols-2 gap-2">
                                             <button 
                                                 type="button" 
@@ -649,7 +649,7 @@ new #[Title('Subscriptions')] class extends Component {
                                                 @class([
                                                     'flex h-11 items-center justify-center rounded-xl text-xs font-black transition-all border',
                                                     'bg-emerald-600 text-white border-transparent shadow-sm shadow-emerald-500/20' => (int) $simSlot === 0,
-                                                    'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50' => (int) $simSlot !== 0,
+                                                    'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:bg-zinc-950/40' => (int) $simSlot !== 0,
                                                 ])
                                             >
                                                 {{ __('SIM 1') }}
@@ -660,7 +660,7 @@ new #[Title('Subscriptions')] class extends Component {
                                                 @class([
                                                     'flex h-11 items-center justify-center rounded-xl text-xs font-black transition-all border',
                                                     'bg-emerald-600 text-white border-transparent shadow-sm shadow-emerald-500/20' => (int) $simSlot === 1,
-                                                    'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50' => (int) $simSlot !== 1,
+                                                    'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:bg-zinc-950/40' => (int) $simSlot !== 1,
                                                 ])
                                             >
                                                 {{ __('SIM 2') }}
@@ -674,7 +674,7 @@ new #[Title('Subscriptions')] class extends Component {
                                         type="button"
                                         wire:click="$set('selectedPlanId', null)"
                                         @disabled($this->purchaseInFlight)
-                                        class="flex h-12 w-full items-center justify-center rounded-2xl border border-zinc-200 bg-white text-[10px] font-black uppercase tracking-widest text-zinc-700 hover:bg-zinc-50 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                                        class="flex h-12 w-full items-center justify-center rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-[10px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:bg-zinc-950/40 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {{ __('Cancel') }}
                                     </button>

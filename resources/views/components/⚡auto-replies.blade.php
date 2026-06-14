@@ -235,8 +235,8 @@ new #[Title('Auto Replies')] class extends Component {
     public function statusClasses(bool $active): string
     {
         return $active
-            ? 'bg-green-50 text-green-700 ring-green-100'
-            : 'bg-zinc-100 text-zinc-600 ring-zinc-200';
+            ? 'bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 dark:text-green-455 ring-green-100 dark:ring-green-900/50'
+            : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 ring-zinc-200 dark:ring-zinc-800';
     }
 
     /**
@@ -245,13 +245,13 @@ new #[Title('Auto Replies')] class extends Component {
     public function triggerClasses(string $condition): string
     {
         return match ($condition) {
-            'successful_transaction' => 'bg-green-50 text-green-700 ring-green-100',
-            'failed_transaction' => 'bg-rose-50 text-rose-700 ring-rose-100',
+            'successful_transaction' => 'bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 dark:text-green-455 ring-green-100 dark:ring-green-900/50',
+            'failed_transaction' => 'bg-rose-50 text-rose-700 dark:text-rose-455 ring-rose-100',
             'offer_unavailable' => 'bg-amber-50 text-amber-700 ring-amber-100',
             'already_recommended' => 'bg-sky-50 text-sky-700 ring-sky-100',
-            'app_paused' => 'bg-zinc-100 text-zinc-600 ring-zinc-200',
+            'app_paused' => 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 ring-zinc-200 dark:ring-zinc-800',
             'blacklisted_customer' => 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-100',
-            default => 'bg-zinc-100 text-zinc-600 ring-zinc-200',
+            default => 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 ring-zinc-200 dark:ring-zinc-800',
         };
     }
 
@@ -491,7 +491,7 @@ new #[Title('Auto Replies')] class extends Component {
 
     <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between px-1">
-            <div class="text-xl font-bold text-zinc-900">{{ __('Auto Replies') }}</div>
+            <div class="text-xl font-bold text-zinc-900 dark:text-zinc-100">{{ __('Auto Replies') }}</div>
             <button
                 type="button"
                 wire:click="createAutoReply"
@@ -503,13 +503,13 @@ new #[Title('Auto Replies')] class extends Component {
         </div>
 
         @if ($this->successMessage)
-            <div class="rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700 ring-1 ring-green-100 shadow-sm">
+            <div class="rounded-xl bg-green-50 dark:bg-green-950/20 px-4 py-3 text-sm font-medium text-green-700 dark:text-green-400 dark:text-green-455 ring-1 ring-green-100 dark:ring-green-900/50 shadow-sm">
                 {{ $this->successMessage }}
             </div>
         @endif
 
         @if ($this->errorMessage)
-            <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 ring-1 ring-rose-100 shadow-sm">
+            <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:text-rose-455 ring-1 ring-rose-100 shadow-sm">
                 {{ $this->errorMessage }}
             </div>
         @endif
@@ -545,44 +545,44 @@ new #[Title('Auto Replies')] class extends Component {
         @if (! $this->loaded)
             <div class="flex flex-col gap-3">
                 @for ($i = 0; $i < 4; $i++)
-                    <div class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 animate-pulse">
-                        <div class="h-4 w-28 rounded bg-zinc-100"></div>
-                        <div class="mt-4 h-4 w-40 rounded bg-zinc-100"></div>
-                        <div class="mt-3 h-16 w-full rounded bg-zinc-100/70"></div>
+                    <div class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 dark:ring-zinc-800 animate-pulse">
+                        <div class="h-4 w-28 rounded bg-zinc-100 dark:bg-zinc-900"></div>
+                        <div class="mt-4 h-4 w-40 rounded bg-zinc-100 dark:bg-zinc-900"></div>
+                        <div class="mt-3 h-16 w-full rounded bg-zinc-100 dark:bg-zinc-900/70"></div>
                     </div>
                 @endfor
             </div>
         @elseif ($autoReplies->isEmpty())
-            <div class="rounded-xl bg-white px-4 py-10 text-center shadow-sm ring-1 ring-zinc-200">
-                <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-green-50 text-green-600 ring-1 ring-green-100 shadow-inner">
+            <div class="rounded-xl bg-white dark:bg-zinc-900 px-4 py-10 text-center shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800">
+                <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-green-50 dark:bg-green-950/20 text-green-600 ring-1 ring-green-100 dark:ring-green-900/50 shadow-inner">
                     <flux:icon.sparkles class="size-6" />
                 </div>
-                <div class="mt-3 text-base font-bold text-zinc-900">
+                <div class="mt-3 text-base font-bold text-zinc-900 dark:text-zinc-100">
                     {{ __('No auto replies yet') }}
                 </div>
-                <div class="mx-auto mt-1 max-w-sm text-sm text-zinc-500">
+                <div class="mx-auto mt-1 max-w-sm text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
                     {{ __('Default reply templates will be created automatically.') }}
                 </div>
             </div>
         @else
             <div class="flex flex-col gap-3">
                 @foreach ($autoReplies as $autoReply)
-                    <article class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+                    <article class="rounded-xl bg-white dark:bg-zinc-900 p-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 dark:ring-zinc-800">
                         <div class="flex items-start justify-between gap-4">
                             <div class="min-w-0 flex-1 space-y-2">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <span class="truncate text-sm font-bold text-zinc-900">
+                                    <span class="truncate text-sm font-bold text-zinc-900 dark:text-zinc-100">
                                         {{ $autoReply->name }}
                                     </span>
 
                                     @if ($autoReply->is_default)
-                                        <span class="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-zinc-600 ring-1 ring-zinc-200">
+                                        <span class="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 ring-1 ring-zinc-200 dark:ring-zinc-800">
                                             {{ __('Default') }}
                                         </span>
                                     @endif
                                 </div>
 
-                                <div class="text-sm font-medium italic leading-relaxed text-zinc-600">
+                                <div class="text-sm font-medium italic leading-relaxed text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">
                                     {{ $this->messagePreview($autoReply->reply_message) }}
                                 </div>
 
@@ -618,14 +618,14 @@ new #[Title('Auto Replies')] class extends Component {
                                         $wire.toggleAutoReply({{ $autoReply->id }})
                                     }
                                 "
-                                class="flex h-10 w-16 items-center rounded-full ring-2 ring-inset transition {{ $autoReply->is_active ? 'justify-end bg-green-500/15 ring-green-500/35' : 'justify-start bg-zinc-100 ring-zinc-300' }}"
+                                class="flex h-10 w-16 items-center rounded-full ring-2 ring-inset transition {{ $autoReply->is_active ? 'justify-end bg-green-500/15 ring-green-500/35' : 'justify-start bg-zinc-100 dark:bg-zinc-900 ring-zinc-300' }}"
                                 aria-label="{{ $autoReply->is_active ? __('Disable auto reply') : __('Enable auto reply') }}"
                             >
                                 <span class="mx-1.5 size-7 rounded-full bg-white shadow-sm ring-1 ring-black/10"></span>
                             </button>
                         </div>
 
-                        <div class="mt-4 flex items-center justify-between border-t border-zinc-100 pt-3">
+                        <div class="mt-4 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-3">
                             <button
                                 type="button"
                                 wire:click="editAutoReply({{ $autoReply->id }})"
@@ -634,7 +634,7 @@ new #[Title('Auto Replies')] class extends Component {
                                 {{ __('Edit') }}
                             </button>
 
-                            <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                            <div class="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                                 {{ $this->triggerDescription($autoReply->trigger_condition) }}
                             </div>
                         </div>
@@ -649,14 +649,14 @@ new #[Title('Auto Replies')] class extends Component {
     <flux:modal name="auto-reply-form" focusable class="max-w-lg">
         <form wire:submit="saveAutoReply" class="space-y-5 p-1">
             <div>
-                <flux:heading size="lg" class="text-zinc-950">
+                <flux:heading size="lg" class="text-zinc-950 dark:text-white">
                     {{ $editingAutoReplyId ? __('Edit Auto Reply') : __('Create AutoReply') }}
                 </flux:heading>
                 <flux:subheading class="mt-1">{{ __('Set the trigger condition and reply content.') }}</flux:subheading>
             </div>
 
             <div class="space-y-2">
-                <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500" for="auto-reply-name">
+                <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500" for="auto-reply-name">
                     {{ __('Name of AutoReply') }}
                 </label>
                 <input
@@ -665,12 +665,12 @@ new #[Title('Auto Replies')] class extends Component {
                     type="text"
                     autocomplete="off"
                     placeholder="{{ __('Name of AutoReply') }}"
-                    class="h-12 w-full rounded-2xl border border-zinc-300 bg-transparent px-4 text-base font-medium text-zinc-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10"
+                    class="h-12 w-full rounded-2xl border border-zinc-300 bg-transparent px-4 text-base font-medium text-zinc-700 dark:text-zinc-300 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10"
                 >
             </div>
 
-            <div class="space-y-3 rounded-[1.5rem] bg-zinc-100/80 p-4 ring-1 ring-zinc-200">
-                <div class="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-600">
+            <div class="space-y-3 rounded-[1.5rem] bg-zinc-100 dark:bg-zinc-900/80 p-4 ring-1 ring-zinc-200 dark:ring-zinc-800">
+                <div class="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">
                     {{ __('Trigger Conditions') }}
                 </div>
 
@@ -682,13 +682,13 @@ new #[Title('Auto Replies')] class extends Component {
                             @class([
                                 'rounded-2xl px-4 py-3 text-left ring-1 transition',
                                 'bg-green-100 text-zinc-950 ring-green-200 shadow-sm' => $this->triggerCondition === $condition,
-                                'bg-white text-zinc-700 ring-zinc-200' => $this->triggerCondition !== $condition,
+                                'bg-white dark:bg-zinc-950/40 text-zinc-700 dark:text-zinc-300 ring-zinc-200 dark:ring-zinc-800' => $this->triggerCondition !== $condition,
                             ])
                         >
                             <div class="text-sm font-black tracking-tight">
                                 {{ $option['label'] }}
                             </div>
-                            <div class="mt-1 text-[10px] font-medium leading-snug text-zinc-500">
+                            <div class="mt-1 text-[10px] font-medium leading-snug text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
                                 {{ $option['description'] }}
                             </div>
                         </button>
@@ -696,29 +696,29 @@ new #[Title('Auto Replies')] class extends Component {
                 </div>
             </div>
 
-            <div class="rounded-[1.25rem] bg-white px-4 py-3 ring-1 ring-zinc-200">
+            <div class="rounded-[1.25rem] bg-white dark:bg-zinc-900 px-4 py-3 ring-1 ring-zinc-200 dark:ring-zinc-800">
                 <div class="flex items-center justify-between gap-3">
-                    <div class="text-sm font-black text-zinc-950">{{ __('Activate') }}</div>
+                    <div class="text-sm font-black text-zinc-950 dark:text-white">{{ __('Activate') }}</div>
                     <input wire:model="isActive" type="checkbox" class="size-6 rounded border-zinc-300 text-green-600 focus:ring-green-500">
                 </div>
             </div>
 
             <div>
-                <div class="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">
+                <div class="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
                     {{ __('PlaceHolders:') }}
                 </div>
-                <div class="mt-3 space-y-2 text-sm leading-relaxed text-zinc-700">
+                <div class="mt-3 space-y-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
                     @foreach ($this->placeholderGuide() as $placeholder)
                         <div>
-                            <span class="font-black text-zinc-950">{{ $placeholder['token'] }}</span>
-                            <span class="text-zinc-500"> - {{ $placeholder['description'] }}</span>
+                            <span class="font-black text-zinc-950 dark:text-white">{{ $placeholder['token'] }}</span>
+                            <span class="text-zinc-500 dark:text-zinc-400 dark:text-zinc-500"> - {{ $placeholder['description'] }}</span>
                         </div>
                     @endforeach
                 </div>
             </div>
 
             <div class="space-y-2">
-                <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500" for="reply-message">
+                <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500" for="reply-message">
                     {{ __('Reply Message') }}
                 </label>
                 <textarea
@@ -726,7 +726,7 @@ new #[Title('Auto Replies')] class extends Component {
                     wire:model="replyMessage"
                     rows="6"
                     placeholder="{{ __('Type the message that will be sent automatically…') }}"
-                    class="w-full rounded-2xl border border-zinc-300 bg-transparent px-4 py-3 text-base font-medium text-zinc-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10"
+                    class="w-full rounded-2xl border border-zinc-300 bg-transparent px-4 py-3 text-base font-medium text-zinc-700 dark:text-zinc-300 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10"
                 ></textarea>
             </div>
 

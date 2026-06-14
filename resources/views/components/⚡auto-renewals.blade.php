@@ -198,9 +198,9 @@ new #[Title('Auto Renewals')] class extends Component {
     {
         return match (strtolower((string) $status)) {
             'processing' => 'bg-amber-50 text-amber-700 ring-amber-100',
-            'completed' => 'bg-green-50 text-green-700 ring-green-100',
-            'failed' => 'bg-rose-50 text-rose-700 ring-rose-100',
-            'cancelled' => 'bg-zinc-100 text-zinc-600 ring-zinc-200',
+            'completed' => 'bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 dark:text-green-455 ring-green-100 dark:ring-green-900/50',
+            'failed' => 'bg-rose-50 text-rose-700 dark:text-rose-455 ring-rose-100',
+            'cancelled' => 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 ring-zinc-200 dark:ring-zinc-800',
             default => 'bg-sky-50 text-sky-700 ring-sky-100',
         };
     }
@@ -312,7 +312,7 @@ new #[Title('Auto Renewals')] class extends Component {
 
     <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between px-1">
-            <div class="text-xl font-bold text-zinc-900">{{ __('Auto Renewals') }}</div>
+            <div class="text-xl font-bold text-zinc-900 dark:text-zinc-100">{{ __('Auto Renewals') }}</div>
             @if ($activeOffers->isEmpty())
                 <button
                     type="button"
@@ -336,85 +336,85 @@ new #[Title('Auto Renewals')] class extends Component {
         </div>
 
         @if ($this->successMessage)
-            <div class="rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700 ring-1 ring-green-100 shadow-sm">
+            <div class="rounded-xl bg-green-50 dark:bg-green-950/20 px-4 py-3 text-sm font-medium text-green-700 dark:text-green-400 dark:text-green-455 ring-1 ring-green-100 dark:ring-green-900/50 shadow-sm">
                 {{ $this->successMessage }}
             </div>
         @endif
 
         @if ($this->errorMessage)
-            <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 ring-1 ring-rose-100 shadow-sm">
+            <div class="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:text-rose-455 ring-1 ring-rose-100 shadow-sm">
                 {{ $this->errorMessage }}
             </div>
         @endif
 
-        <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
-            <div class="flex items-center justify-between gap-4 border-b border-zinc-200 px-4 py-3">
-                <div class="text-sm font-bold text-zinc-900">{{ __('Scheduled Awards') }}</div>
+        <div class="overflow-hidden rounded-xl bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 dark:ring-zinc-800">
+            <div class="flex items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 px-4 py-3">
+                <div class="text-sm font-bold text-zinc-900 dark:text-zinc-100">{{ __('Scheduled Awards') }}</div>
                 @if ($this->loaded)
-                    <div class="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-green-100">
+                    <div class="rounded-full bg-green-50 dark:bg-green-950/20 px-3 py-1 text-xs font-bold text-green-700 dark:text-green-400 dark:text-green-455 ring-1 ring-green-100 dark:ring-green-900/50">
                         {{ $renewals->total() }}
                     </div>
                 @else
-                    <div class="h-6 w-12 animate-pulse rounded-full bg-zinc-100"></div>
+                    <div class="h-6 w-12 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-900"></div>
                 @endif
             </div>
 
             @if (! $this->loaded)
                 <div class="space-y-4 px-4 py-6">
                     @for ($i = 0; $i < 3; $i++)
-                        <div class="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
-                            <div class="h-4 w-28 animate-pulse rounded bg-zinc-100"></div>
-                            <div class="mt-3 h-4 w-40 animate-pulse rounded bg-zinc-100"></div>
-                            <div class="mt-3 h-12 w-full animate-pulse rounded bg-zinc-100/70"></div>
+                        <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/40 p-4 ring-1 ring-zinc-200 dark:ring-zinc-800">
+                            <div class="h-4 w-28 animate-pulse rounded bg-zinc-100 dark:bg-zinc-900"></div>
+                            <div class="mt-3 h-4 w-40 animate-pulse rounded bg-zinc-100 dark:bg-zinc-900"></div>
+                            <div class="mt-3 h-12 w-full animate-pulse rounded bg-zinc-100 dark:bg-zinc-900/70"></div>
                         </div>
                     @endfor
                 </div>
             @elseif ($renewals->isEmpty())
                 <div class="px-4 py-10 text-center">
-                    <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-green-50 text-green-600 ring-1 ring-green-100 shadow-inner">
+                    <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-green-50 dark:bg-green-950/20 text-green-600 ring-1 ring-green-100 dark:ring-green-900/50 shadow-inner">
                         <flux:icon.calendar-days class="size-6" />
                     </div>
-                    <div class="mt-3 text-base font-bold text-zinc-900">
+                    <div class="mt-3 text-base font-bold text-zinc-900 dark:text-zinc-100">
                         {{ __('No scheduled renewals yet') }}
                     </div>
-                    <div class="mx-auto mt-1 max-w-sm text-sm text-zinc-500">
+                    <div class="mx-auto mt-1 max-w-sm text-sm text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
                         {{ __('Scheduled awards will appear here.') }}
                     </div>
                 </div>
             @else
                 <div class="hidden md:block overflow-x-auto">
-                    <table class="min-w-full divide-y divide-zinc-200">
-                        <thead class="bg-zinc-50/70">
+                    <table class="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                        <thead class="bg-zinc-50 dark:bg-zinc-950/40/70">
                             <tr>
-                                <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500">{{ __('Customer') }}</th>
-                                <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500">{{ __('Offer') }}</th>
-                                <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500">{{ __('Scheduled For') }}</th>
-                                <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500">{{ __('Renewal') }}</th>
-                                <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500">{{ __('Status') }}</th>
-                                <th class="px-5 py-3 text-right text-[10px] font-black uppercase tracking-widest text-zinc-500">{{ __('Action') }}</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Customer') }}</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Offer') }}</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Scheduled For') }}</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Renewal') }}</th>
+                                <th class="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Status') }}</th>
+                                <th class="px-5 py-3 text-right text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Action') }}</th>
                             </tr>
                         </thead>
 
-                        <tbody class="divide-y divide-zinc-100">
+                        <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
                             @foreach ($renewals as $renewal)
-                                <tr class="transition hover:bg-zinc-50/80">
+                                <tr class="transition hover:bg-zinc-50 dark:bg-zinc-950/40/80">
                                     <td class="px-5 py-4 align-top">
-                                        <div class="text-sm font-black text-zinc-950">{{ $renewal->customer_phone }}</div>
-                                        <div class="mt-1 text-[10px] font-black uppercase tracking-widest text-zinc-400">{{ $renewal->id }}</div>
+                                        <div class="text-sm font-black text-zinc-950 dark:text-white">{{ $renewal->customer_phone }}</div>
+                                        <div class="mt-1 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ $renewal->id }}</div>
                                     </td>
                                     <td class="px-5 py-4 align-top">
-                                        <div class="text-sm font-black text-zinc-950">{{ $renewal->offer?->name ?? __('Unknown offer') }}</div>
-                                        <div class="mt-1 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                        <div class="text-sm font-black text-zinc-950 dark:text-white">{{ $renewal->offer?->name ?? __('Unknown offer') }}</div>
+                                        <div class="mt-1 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                                             Ksh {{ number_format((float) ($renewal->offer?->price ?? 0)) }}
                                         </div>
                                     </td>
                                     <td class="px-5 py-4 align-top">
-                                        <div class="text-sm font-black text-zinc-950">
+                                        <div class="text-sm font-black text-zinc-950 dark:text-white">
                                         {{ AppTimezone::format($renewal->scheduled_for, 'D d/m/Y') }} {{ __('at') }} {{ AppTimezone::format($renewal->scheduled_for, 'H:i') }} Hrs
                                         </div>
                                     </td>
                                     <td class="px-5 py-4 align-top">
-                                        <div class="text-sm font-black text-zinc-950">
+                                        <div class="text-sm font-black text-zinc-950 dark:text-white">
                                             {{ $this->recurrenceLabel($renewal) }}
                                         </div>
                                     </td>
@@ -429,11 +429,11 @@ new #[Title('Auto Renewals')] class extends Component {
                                             $tx = $matchedTransactions[$renewal->id] ?? null;
                                         @endphp
                                         @if ($tx)
-                                            <div class="mt-1.5 max-w-[200px] text-[10px] leading-relaxed text-zinc-500 break-words font-medium">
+                                            <div class="mt-1.5 max-w-[200px] text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 break-words font-medium">
                                                 {{ $tx->status_desc }}
                                             </div>
                                         @elseif ($renewal->notes)
-                                            <div class="mt-1.5 max-w-[200px] text-[10px] leading-relaxed text-zinc-500 break-words font-medium">
+                                            <div class="mt-1.5 max-w-[200px] text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 break-words font-medium">
                                                 {{ $renewal->notes }}
                                             </div>
                                         @endif
@@ -454,13 +454,13 @@ new #[Title('Auto Renewals')] class extends Component {
                     </table>
                 </div>
 
-                <div class="divide-y divide-zinc-100 md:hidden">
+                <div class="divide-y divide-zinc-100 dark:divide-zinc-800 md:hidden">
                     @foreach ($renewals as $renewal)
-                        <article class="space-y-3 px-4 py-3 transition hover:bg-zinc-50/80">
+                        <article class="space-y-3 px-4 py-3 transition hover:bg-zinc-50 dark:bg-zinc-950/40/80">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2">
-                                        <div class="text-sm font-black text-zinc-950">{{ $renewal->customer_phone }}</div>
+                                        <div class="text-sm font-black text-zinc-950 dark:text-white">{{ $renewal->customer_phone }}</div>
                                         <span @class([
                                             'inline-flex items-center rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ring-1',
                                             $this->statusClasses($renewal->status),
@@ -468,16 +468,16 @@ new #[Title('Auto Renewals')] class extends Component {
                                             {{ $this->statusLabel($renewal->status) }}
                                         </span>
                                     </div>
-                                    <div class="mt-0.5 text-[10px] font-bold text-zinc-500">
+                                    <div class="mt-0.5 text-[10px] font-bold text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">
                                         {{ $renewal->offer?->name ?? __('Unknown offer') }} &bull; Ksh {{ number_format((float) ($renewal->offer?->price ?? 0)) }}
                                     </div>
-                                    <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-medium text-zinc-600">
+                                    <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-medium text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">
                                         <div class="flex items-center gap-1">
-                                            <flux:icon.calendar-days class="size-3 text-zinc-400" />
+                                            <flux:icon.calendar-days class="size-3 text-zinc-400 dark:text-zinc-500" />
                                             {{ AppTimezone::format($renewal->scheduled_for, 'd/m/y H:i') }}
                                         </div>
                                         <div class="flex items-center gap-1">
-                                            <flux:icon.arrow-path class="size-3 text-zinc-400" />
+                                            <flux:icon.arrow-path class="size-3 text-zinc-400 dark:text-zinc-500" />
                                             {{ $renewal->auto_renew ? $renewal->renew_days . ' Days' : 'Once' }}
                                         </div>
                                     </div>
@@ -497,8 +497,8 @@ new #[Title('Auto Renewals')] class extends Component {
                                 $msg = $tx ? $tx->status_desc : $renewal->notes;
                             @endphp
                             @if ($msg)
-                                <div class="rounded-xl bg-zinc-50/50 px-3 py-2 ring-1 ring-zinc-200">
-                                    <div class="text-[10px] leading-snug text-zinc-600 break-words font-medium">
+                                <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40/50 dark:bg-zinc-950/20 px-3 py-2 ring-1 ring-zinc-200 dark:ring-zinc-800">
+                                    <div class="text-[10px] leading-snug text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 break-words font-medium">
                                         {{ $msg }}
                                     </div>
                                 </div>
@@ -509,7 +509,7 @@ new #[Title('Auto Renewals')] class extends Component {
             @endif
 
             @if ($this->loaded && $renewals->hasPages())
-                <div class="border-t border-zinc-200 px-5 py-4">
+                <div class="border-t border-zinc-200 dark:border-zinc-800 px-5 py-4">
                     {{ $renewals->links() }}
                 </div>
             @endif
@@ -518,12 +518,12 @@ new #[Title('Auto Renewals')] class extends Component {
         <flux:modal name="renewal-form" focusable class="max-w-lg">
             <form wire:submit="scheduleRenewal" class="space-y-5 p-1">
                 <div>
-                    <flux:heading size="lg" class="text-zinc-950">{{ __('Create Auto Renewal') }}</flux:heading>
+                    <flux:heading size="lg" class="text-zinc-950 dark:text-white">{{ __('Create Auto Renewal') }}</flux:heading>
                     <flux:subheading class="mt-1">{{ __('Schedule a renewal for a customer offer.') }}</flux:subheading>
                 </div>
 
                 <div class="space-y-2">
-                    <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500" for="customer-phone">
+                    <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500" for="customer-phone">
                         {{ __('Customer Phone') }}
                     </label>
                     <input
@@ -533,18 +533,18 @@ new #[Title('Auto Renewals')] class extends Component {
                         inputmode="tel"
                         autocomplete="tel"
                         placeholder="07XXXXXXXX"
-                        class="h-12 w-full rounded-2xl border border-zinc-300 bg-transparent px-4 text-base font-medium text-zinc-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10"
+                        class="h-12 w-full rounded-2xl border border-zinc-300 bg-transparent px-4 text-base font-medium text-zinc-700 dark:text-zinc-300 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/10"
                     >
                 </div>
 
                 <div class="space-y-2">
-                    <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500" for="offer-id">
+                    <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500" for="offer-id">
                         {{ __('Select Offer') }}
                     </label>
                     <select
                         id="offer-id"
                         wire:model="offerId"
-                        class="h-12 w-full rounded-2xl border-0 bg-zinc-100 px-4 text-base font-medium text-zinc-800 outline-none ring-1 ring-transparent transition focus:ring-2 focus:ring-green-500/20"
+                        class="h-12 w-full rounded-2xl border-0 bg-zinc-100 dark:bg-zinc-900 px-4 text-base font-medium text-zinc-800 dark:text-zinc-200 outline-none ring-1 ring-transparent transition focus:ring-2 focus:ring-green-500/20"
                         @disabled($activeOffers->isEmpty())
                     >
                         @if ($activeOffers->isEmpty())
@@ -562,32 +562,32 @@ new #[Title('Auto Renewals')] class extends Component {
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div class="space-y-2">
-                        <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500" for="scheduled-date">
+                        <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500" for="scheduled-date">
                             {{ __('Date') }}
                         </label>
                         <input
                             id="scheduled-date"
                             wire:model="scheduledDate"
                             type="date"
-                            class="h-12 w-full rounded-2xl border-0 bg-zinc-100 px-4 text-base font-medium text-zinc-800 outline-none ring-1 ring-transparent transition focus:ring-2 focus:ring-green-500/20"
+                            class="h-12 w-full rounded-2xl border-0 bg-zinc-100 dark:bg-zinc-900 px-4 text-base font-medium text-zinc-800 dark:text-zinc-200 outline-none ring-1 ring-transparent transition focus:ring-2 focus:ring-green-500/20"
                         >
                     </div>
 
                     <div class="space-y-2">
-                        <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500" for="scheduled-time">
+                        <label class="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500" for="scheduled-time">
                             {{ __('Time') }}
                         </label>
                         <input
                             id="scheduled-time"
                             wire:model="scheduledTime"
                             type="time"
-                            class="h-12 w-full rounded-2xl border-0 bg-zinc-100 px-4 text-base font-medium text-zinc-800 outline-none ring-1 ring-transparent transition focus:ring-2 focus:ring-green-500/20"
+                            class="h-12 w-full rounded-2xl border-0 bg-zinc-100 dark:bg-zinc-900 px-4 text-base font-medium text-zinc-800 dark:text-zinc-200 outline-none ring-1 ring-transparent transition focus:ring-2 focus:ring-green-500/20"
                         >
                     </div>
                 </div>
 
-                <div class="flex items-center gap-3 rounded-2xl bg-white/70 px-1 py-2">
-                    <label class="inline-flex items-center gap-3 text-lg font-medium text-zinc-800">
+                <div class="flex items-center gap-3 rounded-2xl bg-white/70 dark:bg-zinc-900/70 px-1 py-2">
+                    <label class="inline-flex items-center gap-3 text-lg font-medium text-zinc-800 dark:text-zinc-200">
                         <input
                             wire:model="autoRenew"
                             type="checkbox"
@@ -597,7 +597,7 @@ new #[Title('Auto Renewals')] class extends Component {
                     </label>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-base leading-tight text-zinc-800 sm:text-lg">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-base leading-tight text-zinc-800 dark:text-zinc-200 sm:text-lg">
                     <span>{{ __('Renew daily for the next') }}</span>
                     <input
                         wire:model="renewDays"
@@ -605,7 +605,7 @@ new #[Title('Auto Renewals')] class extends Component {
                         min="1"
                         max="365"
                         inputmode="numeric"
-                        class="w-16 border-0 border-b-2 border-zinc-300 bg-transparent px-1 pb-1 text-center text-lg font-medium text-zinc-800 outline-none ring-0 placeholder:text-zinc-300 focus:border-green-500 focus:ring-0"
+                        class="w-16 border-0 border-b-2 border-zinc-300 bg-transparent px-1 pb-1 text-center text-lg font-medium text-zinc-800 dark:text-zinc-200 outline-none ring-0 placeholder:text-zinc-300 focus:border-green-500 focus:ring-0"
                     >
                     <span>{{ __('Day(s)') }}</span>
                 </div>

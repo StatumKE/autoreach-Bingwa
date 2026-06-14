@@ -436,7 +436,7 @@ new #[Title('Dashboard')] class extends Component
 }; ?>
 
 <div
-    class="h-[calc(100dvh-var(--inset-top,0px)-48px)] overflow-hidden bg-app-bg px-4 pb-4 pt-3 text-zinc-900 lg:h-auto lg:min-h-screen lg:pb-24 lg:pt-3"
+    class="h-[calc(100dvh-var(--inset-top,0px)-48px)] overflow-hidden bg-app-bg px-4 pb-4 pt-3 text-zinc-900 dark:text-zinc-100 lg:h-auto lg:min-h-screen lg:pb-24 lg:pt-3"
     x-data="{
         accessibilityEnabled: true,
         async checkAccessibility() {
@@ -503,8 +503,8 @@ new #[Title('Dashboard')] class extends Component
         {{-- Greeting --}}
         <div class="flex items-start justify-between px-1">
             <div class="min-w-0">
-                <div class="text-[9px] font-medium leading-tight text-zinc-700">{{ $this->greeting }},</div>
-                <div class="text-sm font-bold leading-tight text-zinc-900">{{ auth()->user()->name }}</div>
+                <div class="text-[9px] font-medium leading-tight text-zinc-700 dark:text-zinc-400">{{ $this->greeting }},</div>
+                <div class="text-sm font-bold leading-tight text-zinc-900 dark:text-white">{{ auth()->user()->name }}</div>
             </div>
         </div>
 
@@ -569,7 +569,7 @@ new #[Title('Dashboard')] class extends Component
                             type="button"
                             id="btn-open-app-info"
                             @click="openAppInfo"
-                            class="inline-flex h-11 items-center justify-center rounded-2xl border border-amber-200 bg-white px-4 text-[10px] font-black uppercase tracking-[0.24em] text-amber-800 transition hover:bg-amber-50 active:scale-[0.98]"
+                            class="inline-flex h-11 items-center justify-center rounded-2xl border border-amber-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 text-[10px] font-black uppercase tracking-[0.24em] text-amber-800 dark:text-amber-400 transition hover:bg-amber-50 dark:hover:bg-zinc-800 active:scale-[0.98]"
                         >
                             {{ __('Open App Info') }}
                         </button>
@@ -584,11 +584,11 @@ new #[Title('Dashboard')] class extends Component
         <div wire:poll.visible.5s class="grid grid-cols-3 gap-2">
         {{-- Processing Paused Warning --}}
         @if(!$this->isProcessingEnabled)
-        <div class="col-span-3 flex items-start gap-3 rounded-xl bg-rose-50 px-4 py-3 ring-1 ring-rose-200">
+        <div class="col-span-3 flex items-start gap-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 px-4 py-3 ring-1 ring-rose-200 dark:ring-rose-900/50">
             <flux:icon.pause-circle class="mt-0.5 size-4 shrink-0 text-rose-500" />
             <div class="min-w-0">
-                <div class="text-xs font-bold text-rose-800">{{ __('Processing Paused') }}</div>
-                <div class="mt-0.5 text-[11px] leading-snug text-rose-700">
+                <div class="text-xs font-bold text-rose-800 dark:text-rose-400">{{ __('Processing Paused') }}</div>
+                <div class="mt-0.5 text-[11px] leading-snug text-rose-700 dark:text-rose-350">
                     {{ __('Transaction processing is currently paused. New transactions will be queued but not processed until you activate it.') }}
                 </div>
             </div>
@@ -634,18 +634,18 @@ new #[Title('Dashboard')] class extends Component
             @visibilitychange.window="if (document.visibilityState === 'visible') checkPhonePermission()"
             x-show="!phoneGranted"
             x-cloak
-            class="col-span-3 flex items-start gap-3 rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200"
+            class="col-span-3 flex items-start gap-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 px-4 py-3 ring-1 ring-amber-200 dark:ring-amber-900/50"
         >
             <flux:icon.exclamation-triangle class="mt-0.5 size-4 shrink-0 text-amber-500" />
             <div class="min-w-0">
-                <div class="text-xs font-bold text-amber-800">{{ __('Phone Permission Required') }}</div>
-                <div class="mt-0.5 text-[11px] leading-snug text-amber-700">
+                <div class="text-xs font-bold text-amber-800 dark:text-amber-400">{{ __('Phone Permission Required') }}</div>
+                <div class="mt-0.5 text-[11px] leading-snug text-amber-700 dark:text-amber-350">
                     {{ __('Airtime balance cannot be fetched. Enable Phone access to see your balance.') }}
                 </div>
                 <button 
                     type="button"
                     x-on:click="requestPhonePermission()"
-                    class="mt-2 rounded-lg bg-amber-200/50 px-3 py-1 text-[10px] font-bold text-amber-900 transition hover:bg-amber-200 active:scale-95"
+                    class="mt-2 rounded-lg bg-amber-200/50 dark:bg-amber-850/50 px-3 py-1 text-[10px] font-bold text-amber-900 dark:text-amber-100 transition hover:bg-amber-200 dark:hover:bg-amber-800 active:scale-95"
                 >
                     {{ __('Grant Access') }}
                 </button>
@@ -656,13 +656,13 @@ new #[Title('Dashboard')] class extends Component
                 <div class="mt-0.5 text-sm font-bold leading-none">{{ number_format($this->stats['successful']) }}</div>
             </a>
 
-            <a href="{{ route('transactions', ['filter' => 'failed']) }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#ffd9dc] px-1.5 py-1 text-[#5e181b] transition active:scale-[0.97]">
-                <div class="text-[8px] font-bold uppercase tracking-wider text-rose-900/80">{{ __('Failed') }}</div>
+            <a href="{{ route('transactions', ['filter' => 'failed']) }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#ffd9dc] dark:bg-rose-950/45 px-1.5 py-1 text-[#5e181b] dark:text-rose-300 transition active:scale-[0.97]">
+                <div class="text-[8px] font-bold uppercase tracking-wider text-rose-900/80 dark:text-rose-300/80">{{ __('Failed') }}</div>
                 <div class="mt-0.5 text-sm font-bold leading-none">{{ number_format($this->stats['failed']) }}</div>
             </a>
 
-            <a href="{{ route('plans') }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#c8ebfb] px-1.5 py-1 text-[#12313d] transition active:scale-[0.97]">
-                <div class="text-[8px] font-bold uppercase tracking-wider text-sky-900/80">{{ __('Tokens') }}</div>
+            <a href="{{ route('plans') }}" wire:navigate class="flex flex-col items-center justify-center rounded-xl bg-[#c8ebfb] dark:bg-sky-950/45 px-1.5 py-1 text-[#12313d] dark:text-sky-300 transition active:scale-[0.97]">
+                <div class="text-[8px] font-bold uppercase tracking-wider text-sky-900/80 dark:text-sky-300/80">{{ __('Tokens') }}</div>
                 <div class="mt-0.5 text-sm font-bold leading-none">
                     @if ($this->tokenText === __('No Plan'))
                         {{ __('Expired') }}
@@ -676,10 +676,10 @@ new #[Title('Dashboard')] class extends Component
 
         @island
         {{-- Airtime Row --}}
-        <div wire:poll.visible.300s="refreshAirtimeBalance" class="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-xl bg-[#f6f8f0] px-2 py-1.5 ring-1 ring-black/5">
+        <div wire:poll.visible.300s="refreshAirtimeBalance" class="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-xl bg-[#f6f8f0] dark:bg-[#111814] px-2 py-1.5 ring-1 ring-black/5 dark:ring-zinc-800">
             <div class="flex flex-col items-center text-center">
-                <div class="text-[8px] font-bold uppercase tracking-wider text-zinc-500">{{ __('Airtime Used Today') }}</div>
-                <div class="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-zinc-800">
+                <div class="text-[8px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{{ __('Airtime Used Today') }}</div>
+                <div class="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-zinc-800 dark:text-zinc-200">
                     <span>Ksh {{ $this->showBalance ? number_format($this->airtime['used_today'], 2) : '••••' }}</span>
                     <button wire:click="toggleBalance" class="text-zinc-400" type="button">
                         @if($this->showBalance)
@@ -691,10 +691,10 @@ new #[Title('Dashboard')] class extends Component
                 </div>
             </div>
 
-            <div class="flex flex-col items-center text-center border-l border-black/5 pl-2">
-                <div class="text-[8px] font-bold uppercase tracking-wider text-zinc-500">{{ __('Airtime Balance') }}</div>
+            <div class="flex flex-col items-center text-center border-l border-black/5 dark:border-zinc-800/80 pl-2">
+                <div class="text-[8px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{{ __('Airtime Balance') }}</div>
                 <div class="mt-0.5 flex flex-col items-center gap-1">
-                    <div class="flex items-center gap-1.5 text-[11px] font-medium text-zinc-800">
+                    <div class="flex items-center gap-1.5 text-[11px] font-medium text-zinc-800 dark:text-zinc-200">
                         <span>Ksh {{ $this->showBalance ? number_format($this->airtimeBalance ?? 0, 2) : '••••' }}</span>
                         <button wire:click="toggleBalance" class="text-zinc-400" type="button">
                             @if($this->showBalance)
@@ -705,7 +705,7 @@ new #[Title('Dashboard')] class extends Component
                         </button>
                     </div>
                     @if ($this->airtimeBalance === null && filled($this->airtimeBalanceRawResponse))
-                        <div class="max-w-[120px] truncate text-[9px] font-bold text-rose-600/70" title="{{ $this->airtimeBalanceRawResponse }}">
+                        <div class="max-w-[120px] truncate text-[9px] font-bold text-rose-600/70 dark:text-rose-400/80" title="{{ $this->airtimeBalanceRawResponse }}">
                             {{ $this->airtimeBalanceRawResponse }}
                         </div>
                     @endif
@@ -717,7 +717,7 @@ new #[Title('Dashboard')] class extends Component
                 wire:loading.attr="disabled"
                 wire:target="refreshData"
                 @class([
-                    'text-zinc-500 transition hover:text-green-700 disabled:opacity-60 ml-1 pl-2 border-l border-black/5',
+                    'text-zinc-500 transition hover:text-green-700 disabled:opacity-60 ml-1 pl-2 border-l border-black/5 dark:border-zinc-800/80',
                     'animate-spin text-green-600' => $this->isRefreshingBalance
                 ])
                 type="button"
@@ -728,8 +728,8 @@ new #[Title('Dashboard')] class extends Component
         @endisland
 
         {{-- Commission Chart --}}
-        <div class="rounded-xl bg-[#f6f8f0] px-4 py-3 ring-1 ring-black/5">
-            <div class="text-center text-[10px] font-bold uppercase tracking-widest text-green-700/90">
+        <div class="rounded-xl bg-[#f6f8f0] dark:bg-[#111814] px-4 py-3 ring-1 ring-black/5 dark:ring-zinc-800">
+            <div class="text-center text-[10px] font-bold uppercase tracking-widest text-green-700/90 dark:text-green-400">
                 {{ __("Last 7 days commission (Ksh. :amount)", ['amount' => number_format($this->commissionData['total'], 2)]) }}
             </div>
 
@@ -756,8 +756,8 @@ new #[Title('Dashboard')] class extends Component
                 <svg viewBox="0 0 640 100" class="h-[100px] w-full overflow-visible" preserveAspectRatio="none">
                     <defs>
                         <linearGradient id="dashboardGrid" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="#d9e2d0" stop-opacity="0.85" />
-                            <stop offset="100%" stop-color="#d9e2d0" stop-opacity="0.35" />
+                            <stop offset="0%" stop-color="currentColor" class="text-[#d9e2d0] dark:text-[#1a2e21]" stop-opacity="0.85" />
+                            <stop offset="100%" stop-color="currentColor" class="text-[#d9e2d0] dark:text-[#1a2e21]" stop-opacity="0.35" />
                         </linearGradient>
                     </defs>
 
@@ -778,7 +778,7 @@ new #[Title('Dashboard')] class extends Component
                             $x = $count > 1 ? $paddingX + ($usableWidth * ($index / ($count - 1))) : $paddingX + ($usableWidth / 2);
                             $y = $paddingY + ($usableHeight - (($value / $max) * $usableHeight));
                         @endphp
-                        <circle cx="{{ $x }}" cy="{{ $y }}" r="3" fill="#4b9e33" stroke="#ffffff" stroke-width="2" />
+                        <circle cx="{{ $x }}" cy="{{ $y }}" r="3" fill="#4b9e33" stroke="currentColor" class="text-white dark:text-[#111814]" stroke-width="2" />
                     @endforeach
                 </svg>
 
@@ -794,16 +794,16 @@ new #[Title('Dashboard')] class extends Component
             <div wire:poll.visible.5s class="flex min-h-0 flex-1 flex-col gap-2">
                 {{-- Recent Transactions --}}
                 <div class="flex items-center justify-between px-1 pt-1">
-                    <div class="text-xs font-bold text-zinc-900">{{ __('Recent Transactions') }}</div>
-                    <flux:button variant="ghost" size="sm" :href="route('transactions')" wire:navigate class="!h-8 text-xs font-medium text-zinc-600 transition hover:text-green-700">
+                    <div class="text-xs font-bold text-zinc-900 dark:text-white">{{ __('Recent Transactions') }}</div>
+                    <flux:button variant="ghost" size="sm" :href="route('transactions')" wire:navigate class="!h-8 text-xs font-medium text-zinc-600 dark:text-zinc-400 transition hover:text-green-700">
                         {{ __('All') }} <flux:icon.arrow-right class="ml-1 size-3.5 text-green-600" />
                     </flux:button>
                 </div>
 
 
 
-                <div class="min-h-0 flex-1 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
-                    <div class="h-full overflow-y-auto overscroll-contain divide-y divide-zinc-100 text-center">
+                <div class="min-h-0 flex-1 overflow-hidden rounded-xl bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800">
+                    <div class="h-full overflow-y-auto overscroll-contain divide-y divide-zinc-100 dark:divide-zinc-800 text-center">
                         @forelse($this->recentTransactions as $tx)
                             @php
                                 $status = strtolower((string) ($tx->status ?? ''));
@@ -817,24 +817,24 @@ new #[Title('Dashboard')] class extends Component
                                 tabindex="0"
                                 @class([
                                 'px-3 py-2 text-left transition cursor-pointer active:scale-[0.99]',
-                                'bg-emerald-50/40 hover:bg-emerald-50/60' => $isSuccess,
-                                'bg-rose-50/40 hover:bg-rose-50/60' => $isFailed,
-                                'bg-zinc-50/40 hover:bg-zinc-50/60' => ! $isSuccess && ! $isFailed,
+                                'bg-emerald-50/40 hover:bg-emerald-50/60 dark:bg-emerald-950/10 dark:hover:bg-emerald-950/20' => $isSuccess,
+                                'bg-rose-50/40 hover:bg-rose-50/60 dark:bg-rose-950/10 dark:hover:bg-rose-950/20' => $isFailed,
+                                'bg-zinc-50/40 hover:bg-zinc-50/60 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/60' => ! $isSuccess && ! $isFailed,
                             ])>
                                 <div class="flex items-center justify-between gap-2">
                                     <div class="flex min-w-0 items-center gap-1.5">
-                                        <div class="truncate text-[12px] font-bold text-zinc-900">
+                                        <div class="truncate text-[12px] font-bold text-zinc-900 dark:text-zinc-100">
                                             {{ $tx->sender_name ?: $tx->sender_phone ?: __('Unknown') }}
                                         </div>
-                                        <div class="shrink-0 rounded bg-black/5 px-1 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-600">
+                                        <div class="shrink-0 rounded bg-black/5 dark:bg-white/10 px-1 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
                                             {{ $tx->offer_name }}
                                         </div>
                                     </div>
                                     <div @class([
                                         'shrink-0 text-[12px] font-black',
-                                        'text-green-700' => $isSuccess,
-                                        'text-rose-700' => $isFailed,
-                                        'text-zinc-900' => ! $isSuccess && ! $isFailed,
+                                        'text-green-700 dark:text-green-455' => $isSuccess,
+                                        'text-rose-700 dark:text-rose-455' => $isFailed,
+                                        'text-zinc-900 dark:text-zinc-100' => ! $isSuccess && ! $isFailed,
                                     ])>
                                         Ksh {{ number_format((float) $tx->amount, 2) }}
                                     </div>
@@ -844,13 +844,13 @@ new #[Title('Dashboard')] class extends Component
                                     <div class="mt-1 flex items-center justify-between gap-2">
                                         <div @class([
                                             'truncate text-[9px] font-medium leading-tight',
-                                            'text-green-800/80' => $isSuccess,
-                                            'text-rose-800/80' => $isFailed,
+                                            'text-green-800/80 dark:text-green-400/85' => $isSuccess,
+                                            'text-rose-800/80 dark:text-rose-400/85' => $isFailed,
                                             'text-zinc-600' => ! $isSuccess && ! $isFailed,
                                         ])>
                                             {{ $tx->status_desc }}
                                         </div>
-                                        <div class="shrink-0 text-[9px] font-bold tracking-wider text-zinc-400">
+                                        <div class="shrink-0 text-[9px] font-bold tracking-wider text-zinc-400 dark:text-zinc-500">
                                             {{ $tx->occurred_at?->diffForHumans(null, true, true) ?? '—' }}
                                         </div>
                                     </div>
@@ -858,9 +858,9 @@ new #[Title('Dashboard')] class extends Component
                             </div>
                         @empty
                             <div class="py-12 px-4 text-center">
-                                <flux:icon.arrows-right-left class="mx-auto mb-3 size-8 text-zinc-200" />
-                                <div class="text-sm font-semibold text-zinc-500">{{ __('No recent transactions found') }}</div>
-                                <div class="mt-1 text-xs text-zinc-400">{{ __('Your history will appear here once you start using the app.') }}</div>
+                                <flux:icon.arrows-right-left class="mx-auto mb-3 size-8 text-zinc-200 dark:text-zinc-800" />
+                                <div class="text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ __('No recent transactions found') }}</div>
+                                <div class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">{{ __('Your history will appear here once you start using the app.') }}</div>
                             </div>
                         @endforelse
                     </div>
@@ -943,11 +943,11 @@ new #[Title('Dashboard')] class extends Component
 
                 <div class="flex flex-col gap-2">
                     {{-- Status Card --}}
-                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
+                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
                         <div class="grid @if($selectedTransaction->next_attempt_at) grid-cols-2 gap-4 @else grid-cols-1 @endif">
                             <div>
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Status') }}</div>
-                                <div class="mt-0.5 text-xs font-bold text-zinc-900">
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Status') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">
                                     {{ blank($selectedTransaction->status) ? __('Pending') : $selectedTransaction->status }}
                                     @if ($selectedTransaction->status === 'failed' && $selectedTransaction->next_attempt_at)
                                         <span class="ml-2 inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber-600">
@@ -958,31 +958,31 @@ new #[Title('Dashboard')] class extends Component
                             </div>
                             @if ($selectedTransaction->next_attempt_at)
                                 <div>
-                                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Rescheduled For') }}</div>
-                                    <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ AppTimezone::format($selectedTransaction->next_attempt_at, 'H:i, M j, Y') }}</div>
+                                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Rescheduled For') }}</div>
+                                    <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ AppTimezone::format($selectedTransaction->next_attempt_at, 'H:i, M j, Y') }}</div>
                                 </div>
                             @endif
                         </div>
                     </div>
 
                     {{-- Amount and Sender Card --}}
-                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
+                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Amount') }}</div>
-                                <div class="mt-0.5 text-xs font-bold text-zinc-900">Ksh {{ number_format((float) $selectedTransaction->amount) }}</div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Amount') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">Ksh {{ number_format((float) $selectedTransaction->amount) }}</div>
                             </div>
                             <div>
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Sender') }}</div>
-                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $selectedTransaction->sender_name ?: __('Unknown sender') }}</div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Sender') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ $selectedTransaction->sender_name ?: __('Unknown sender') }}</div>
                                 <div class="mt-0.5 flex items-center gap-2">
-                                    <div class="text-[10px] text-zinc-500">{{ $selectedTransaction->sender_phone }}</div>
+                                    <div class="text-[10px] text-zinc-500 dark:text-zinc-400">{{ $selectedTransaction->sender_phone }}</div>
                                     @if (filled($selectedTransaction->sender_phone))
                                         <flux:button
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            class="!h-5 px-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500"
+                                            class="!h-5 px-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400"
                                             data-phone="{{ $selectedTransaction->sender_phone }}"
                                             x-on:click="
                                                 let phone = $el.getAttribute('data-phone');
@@ -1018,77 +1018,77 @@ new #[Title('Dashboard')] class extends Component
                     </div>
 
                     {{-- M-PESA Code and Matched Offer Card --}}
-                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
+                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('M-PESA Code') }}</div>
-                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $selectedTransaction->mpesa_code ?: '—' }}</div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('M-PESA Code') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ $selectedTransaction->mpesa_code ?: '—' }}</div>
                             </div>
                             <div>
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Matched App Product') }}</div>
-                                <div class="mt-0.5 text-xs font-bold text-zinc-900">{{ $this->transactionProductLabel($selectedTransaction) }}</div>
-                                <div class="mt-0.5 text-[10px] text-zinc-500">{{ $selectedTransaction->offer_type ?: '—' }}</div>
+                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Matched App Product') }}</div>
+                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ $this->transactionProductLabel($selectedTransaction) }}</div>
+                                <div class="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">{{ $selectedTransaction->offer_type ?: '—' }}</div>
                             </div>
                         </div>
                     </div>
 
                     {{-- USSD Code Card --}}
-                    <div class="rounded-xl bg-zinc-50 p-2.5 px-3 ring-1 ring-zinc-200">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('USSD Code') }}</div>
-                        <div class="mt-0.5 font-mono text-xs font-bold text-zinc-900 break-all">{{ $this->resolvedUssdCode($selectedTransaction) }}</div>
-                        <div class="mt-0.5 text-[10px] text-zinc-500">{{ $selectedTransaction->offer?->ussd_mode ?: '—' }}</div>
+                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
+                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('USSD Code') }}</div>
+                        <div class="mt-0.5 font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100 break-all">{{ $this->resolvedUssdCode($selectedTransaction) }}</div>
+                        <div class="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">{{ $selectedTransaction->offer?->ussd_mode ?: '—' }}</div>
                     </div>
                 </div>
 
                 {{-- Compact grouped dates panel --}}
-                <div class="rounded-xl bg-zinc-50/50 p-2.5 px-3 ring-1 ring-zinc-200">
+                <div class="rounded-xl bg-zinc-50/50 dark:bg-zinc-950/20 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
                     <div class="grid grid-cols-2 gap-x-4 gap-y-2.5">
                         <div>
-                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Occurred At') }}</span>
-                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->occurred_at) }}</span>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Occurred At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->occurred_at) }}</span>
                         </div>
                         <div>
-                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Processed At') }}</span>
-                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->processed_at) }}</span>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Processed At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->processed_at) }}</span>
                         </div>
                         <div>
-                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Created At') }}</span>
-                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->created_at) }}</span>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Created At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->created_at) }}</span>
                         </div>
                         <div>
-                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">{{ __('Updated At') }}</span>
-                            <span class="text-xs font-bold text-zinc-900 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->updated_at) }}</span>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Updated At') }}</span>
+                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->updated_at) }}</span>
                         </div>
                     </div>
                 </div>
 
                 @if ($selectedTransaction->raw_sms)
                     <div class="space-y-1">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Raw SMS') }}</div>
-                        <div class="rounded-xl bg-zinc-50 p-2.5 text-xs leading-relaxed text-zinc-800 ring-1 ring-zinc-200 break-words">
+                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Raw SMS') }}</div>
+                        <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 text-xs leading-relaxed text-zinc-800 dark:text-zinc-200 ring-1 ring-zinc-200 dark:ring-zinc-800/80 break-words">
                             {{ $selectedTransaction->raw_sms }}
                         </div>
                     </div>
                 @endif
 
                 <div class="space-y-1">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('USSD Result') }}</div>
-                    <div class="rounded-xl bg-zinc-50 p-2.5 text-xs leading-relaxed text-zinc-800 ring-1 ring-zinc-200">
+                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('USSD Result') }}</div>
+                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 text-xs leading-relaxed text-zinc-800 dark:text-zinc-200 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
                         {{ $selectedTransaction->status_desc ?: __('—') }}
                     </div>
                 </div>
 
                 @if ($selectedTransaction->balance)
                     <div class="space-y-1">
-                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400">{{ __('Balance Payload') }}</div>
-                        <pre class="overflow-x-auto rounded-xl bg-zinc-950 p-2.5 text-[10px] leading-relaxed text-zinc-100 ring-1 ring-zinc-900">{{ $this->formatDetailValue($selectedTransaction->balance) }}</pre>
+                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Balance Payload') }}</div>
+                        <pre class="overflow-x-auto rounded-xl bg-zinc-950 dark:bg-black/60 p-2.5 text-[10px] leading-relaxed text-zinc-100 dark:text-zinc-200 ring-1 ring-zinc-900 dark:ring-zinc-900/50">{{ $this->formatDetailValue($selectedTransaction->balance) }}</pre>
                     </div>
                 @endif
             </div>
         @else
             <div class="space-y-3">
                 <flux:heading size="lg">{{ __('Transaction details') }}</flux:heading>
-                <flux:text class="text-sm text-zinc-500">{{ __('Select a transaction to view the full USSD trail.') }}</flux:text>
+                <flux:text class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('Select a transaction to view the full USSD trail.') }}</flux:text>
             </div>
         @endif
     </flux:modal>

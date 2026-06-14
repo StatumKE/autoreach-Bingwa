@@ -95,6 +95,10 @@ internal object UssdCallbackOutbox {
             .getLong(KEY_LAST_REPLAY_AT, 0L)
     }
 
+    fun getPendingCallbacks(context: Context): List<PendingUssdCallback> {
+        return readQueue(context)
+    }
+
     private fun readQueue(context: Context): List<PendingUssdCallback> {
         val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_QUEUE, "[]")

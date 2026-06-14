@@ -194,6 +194,55 @@ class GetNextBingwaQueuedTransaction
                 'status_desc' => __('Recovered: previous USSD attempt timed out.'),
             ]);
 
+        // Kotlin-tracker fast recovery (IDs older than 90 seconds in Kotlin's own record)
+        if (function_exists('nativephp_call')) {
+            try {
+                $rawResponse = nativephp_call('GetStuckTransactions', json_encode(['threshold_seconds' => 90]));
+                if (is_string($rawResponse) && $rawResponse !== '') {
+                    $decoded = json_decode($rawResponse, true);
+
+                    // First, process any completed transactions pending callback delivery in Kotlin
+                    $completedTransactions = $decoded['data']['completed_transactions'] ?? [];
+                    if (is_array($completedTransactions) && count($completedTransactions) > 0) {
+                        foreach ($completedTransactions as $item) {
+                            $txId = $item['id'] ?? null;
+                            $success = $item['success'] ?? false;
+                            $msg = $item['message'] ?? '';
+                            $token = $item['token'] ?? null;
+                            if ($txId) {
+                                app(CompleteBingwaTransaction::class)->complete(
+                                    transactionId: (int) $txId,
+                                    status: $success ? 'completed' : 'failed',
+                                    message: $msg,
+                                    callbackToken: $token
+                                );
+                            }
+                        }
+                    }
+
+                    // Second, reset truly stuck transaction IDs
+                    $stuckIds = $decoded['data']['transaction_ids'] ?? [];
+                    if (is_array($stuckIds) && count($stuckIds) > 0) {
+                        $fastRecoveredCount = Transaction::query()
+                            ->whereIn('id', $stuckIds)
+                            ->where('status', 'processing')
+                            ->update([
+                                'status' => 'queued',
+                                'status_desc' => __('Recovered: Kotlin in-flight transaction timed out.'),
+                            ]);
+                        if ($fastRecoveredCount > 0) {
+                            $recoveredCount += $fastRecoveredCount;
+                            Log::warning("♻️ Fast-recovered {$fastRecoveredCount} stuck transactions from Kotlin tracker.");
+                        }
+                    }
+                }
+            } catch (\Throwable $throwable) {
+                Log::debug('Failed to query GetStuckTransactions from Kotlin tracker.', [
+                    'exception' => $throwable->getMessage(),
+                ]);
+            }
+        }
+
         if ($recoveredCount > 0) {
             Log::warning("♻️ Recovered {$recoveredCount} stuck transactions.");
         }

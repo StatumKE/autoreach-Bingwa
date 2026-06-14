@@ -85,8 +85,14 @@ internal class UssdExecutionService : Service() {
         val simSlot = intent.getIntExtra(KEY_SIM_SLOT, 0)
         val isSambaza = intent.getBooleanExtra(KEY_IS_SAMBAZA, false)
         val timeoutSeconds = intent.getIntExtra(KEY_TIMEOUT_SECONDS, 30)
-
         Log.i(TAG, "onStartCommand: id=$id mode=$mode simSlot=$simSlot timeoutSeconds=$timeoutSeconds code=$code")
+
+        // Record the claim immediately so PHP can detect this transaction as in-flight.
+        // If the PHP process dies between setting status='processing' and reaching this
+        // point, the tracker entry will age past the threshold and PHP will reset it.
+        if (id > 0) {
+            BingwaTransactionTracker.recordClaimed(applicationContext, id)
+        }
 
         activeJobs.incrementAndGet()
 
@@ -104,15 +110,20 @@ internal class UssdExecutionService : Service() {
                     )
                     Log.i(TAG, "USSD complete: id=$id success=${result.success} message=${result.message.take(100)}")
                     if (id > 0) {
-                        deliverCallback(applicationContext, id, result.success, result.message)
+                        deliverCallback(
+                            context = applicationContext,
+                            id = id,
+                            success = result.success,
+                            message = result.message,
+                        )
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "USSD execution failed: id=$id", e)
                 if (id > 0) {
                     deliverCallback(
-                        applicationContext,
-                        id,
+                        context = applicationContext,
+                        id = id,
                         success = false,
                         message = e.message ?: "USSD execution failed unexpectedly",
                     )
@@ -140,7 +151,25 @@ internal class UssdExecutionService : Service() {
     // Callback delivery — runs in main process where persistent PHP is warm
     // -------------------------------------------------------------------------
 
-    private fun deliverCallback(context: Context, id: Int, success: Boolean, message: String) {
+    /**
+     * Deliver the USSD result back to PHP.
+     *
+     * **PHP callback delivery (3-tier):**
+     * Persistent runtime (~5 ms) → ephemeral runtime (~200 ms) → WorkManager fallback.
+     * On success, [BingwaTransactionTracker.recordCompleted] removes the in-flight entry
+     * so PHP's bridge-assisted stuck-recovery does not double-reset this transaction.
+     *
+     * On any failure, the background WorkManager fallback is enqueued to retry delivery
+     * and the transaction remains in the tracker. When PHP executes the recovery check,
+     * it will query the outbox list, pull this completed result directly, and finalize it
+     * instead of resetting the transaction back to queued.
+     */
+    private fun deliverCallback(
+        context: Context,
+        id: Int,
+        success: Boolean,
+        message: String,
+    ) {
         val status = if (success) "completed" else "failed"
         val encodedMessage = android.util.Base64.encodeToString(
             message.toByteArray(Charsets.UTF_8),
@@ -149,6 +178,8 @@ internal class UssdExecutionService : Service() {
         val token = UssdCallbackOutbox.enqueue(context, id, success, message)
         val command = "bingwa:complete-transaction --transaction-id=$id --result=$status --message-base64=$encodedMessage --callback-token=$token"
 
+        // ── PHP callback delivery (3-tier) ─────────────────────────────────
+        var phpCallbackDelivered = false
         try {
             val phpBridge = com.nativephp.mobile.bridge.PHPBridge(context.applicationContext)
 
@@ -156,6 +187,7 @@ internal class UssdExecutionService : Service() {
                 Log.i(TAG, "USSD callback via persistent runtime: id=$id status=$status")
                 phpBridge.runPersistentArtisan(command)
                 UssdCallbackOutbox.markDelivered(context, id)
+                phpCallbackDelivered = true
                 return
             }
 
@@ -174,6 +206,7 @@ internal class UssdExecutionService : Service() {
                     try {
                         phpBridge.nativeEphemeralArtisan(command)
                         UssdCallbackOutbox.markDelivered(context, id)
+                        phpCallbackDelivered = true
                     } finally {
                         phpBridge.nativeEphemeralShutdown()
                     }
@@ -181,6 +214,15 @@ internal class UssdExecutionService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "USSD callback delivery failed for id=$id", e)
+        } finally {
+            if (phpCallbackDelivered) {
+                // PHP acknowledged the result — remove from tracker so PHP's bridge-assisted
+                // recovery does not reset a transaction that has already been completed.
+                BingwaTransactionTracker.recordCompleted(context, id)
+            } else {
+                Log.w(TAG, "PHP callback not delivered for id=$id — tracker entry retained and background WorkManager fallback enqueued")
+                UssdCallbackWorker.enqueueFallback(context, id, success, message)
+            }
         }
     }
 
@@ -226,7 +268,6 @@ internal class UssdExecutionService : Service() {
         const val KEY_SIM_SLOT = "simSlot"
         const val KEY_IS_SAMBAZA = "isSambaza"
         const val KEY_TIMEOUT_SECONDS = "timeoutSeconds"
-
         /**
          * Dedicated modem mutex owned by this service.
          * Serialises concurrent USSD jobs within the main process.

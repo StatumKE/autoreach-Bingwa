@@ -59,6 +59,11 @@
             "name": "WakeQueueWorker",
             "android": "com.statum.plugins.nativescheduler.BingwaFunctions.WakeQueueWorker",
             "android_params": ["context"]
+        },
+        {
+            "name": "GetStuckTransactions",
+            "android": "com.statum.plugins.nativescheduler.BingwaFunctions.GetStuckTransactions",
+            "android_params": ["context"]
         }
     ],
     "assets": {
@@ -71,8 +76,7 @@
         "min_version": 26,
         "dependencies": {
             "implementation": [
-                "androidx.work:work-runtime-ktx:2.11.2",
-                "com.squareup.okhttp3:okhttp:4.12.0"
+                "androidx.work:work-runtime-ktx:2.11.2"
             ]
         },
         "permissions": [

@@ -19,8 +19,6 @@ import com.nativephp.mobile.bridge.BridgeFunction
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
 
 
 
@@ -139,6 +137,57 @@ object BingwaFunctions {
                 "batteryUnrestricted" to isBatteryUnrestricted(context),
                 "accessibilityEnabled" to isAccessibilityServiceEnabled(context),
                 "overlayGranted" to canDrawOverlays(context),
+            )
+        }
+    }
+
+    /**
+     * Bridge function called by PHP to retrieve transaction IDs that Kotlin has
+     * claimed for USSD execution but not yet delivered a callback for.
+     *
+     * PHP calls this from [GetNextBingwaQueuedTransaction.recoverStuckTransactions]
+     * to reset stuck transactions to `queued` status faster than the standard
+     * 10-minute time-based DB scan.
+     *
+     * Parameters:
+     *   - `threshold_seconds` (Int, optional, default 120): how long a transaction
+     *     must have been in-flight before it is considered stuck.
+     *
+     * Returns:
+     *   - `transaction_ids` (List<Int>): local SQLite IDs of stuck transactions.
+     */
+    class GetStuckTransactions(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            // Actively try to push any pending callbacks when the scheduler wakes up
+            replayBufferedCallbacks(context)
+
+            val thresholdSeconds = when (val v = parameters["threshold_seconds"]) {
+                is Number -> v.toLong()
+                is String -> v.toLongOrNull() ?: 120L
+                else -> 120L
+            }.coerceAtLeast(30L) // Never let PHP reset a transaction that's been in-flight less than 30s
+
+            val thresholdMs = thresholdSeconds * 1_000L
+            val stuckIds = BingwaTransactionTracker.getStuckIds(context, thresholdMs)
+
+            val outboxQueue = UssdCallbackOutbox.getPendingCallbacks(context)
+            val outboxIds = outboxQueue.map { it.id }.toSet()
+            val trulyStuckIds = stuckIds.filter { !outboxIds.contains(it) }
+
+            val completedTransactions = outboxQueue.map {
+                mapOf(
+                    "id" to it.id,
+                    "success" to it.success,
+                    "message" to it.message,
+                    "token" to it.callbackToken
+                )
+            }
+
+            Log.i(TAG, "GetStuckTransactions: threshold=${thresholdSeconds}s stuck=${trulyStuckIds} completed=${completedTransactions.map { it["id"] }}")
+
+            return mapOf(
+                "transaction_ids" to trulyStuckIds,
+                "completed_transactions" to completedTransactions
             )
         }
     }

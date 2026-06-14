@@ -171,7 +171,7 @@ class PersistBingwaTransaction
                     'matched_offer' => $payload['matched_offer'] ?? null,
                     'balance' => null,
                     'occurred_at' => $occurredAt,
-                    'next_attempt_at' => $occurredAt,
+                    'next_attempt_at' => now(),
                     'status' => $status,
                     'status_desc' => $statusDesc,
                     'processed_at' => $status === 'failed' ? now() : null,

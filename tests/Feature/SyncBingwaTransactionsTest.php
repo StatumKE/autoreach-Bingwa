@@ -5,6 +5,7 @@ use App\Models\BingwaDeviceRegistration;
 use App\Models\Offer;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Monolog\Handler\TestHandler;
@@ -471,4 +472,47 @@ test('bingwa transaction sync recovers the device token only once when multiple 
     expect($this->user->refresh()->bingwaDeviceRegistration?->device_token)->toBe('recovered-device-token-once');
 
     Http::assertSentCount(7);
+});
+
+test('bingwa transaction sync sets next_attempt_at to now when occurred_at is in the future due to time skew', function () {
+    Carbon::setTestNow(now());
+
+    Http::fake([
+        'backend.statum.co.ke/api/v1/jobs/next/data_bundles*' => Http::response([
+            'transaction_id' => '88',
+            'mpesa_code' => 'UDH9Z12J5X',
+            'sender_phone' => '0719704751',
+            'sender_name' => 'egline jerop',
+            'amount' => 20,
+            'offer_name' => 'Test 1 day',
+            'offer_type' => 'data_bundles',
+            'matched_offer' => [
+                'offer_local_id' => '9',
+                'offer_key' => 'test_1_day',
+                'offer_name' => 'Test 1 day',
+                'offer_type' => 'data_bundles',
+                'offer_amount' => 20,
+                'canonical_offer_id' => 9,
+            ],
+            'occurred_at' => now()->addMinute()->toIso8601String(),
+        ], 200),
+        'backend.statum.co.ke/api/v1/jobs/next/sms*' => Http::response('', 204),
+        'backend.statum.co.ke/api/v1/jobs/next/airtime*' => Http::response('', 204),
+    ]);
+
+    $result = $this->action->sync($this->user, 1);
+
+    expect($result)->toMatchArray([
+        'synced' => 1,
+        'skipped' => 0,
+        'failed' => 0,
+    ]);
+
+    $transaction = Transaction::query()->where('transaction_id', '88')->first();
+
+    expect($transaction)->not->toBeNull();
+    expect($transaction->occurred_at->gt(now()))->toBeTrue();
+    expect($transaction->next_attempt_at->format('Y-m-d H:i:s'))->toBe(now()->timezone('Africa/Nairobi')->format('Y-m-d H:i:s'));
+
+    Carbon::setTestNow();
 });

@@ -31,6 +31,26 @@ class RecoverBingwaDeviceToken
             ]);
         }
 
+        $originalToken = $registration->device_token;
+
+        $lockKey = 'bingwa_device_token_recovery_lock_'.$user->id;
+        $maxAttempts = 5;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            if (! cache()->has($lockKey)) {
+                break;
+            }
+
+            // Wait for the other request to finish recovery
+            usleep(500000); // 500ms
+
+            // Re-read registration from DB to see if the token changed
+            $registration = $registration->fresh();
+            if ($registration && $registration->device_token !== $originalToken && filled($registration->device_token)) {
+                return $registration;
+            }
+        }
+
         $cooldownKey = 'bingwa_device_token_recovery_cooldown_'.$user->id;
         if (cache()->has($cooldownKey)) {
             throw ValidationException::withMessages([
@@ -38,50 +58,63 @@ class RecoverBingwaDeviceToken
             ]);
         }
 
+        // Acquire lock
+        cache()->put($lockKey, true, 20);
+
         try {
-            $response = Http::baseUrl(rtrim((string) config('services.autoreach.backend_url'), '/'))
-                ->retry(3, 100, function (\Throwable $exception): bool {
-                    return $exception instanceof ConnectionException;
-                }, throw: false)
-                ->acceptJson()
-                ->asJson()
-                ->timeout(30)
-                ->post('/api/v1/auth/device/token/recover', [
-                    'email' => $user->email,
-                    'hardware_id' => $registration->hardware_id,
-                    'bhc_code' => $registration->bhc_code,
-                ]);
+            try {
+                // Re-check token inside lock
+                $registration = $registration->fresh();
+                if ($registration && $registration->device_token !== $originalToken && filled($registration->device_token)) {
+                    return $registration;
+                }
 
-            if ($response->successful()) {
-                return $this->persistRecoveredToken($registration, $response);
-            }
+                $response = Http::baseUrl(rtrim((string) config('services.autoreach.backend_url'), '/'))
+                    ->retry(3, 100, function (\Throwable $exception): bool {
+                        return $exception instanceof ConnectionException;
+                    }, throw: false)
+                    ->acceptJson()
+                    ->asJson()
+                    ->timeout(30)
+                    ->post('/api/v1/auth/device/token/recover', [
+                        'email' => $user->email,
+                        'hardware_id' => $registration->hardware_id,
+                        'bhc_code' => $registration->bhc_code,
+                    ]);
 
-            if ($response->status() === 422) {
-                $errors = $response->json('errors');
-                $message = $response->json('message') ?? '';
-                $isNotFound = (is_array($errors) && (
-                    str_contains(implode(' ', $errors['bhc_code'] ?? []), 'not found') ||
-                    str_contains(implode(' ', $errors['email'] ?? []), 'not found')
-                )) || str_contains($message, 'not found');
+                if ($response->successful()) {
+                    return $this->persistRecoveredToken($registration, $response);
+                }
 
-                if ($isNotFound) {
-                    Log::warning("Backend device not found during recovery (possibly DB reset). Attempting automatic re-registration for user {$user->id}.");
-                    try {
-                        $registerService = app(RegisterBingwaDevice::class);
-                        $backendRegistration = $registerService->registerOnBackend($user);
+                if ($response->status() === 422) {
+                    $errors = $response->json('errors');
+                    $message = $response->json('message') ?? '';
+                    $isNotFound = (is_array($errors) && (
+                        str_contains(implode(' ', $errors['bhc_code'] ?? []), 'not found') ||
+                        str_contains(implode(' ', $errors['email'] ?? []), 'not found')
+                    )) || str_contains($message, 'not found');
 
-                        return $registerService->persistRegistration($user, $backendRegistration);
-                    } catch (\Throwable $registrationException) {
-                        Log::error("Automatic re-registration failed: {$registrationException->getMessage()}");
+                    if ($isNotFound) {
+                        Log::warning("Backend device not found during recovery (possibly DB reset). Attempting automatic re-registration for user {$user->id}.");
+                        try {
+                            $registerService = app(RegisterBingwaDevice::class);
+                            $backendRegistration = $registerService->registerOnBackend($user);
+
+                            return $registerService->persistRegistration($user, $backendRegistration);
+                        } catch (\Throwable $registrationException) {
+                            Log::error("Automatic re-registration failed: {$registrationException->getMessage()}");
+                        }
                     }
                 }
-            }
 
-            cache()->put($cooldownKey, true, 60);
-            $this->throwValidationException($response);
-        } catch (\Throwable $exception) {
-            cache()->put($cooldownKey, true, 60);
-            throw $exception;
+                cache()->put($cooldownKey, true, 60);
+                $this->throwValidationException($response);
+            } catch (\Throwable $exception) {
+                cache()->put($cooldownKey, true, 60);
+                throw $exception;
+            }
+        } finally {
+            cache()->forget($lockKey);
         }
     }
 

@@ -812,7 +812,7 @@ new #[Title('Dashboard')] class extends Component
                             @endphp
 
                             <div 
-                                @click="$dispatch('open-transaction-details', { transactionId: {{ $tx->id }} })"
+                                wire:click="$parent.openTransactionDetails({{ $tx->id }})"
                                 role="button"
                                 tabindex="0"
                                 @class([

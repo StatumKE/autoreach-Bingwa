@@ -90,7 +90,7 @@ class NextUssdJobCommand extends Command
 
             $settings = $transaction->user?->deviceSetting;
             $simSlot = ($settings?->primary_transaction_sim === 'slot_2') ? 1 : 0;
-            $timeout = $settings?->ussd_timeout_seconds ?? 60;
+            $timeout = 90;
 
             $payload = [
                 'id' => $transaction->id,

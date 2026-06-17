@@ -30,7 +30,7 @@ class RefreshAirtimeBalance
 
         $response = $this->executeBalanceQuery(
             $simSlot,
-            (int) ($settings->ussd_timeout_seconds ?? 60),
+            90,
             $preferredMode
         );
 

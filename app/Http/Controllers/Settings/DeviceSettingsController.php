@@ -74,13 +74,6 @@ class DeviceSettingsController extends BaseController
     {
         $validated = $request->validate([
             'transaction_processing_enabled' => ['sometimes', 'boolean'],
-            'auto_reschedule_rejected' => ['sometimes', 'boolean'],
-            'retry_tomorrow_at' => ['nullable', Rule::in(array_keys($this->retryScheduleOptions()))],
-            'ussd_timeout_seconds' => ['required', 'integer', 'min:5', 'max:300'],
-            'intelligent_auto_retry' => ['sometimes', 'boolean'],
-            'retry_interval_minutes' => ['required', 'integer', 'min:1', 'max:60'],
-            'max_attempts' => ['required', 'integer', 'min:1', 'max:10'],
-            'retry_network_issues' => ['sometimes', 'boolean'],
             'incoming_sms_enabled' => ['sometimes', 'boolean'],
             'incoming_sms_allow_all_senders' => ['sometimes', 'boolean'],
             'incoming_sms_sim_slot' => ['required', Rule::in(array_keys($this->incomingSmsSlotOptions()))],
@@ -92,21 +85,11 @@ class DeviceSettingsController extends BaseController
         $transactionProcessingEnabled = $request->has('transaction_processing_enabled')
             ? $request->boolean('transaction_processing_enabled')
             : (bool) ($currentSetting ? $currentSetting->transaction_processing_enabled : true);
-        $autoRescheduleRejected = $request->boolean('auto_reschedule_rejected');
-        $intelligentAutoRetry = $request->boolean('intelligent_auto_retry');
-        $retryNetworkIssues = $request->boolean('retry_network_issues');
         $incomingSmsEnabled = $request->boolean('incoming_sms_enabled');
         $incomingSmsAllowAllSenders = $request->boolean('incoming_sms_allow_all_senders');
 
         $setting = $this->persist([
             'transaction_processing_enabled' => $transactionProcessingEnabled,
-            'auto_reschedule_rejected' => $autoRescheduleRejected,
-            'retry_tomorrow_at' => $autoRescheduleRejected ? ($validated['retry_tomorrow_at'] ?? null) : null,
-            'ussd_timeout_seconds' => (int) $validated['ussd_timeout_seconds'],
-            'intelligent_auto_retry' => $intelligentAutoRetry,
-            'retry_interval_minutes' => (int) $validated['retry_interval_minutes'],
-            'max_attempts' => (int) $validated['max_attempts'],
-            'retry_network_issues' => $retryNetworkIssues,
             'incoming_sms_enabled' => $incomingSmsEnabled,
             'incoming_sms_allow_all_senders' => $incomingSmsAllowAllSenders,
             'incoming_sms_sim_slot' => $validated['incoming_sms_sim_slot'],
@@ -236,18 +219,9 @@ class DeviceSettingsController extends BaseController
                     'exception' => $throwable->getMessage(),
                 ]);
             }
-        }
-
-        $operatorIdentity = ($deviceSetting ? $deviceSetting->operator_identity : null) ?? ($user ? $user->name : '');
+        }        $operatorIdentity = ($deviceSetting ? $deviceSetting->operator_identity : null) ?? ($user ? $user->name : '');
         $primaryTransactionSim = ($deviceSetting ? $deviceSetting->primary_transaction_sim : null) ?? 'slot_1';
         $smsAutoReplySim = ($deviceSetting ? $deviceSetting->sms_auto_reply_sim : null) ?? 'slot_1';
-        $autoRescheduleRejected = ($deviceSetting ? $deviceSetting->auto_reschedule_rejected : null) ?? false;
-        $retryTomorrowAt = ($deviceSetting ? $deviceSetting->retry_tomorrow_at : null) ?? '12:30 AM';
-        $ussdTimeoutSeconds = ($deviceSetting ? $deviceSetting->ussd_timeout_seconds : null) ?? 60;
-        $intelligentAutoRetry = ($deviceSetting ? $deviceSetting->intelligent_auto_retry : null) ?? true;
-        $retryIntervalMinutes = ($deviceSetting ? $deviceSetting->retry_interval_minutes : null) ?? 1;
-        $maxAttempts = ($deviceSetting ? $deviceSetting->max_attempts : null) ?? 2;
-        $retryNetworkIssues = ($deviceSetting ? $deviceSetting->retry_network_issues : null) ?? false;
         $transactionProcessingEnabled = ($deviceSetting ? $deviceSetting->transaction_processing_enabled : null) ?? true;
         $incomingSmsEnabled = ($deviceSetting ? $deviceSetting->incoming_sms_enabled : null) ?? true;
         $incomingSmsAllowAllSenders = ($deviceSetting ? $deviceSetting->incoming_sms_allow_all_senders : null) ?? false;
@@ -260,20 +234,12 @@ class DeviceSettingsController extends BaseController
             'operatorIdentity' => $operatorIdentity,
             'primaryTransactionSim' => $primaryTransactionSim,
             'smsAutoReplySim' => $smsAutoReplySim,
-            'autoRescheduleRejected' => (bool) $autoRescheduleRejected,
-            'retryTomorrowAt' => $retryTomorrowAt,
-            'ussdTimeoutSeconds' => (string) $ussdTimeoutSeconds,
-            'intelligentAutoRetry' => (bool) $intelligentAutoRetry,
-            'retryIntervalMinutes' => (string) $retryIntervalMinutes,
-            'maxAttempts' => (string) $maxAttempts,
-            'retryNetworkIssues' => (bool) $retryNetworkIssues,
             'transactionProcessingEnabled' => (bool) $transactionProcessingEnabled,
             'incomingSmsEnabled' => (bool) $incomingSmsEnabled,
             'incomingSmsAllowAllSenders' => (bool) $incomingSmsAllowAllSenders,
             'incomingSmsSimSlot' => $incomingSmsSimSlot,
             'simSlotOptions' => $this->simSlotOptions(),
             'incomingSmsSlotOptions' => $this->incomingSmsSlotOptions(),
-            'retryScheduleOptions' => $this->retryScheduleOptions(),
         ];
     }
 
@@ -298,23 +264,6 @@ class DeviceSettingsController extends BaseController
             'slot_1' => __('Slot 1 only'),
             'slot_2' => __('Slot 2 only'),
         ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function retryScheduleOptions(): array
-    {
-        $options = [];
-
-        for ($hour = 0; $hour < 24; $hour++) {
-            foreach ([0, 30] as $minute) {
-                $time = now()->copy()->startOfDay()->addHours($hour)->addMinutes($minute)->format('g:i A');
-                $options[$time] = $time;
-            }
-        }
-
-        return $options;
     }
 
     /**

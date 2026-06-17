@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $ussd_code
  * @property string $ussd_mode
  * @property bool $is_active
+ * @property string|null $retry_time
  * @property-read User $user
  */
 #[Fillable([
@@ -27,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'ussd_code',
     'ussd_mode',
     'is_active',
+    'retry_time',
 ])]
 class Offer extends Model
 {

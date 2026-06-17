@@ -7,6 +7,7 @@ use App\Jobs\SendAutoReplySmsJob;
 use App\Models\Transaction;
 use App\Support\AppTimezone;
 use App\Support\BingwaTransactionFailureCode;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -109,11 +110,18 @@ class CompleteBingwaTransaction
         $nextAttemptAt = null;
 
         if ($isDailyLimitHit) {
-            $transaction->loadMissing('user.deviceSetting');
-            $settings = $transaction->user?->deviceSetting;
+            $transaction->loadMissing('offer');
+            $offer = $transaction->offer;
 
-            if ($settings && $settings->retry_tomorrow_at) {
-                $nextAttemptAt = now()->addDay()->setTimeFromTimeString($settings->retry_tomorrow_at);
+            if ($offer && $offer->retry_time) {
+                try {
+                    $nextAttemptAt = Carbon::parse($offer->retry_time);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to parse retry_time for offer: '.$offer->retry_time, [
+                        'offer_id' => $offer->id,
+                        'exception' => $e->getMessage(),
+                    ]);
+                }
             }
         }
 

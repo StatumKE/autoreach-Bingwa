@@ -35,6 +35,14 @@ new #[Title('My Offers')] class extends Component {
 
     public bool $is_active = true;
 
+    public ?string $retry_type = null;
+
+    public ?int $retry_interval_value = null;
+
+    public string $retry_interval_unit = 'minutes';
+
+    public ?string $retry_time_value = null;
+
     /**
      * Load the offer list after the shell has rendered.
      */
@@ -67,6 +75,24 @@ new #[Title('My Offers')] class extends Component {
         $this->ussd_code = $offer->ussd_code ?? '';
         $this->ussd_mode = $offer->ussd_mode;
         $this->is_active = $offer->is_active;
+
+        $retryTime = $offer->retry_time;
+        if (empty($retryTime)) {
+            $this->retry_type = null;
+            $this->retry_interval_value = null;
+            $this->retry_interval_unit = 'minutes';
+            $this->retry_time_value = null;
+        } elseif (str_starts_with($retryTime, 'tomorrow ')) {
+            $this->retry_type = 'time';
+            $this->retry_time_value = substr($retryTime, 9);
+        } else {
+            $this->retry_type = 'interval';
+            $parts = explode(' ', $retryTime);
+            $this->retry_interval_value = (int) $parts[0];
+            $unit = $parts[1] ?? 'minutes';
+            $this->retry_interval_unit = str_contains($unit, 'hour') ? 'hours' : 'minutes';
+        }
+
         $this->showForm = true;
         $this->dispatch('modal-show', name: 'offer-form');
     }
@@ -78,6 +104,16 @@ new #[Title('My Offers')] class extends Component {
     {
         $validated = $this->validate($this->rules());
 
+        $retryTime = null;
+        if ($this->retry_type === 'interval') {
+            $unit = $this->retry_interval_value === 1 
+                ? ($this->retry_interval_unit === 'hours' ? 'hour' : 'minute') 
+                : $this->retry_interval_unit;
+            $retryTime = "{$this->retry_interval_value} {$unit}";
+        } elseif ($this->retry_type === 'time') {
+            $retryTime = "tomorrow {$this->retry_time_value}";
+        }
+
         $payload = [
             'user_id' => Auth::id(),
             'name' => $validated['name'],
@@ -85,7 +121,8 @@ new #[Title('My Offers')] class extends Component {
             'price' => (int) $validated['price'],
             'ussd_code' => $validated['ussd_code'] ?? null,
             'ussd_mode' => $validated['ussd_mode'],
-            'is_active' => (bool) $validated['is_active'],
+            'is_active' => $this->editingOfferId !== null ? (bool) $this->is_active : true,
+            'retry_time' => $retryTime,
         ];
 
         if ($this->editingOfferId !== null) {
@@ -167,6 +204,7 @@ new #[Title('My Offers')] class extends Component {
                 'ussd_code',
                 'ussd_mode',
                 'is_active',
+                'retry_time',
                 'created_at',
                 'updated_at',
             ])
@@ -266,7 +304,10 @@ new #[Title('My Offers')] class extends Component {
             'price' => ['required', 'integer', 'min:0', 'max:999999'],
             'ussd_code' => ['required', 'string', 'max:100'],
             'ussd_mode' => ['required', Rule::in(array_keys($this->ussdModeOptions()))],
-            'is_active' => ['boolean'],
+            'retry_type' => ['nullable', 'string', Rule::in(['interval', 'time'])],
+            'retry_interval_value' => ['required_if:retry_type,interval', 'nullable', 'integer', 'min:1', 'max:999'],
+            'retry_interval_unit' => ['required_if:retry_type,interval', 'string', Rule::in(['minutes', 'hours'])],
+            'retry_time_value' => ['required_if:retry_type,time', 'nullable', 'string', 'regex:/^\d{2}:\d{2}$/'],
         ];
     }
 
@@ -292,6 +333,10 @@ new #[Title('My Offers')] class extends Component {
         $this->ussd_code = '*180*5*PN#';
         $this->ussd_mode = 'express';
         $this->is_active = true;
+        $this->retry_type = null;
+        $this->retry_interval_value = null;
+        $this->retry_interval_unit = 'minutes';
+        $this->retry_time_value = null;
     }
 }; ?>
 
@@ -439,37 +484,68 @@ new #[Title('My Offers')] class extends Component {
     </div>
 
     <flux:modal name="offer-form" focusable class="max-w-2xl">
-        <form wire:submit="saveOffer" class="space-y-6 p-1">
+        <form wire:submit="saveOffer" class="space-y-5 p-1">
             <div>
                 <flux:heading size="lg">{{ $editingOfferId ? __('Edit Offer') : __('Create Offer') }}</flux:heading>
-                <flux:subheading>{{ __('Define pricing and USSD flow') }}</flux:subheading>
+                <flux:subheading>{{ __('Define pricing, USSD flow, and retry schedule') }}</flux:subheading>
             </div>
 
             <flux:input wire:model="name" :label="__('Offer Name')" type="text" required autocomplete="off" placeholder="e.g. 1.25 GB Midnight Bundles" />
 
-            <flux:select wire:model="category" :label="__('Category')" required>
-                <flux:select.option value="sms">{{ __('SMS') }}</flux:select.option>
-                <flux:select.option value="airtime">{{ __('Airtime') }}</flux:select.option>
-                <flux:select.option value="data">{{ __('Data') }}</flux:select.option>
-            </flux:select>
+            <div class="grid grid-cols-2 gap-4">
+                <flux:select wire:model="category" :label="__('Category')" required>
+                    <flux:select.option value="sms">{{ __('SMS') }}</flux:select.option>
+                    <flux:select.option value="airtime">{{ __('Airtime') }}</flux:select.option>
+                    <flux:select.option value="data">{{ __('Data') }}</flux:select.option>
+                </flux:select>
 
-            <flux:input wire:model="price" :label="__('Price (KES)')" type="number" min="0" step="1" required autocomplete="off" placeholder="e.g. 50" />
-
-            <flux:input wire:model="ussd_code" :label="__('USSD Code')" type="text" required autocomplete="off" placeholder="*180*5*PN#" />
-            <div class="text-sm font-medium text-green-600 dark:text-green-300">
-                {{ __('Use PN as the placeholder for the recipient\'s phone number.') }}
+                <flux:input wire:model="price" :label="__('Price (KES)')" type="number" min="0" step="1" required autocomplete="off" placeholder="e.g. 50" />
             </div>
 
-            <flux:select wire:model="ussd_mode" :label="__('USSD Mode')" required>
-                <flux:select.option value="express">{{ __('Express Mode - Direct USSD Dials') }}</flux:select.option>
-                <flux:select.option value="advanced">{{ __('Advanced Mode - Step by Step Dials') }}</flux:select.option>
-            </flux:select>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                <div class="space-y-1.5">
+                    <flux:input wire:model="ussd_code" :label="__('USSD Code')" type="text" required autocomplete="off" placeholder="*180*5*PN#" />
+                    <div class="text-[10px] text-zinc-500 dark:text-zinc-400">
+                        {{ __('Use PN as the placeholder for the recipient\'s phone number.') }}
+                    </div>
+                </div>
 
-            <div class="rounded-[1.5rem] bg-zinc-50 dark:bg-zinc-950/40 p-6 ring-1 ring-zinc-200 dark:ring-zinc-800 shadow-inner">
-                <flux:checkbox wire:model="is_active" :label="__('Enable this offer immediately')" />
+                <flux:select wire:model="ussd_mode" :label="__('USSD Mode')" required>
+                    <flux:select.option value="express">{{ __('Express Mode - Direct USSD Dials') }}</flux:select.option>
+                    <flux:select.option value="advanced">{{ __('Advanced Mode - Step by Step Dials') }}</flux:select.option>
+                </flux:select>
             </div>
 
-            <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <div class="border-t border-zinc-200 dark:border-zinc-800 pt-4 space-y-4">
+                <div>
+                    <flux:heading size="sm" class="font-bold">{{ __('Failure Retry Policy') }}</flux:heading>
+                    <flux:subheading size="sm">{{ __('Configure retry time if a recommendation fail due to limit constraints.') }}</flux:subheading>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                    <flux:select wire:model.live="retry_type" :label="__('Retry Policy')">
+                        <flux:select.option value="">{{ __('No automatic retry') }}</flux:select.option>
+                        <flux:select.option value="interval">{{ __('Relative Delay') }}</flux:select.option>
+                        <flux:select.option value="time">{{ __('Specific Time (Tomorrow)') }}</flux:select.option>
+                    </flux:select>
+
+                    @if ($retry_type === 'interval')
+                        <flux:input wire:model="retry_interval_value" :label="__('Delay Value')" type="number" min="1" max="999" required placeholder="e.g. 3" />
+                        <flux:select wire:model="retry_interval_unit" :label="__('Delay Unit')" required>
+                            <flux:select.option value="minutes">{{ __('Minutes') }}</flux:select.option>
+                            <flux:select.option value="hours">{{ __('Hours') }}</flux:select.option>
+                        </flux:select>
+                    @endif
+
+                    @if ($retry_type === 'time')
+                        <div class="md:col-span-2">
+                            <flux:input wire:model="retry_time_value" :label="__('Time (Tomorrow)')" type="time" required />
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-3 sm:flex-row sm:justify-end pt-2">
                 <flux:button type="button" variant="ghost" wire:click="closeForm" class="app-secondary-button">
                     {{ __('Cancel') }}
                 </flux:button>

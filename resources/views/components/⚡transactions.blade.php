@@ -193,6 +193,7 @@ new #[Title('Transactions')] class extends Component
     {
         $this->selectedTransactionId = $transactionId;
         $this->showTransactionDetails = true;
+        $this->dispatch('modal-show', name: 'transaction-details');
     }
 
     /**
@@ -202,6 +203,7 @@ new #[Title('Transactions')] class extends Component
     {
         $this->showTransactionDetails = false;
         $this->selectedTransactionId = null;
+        $this->dispatch('modal-hide', name: 'transaction-details');
     }
 
     /**

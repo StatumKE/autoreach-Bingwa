@@ -53,6 +53,15 @@ test('openTransactionDetails sets the selected transaction and opens modal', fun
         ->assertOk();
 });
 
+test('dashboard recent transaction rows call the dashboard action directly', function () {
+    $blade = file_get_contents(resource_path('views/components/⚡dashboard.blade.php'));
+
+    expect($blade)
+        ->toContain('wire:click="openTransactionDetails(')
+        ->toContain('wire:close="closeTransactionDetails"')
+        ->not->toContain('$parent.openTransactionDetails(');
+});
+
 test('closeTransactionDetails resets modal state', function () {
     $user = User::factory()->create();
     $transaction = Transaction::factory()->for($user)->create();

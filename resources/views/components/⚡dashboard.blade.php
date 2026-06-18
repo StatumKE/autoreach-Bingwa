@@ -378,14 +378,14 @@ new #[Title('Dashboard')] class extends Component
     {
         $this->selectedTransactionId = $transactionId;
         $this->showTransactionDetails = true;
-        $this->dispatch('modal-show', name: 'transaction-details');
+        Flux::modal('dashboard-transaction-details')->show();
     }
 
     public function closeTransactionDetails(): void
     {
         $this->showTransactionDetails = false;
         $this->selectedTransactionId = null;
-        $this->dispatch('modal-close', name: 'transaction-details');
+        Flux::modal('dashboard-transaction-details')->close();
     }
 
     #[Computed]
@@ -813,8 +813,8 @@ new #[Title('Dashboard')] class extends Component
                                 $isFailed = $status === 'failed';
                             @endphp
 
-                            <div 
-                                wire:click="$dispatch('open-transaction-details', { transactionId: {{ $tx->id }} })"
+                             <div 
+                                wire:click="openTransactionDetails({{ $tx->id }})"
                                 role="button"
                                 tabindex="0"
                                 @class([
@@ -857,7 +857,7 @@ new #[Title('Dashboard')] class extends Component
                                         </div>
                                     </div>
                                 @endif
-                            </div>
+                             </div>
                         @empty
                             <div class="py-12 px-4 text-center">
                                 <flux:icon.arrows-right-left class="mx-auto mb-3 size-8 text-zinc-200 dark:text-zinc-800" />
@@ -867,13 +867,12 @@ new #[Title('Dashboard')] class extends Component
                         @endforelse
                     </div>
                 </div>
-            </div>
-
             <flux:modal
-                name="transaction-details"
+                name="dashboard-transaction-details"
                 wire:model.self="showTransactionDetails"
                 class="w-[min(100vw-1rem,48rem)] max-w-3xl"
-                @close="$wire.closeTransactionDetails()"
+                :closable="false"
+                wire:close="closeTransactionDetails"
                 scroll="body"
             >
                 @php
@@ -882,8 +881,22 @@ new #[Title('Dashboard')] class extends Component
 
                 @if ($selectedTransaction)
                     <div x-data="{ copied: false }" class="space-y-3">
-                        <div class="space-y-0.5">
-                            <flux:heading size="md">{{ __('Transaction Details') }}</flux:heading>
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="space-y-0.5">
+                                <flux:heading size="md">{{ __('Transaction Details') }}</flux:heading>
+                            </div>
+
+                            <flux:button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                class="!h-9 w-9 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
+                                aria-label="{{ __('Close transaction details') }}"
+                                x-on:click.stop="$flux.modal('dashboard-transaction-details').close()"
+                                wire:click="closeTransactionDetails"
+                            >
+                                <flux:icon.x-mark class="size-5" />
+                            </flux:button>
                         </div>
 
                         <div class="flex flex-col gap-2">
@@ -1037,8 +1050,7 @@ new #[Title('Dashboard')] class extends Component
                     </div>
                 @endif
             </flux:modal>
-        </div>
-    @endisland
+            @endisland
 
         {{-- Floating Action Button --}}
         <div class="fixed bottom-24 right-4 z-50 lg:bottom-8 lg:right-8">

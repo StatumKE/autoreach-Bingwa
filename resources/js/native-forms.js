@@ -369,11 +369,15 @@ async function submitNativeForm(form, submitButton = null) {
             }
         }
 
-        // Directly write the HTML to the document instead of using location.replace
-        // to avoid redundant GET requests to POST routes.
-        document.open();
-        document.write(html);
-        document.close();
+        // If the response was redirected, perform a clean location replace to ensure
+        // Livewire, Alpine, and other document assets initialize cleanly from scratch.
+        if (response.redirected) {
+            window.location.replace(responseUrl);
+        } else {
+            document.open();
+            document.write(html);
+            document.close();
+        }
 
         return true;
     } catch (error) {

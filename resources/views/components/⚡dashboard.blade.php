@@ -904,7 +904,7 @@ new #[Title('Dashboard')] class extends Component
                                     @if ($selectedTransaction->next_attempt_at)
                                         <div>
                                             <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Rescheduled For') }}</div>
-                                            <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ AppTimezone::format($selectedTransaction->next_attempt_at, 'H:i, M j, Y') }}</div>
+                                            <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ \App\Support\AppTimezone::format($selectedTransaction->next_attempt_at, 'H:i, M j, Y') }}</div>
                                         </div>
                                     @endif
                                 </div>
@@ -990,19 +990,19 @@ new #[Title('Dashboard')] class extends Component
                             <div class="grid grid-cols-2 gap-x-4 gap-y-2.5">
                                 <div>
                                     <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Occurred At') }}</span>
-                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->occurred_at) }}</span>
+                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ \App\Support\AppTimezone::format($selectedTransaction->occurred_at) }}</span>
                                 </div>
                                 <div>
                                     <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Processed At') }}</span>
-                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->processed_at) }}</span>
+                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ \App\Support\AppTimezone::format($selectedTransaction->processed_at) }}</span>
                                 </div>
                                 <div>
                                     <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Created At') }}</span>
-                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->created_at) }}</span>
+                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ \App\Support\AppTimezone::format($selectedTransaction->created_at) }}</span>
                                 </div>
                                 <div>
                                     <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Updated At') }}</span>
-                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ AppTimezone::format($selectedTransaction->updated_at) }}</span>
+                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ \App\Support\AppTimezone::format($selectedTransaction->updated_at) }}</span>
                                 </div>
                             </div>
                         </div>

@@ -385,7 +385,7 @@ new #[Title('Dashboard')] class extends Component
     {
         $this->showTransactionDetails = false;
         $this->selectedTransactionId = null;
-        $this->dispatch('modal-hide', name: 'transaction-details');
+        $this->dispatch('modal-close', name: 'transaction-details');
     }
 
     #[Computed]
@@ -873,7 +873,7 @@ new #[Title('Dashboard')] class extends Component
                 name="transaction-details"
                 wire:model.self="showTransactionDetails"
                 class="w-[min(100vw-1rem,48rem)] max-w-3xl"
-                @close="closeTransactionDetails"
+                @close="$wire.closeTransactionDetails()"
                 scroll="body"
             >
                 @php

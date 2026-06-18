@@ -812,7 +812,7 @@ new #[Title('Dashboard')] class extends Component
                             @endphp
 
                             <div 
-                                wire:click="$parent.openTransactionDetails({{ $tx->id }})"
+                                wire:click="$dispatch('open-transaction-details', { transactionId: {{ $tx->id }} })"
                                 role="button"
                                 tabindex="0"
                                 @class([
@@ -926,8 +926,9 @@ new #[Title('Dashboard')] class extends Component
 
     <flux:modal
         name="transaction-details"
+        variant="flyout"
         wire:model.self="showTransactionDetails"
-        class="w-[min(100vw-1rem,48rem)] max-w-3xl"
+        class="w-[min(100vw-1rem,26rem)] max-w-md"
         @close="closeTransactionDetails"
         scroll="body"
     >

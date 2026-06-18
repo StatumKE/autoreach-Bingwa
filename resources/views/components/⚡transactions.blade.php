@@ -741,9 +741,8 @@ new #[Title('Transactions')] class extends Component
 
     <flux:modal
         name="transaction-details"
-        variant="flyout"
         wire:model.self="showTransactionDetails"
-        class="w-[min(100vw-1rem,26rem)] max-w-md"
+        class="w-[min(100vw-1rem,48rem)] max-w-3xl"
         @close="closeTransactionDetails"
         scroll="body"
     >

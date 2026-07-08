@@ -80,14 +80,24 @@ class CompleteBingwaTransaction
             'failed' => $message ?? __('USSD call failed.'),
         };
 
-        $isGenericFailure = $status === 'failed' && str_contains(strtolower((string) $message), 'network returned a generic failure');
+        $isDailyLimitHit = $status === 'failed' && str_contains((string) $message, 'Recommendation failed. The customer');
 
-        if ($isGenericFailure && $transaction->retry_count < 3) {
-            DB::transaction(function () use ($transaction, $statusDesc) {
+        $isOtherFailure = $status === 'failed' && ! $isDailyLimitHit;
+
+        if ($isOtherFailure && $transaction->retry_count < 5) {
+            $backoffSeconds = match ($transaction->retry_count) {
+                0 => 30,    // 1st retry: 30 seconds
+                1 => 60,    // 2nd retry: 1 minute
+                2 => 300,   // 3rd retry: 5 minutes
+                3 => 900,   // 4th retry: 15 minutes
+                default => 1800, // 5th retry: 30 minutes
+            };
+
+            DB::transaction(function () use ($transaction, $statusDesc, $backoffSeconds) {
                 $transaction->update([
                     'status' => 'queued',
-                    'status_desc' => $statusDesc.' (Retrying '.($transaction->retry_count + 1).'/3)',
-                    'next_attempt_at' => now()->addSeconds(30),
+                    'status_desc' => $statusDesc.' (Retrying '.($transaction->retry_count + 1).'/5)',
+                    'next_attempt_at' => now()->addSeconds($backoffSeconds),
                     'processed_at' => null,
                     'retry_count' => $transaction->retry_count + 1,
                 ]);
@@ -98,15 +108,14 @@ class CompleteBingwaTransaction
                 app(DispatchBingwaQueuedTransactionsJob::class)->dispatch((int) $transaction->user_id);
             }
 
-            Log::warning('Bingwa transaction generic network failure caught. Queued for automatic retry.', [
+            Log::warning('Bingwa transaction failure caught. Queued for automatic retry with backoff.', [
                 'transaction_id' => $transaction->id,
                 'retry_count' => $transaction->retry_count,
+                'backoff_seconds' => $backoffSeconds,
             ]);
 
             return true;
         }
-
-        $isDailyLimitHit = $status === 'failed' && str_contains((string) $message, 'Recommendation failed. The customer');
         $nextAttemptAt = null;
 
         if ($isDailyLimitHit) {

@@ -209,6 +209,8 @@ new #[Title('Subscriptions')] class extends Component {
                     const isSuccess = (res.status === 'success' || finalData.status === 'success') &&
                                      (finalData.success === true || message.includes('transferred') || message.includes('successful'));
 
+                    const wire = Livewire.find(document.getElementById('plans-component')) || __WIRE__;
+
                     if (isSuccess) {
                         const paymentReference = finalData.payment_reference
                             || finalData.paymentReference
@@ -217,14 +219,16 @@ new #[Title('Subscriptions')] class extends Component {
                             || finalData.reference
                             || null;
 
-                        await __WIRE__.saveSubscription({$planId}, paymentReference);
+                        await wire.saveSubscription({$planId}, paymentReference);
                     } else {
-                        __WIRE__.set('errorMessage', finalData.message || res.message || 'Unknown error');
+                        wire.set('errorMessage', finalData.message || res.message || 'Unknown error');
                     }
                 } catch (e) {
-                    __WIRE__.set('errorMessage', 'Error communicating with device: ' + e.message);
+                    const wire = Livewire.find(document.getElementById('plans-component')) || __WIRE__;
+                    wire.set('errorMessage', 'Error communicating with device: ' + e.message);
                 } finally {
-                    __WIRE__.set('purchaseInFlight', false);
+                    const wire = Livewire.find(document.getElementById('plans-component')) || __WIRE__;
+                    wire.set('purchaseInFlight', false);
                 }
             })();
         JS;
@@ -284,7 +288,7 @@ new #[Title('Subscriptions')] class extends Component {
 };
 ?>
 
-<section class="min-h-screen bg-app-bg px-4 pb-24 pt-3" wire:init="loadPlans">
+<section id="plans-component" class="min-h-screen bg-app-bg px-4 pb-24 pt-3" wire:init="loadPlans">
 
     <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between px-1">
@@ -518,9 +522,9 @@ new #[Title('Subscriptions')] class extends Component {
 
                                 <div class="grid grid-cols-2 gap-2">
                                     @if ($isUsage && !is_null($plan['ussd_requests_included']))
-                                        <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40/80 p-2 border border-zinc-150 flex flex-col justify-center shadow-inner">
+                                        <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/80 p-2 border border-zinc-200 dark:border-zinc-800 flex flex-col justify-center shadow-inner">
                                             <span class="text-[7px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">{{ __('USSD requests') }}</span>
-                                            <span class="text-[11px] font-extrabold text-zinc-850 mt-0.5 flex items-center gap-1">
+                                            <span class="text-[11px] font-extrabold text-zinc-800 dark:text-zinc-200 mt-0.5 flex items-center gap-1">
                                                 <flux:icon.banknotes class="size-3 text-emerald-600" />
                                                 {{ number_format((int) $plan['ussd_requests_included']) }}
                                             </span>
@@ -528,9 +532,9 @@ new #[Title('Subscriptions')] class extends Component {
                                     @endif
 
                                     @if (!empty($plan['duration_days']))
-                                        <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40/80 p-2 border border-zinc-150 flex flex-col justify-center shadow-inner">
+                                        <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/80 p-2 border border-zinc-200 dark:border-zinc-800 flex flex-col justify-center shadow-inner">
                                             <span class="text-[7px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">{{ __('Duration') }}</span>
-                                            <span class="text-[11px] font-extrabold text-zinc-850 mt-0.5 flex items-center gap-1">
+                                            <span class="text-[11px] font-extrabold text-zinc-800 dark:text-zinc-200 mt-0.5 flex items-center gap-1">
                                                 <flux:icon.clock class="size-3 text-emerald-600" />
                                                 {{ trans_choice(':count day|:count days', (int) $plan['duration_days'], ['count' => (int) $plan['duration_days']]) }}
                                             </span>
@@ -618,14 +622,14 @@ new #[Title('Subscriptions')] class extends Component {
 
                             <div @class(['space-y-6 px-6 py-6', 'opacity-40 pointer-events-none' => $this->purchaseInFlight])>
                                 <div class="grid grid-cols-2 gap-3.5">
-                                    <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/40/80 px-4 py-3.5 border border-zinc-150 shadow-inner">
+                                    <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/80 px-4 py-3.5 border border-zinc-200 dark:border-zinc-800 shadow-inner">
                                         <div class="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Price') }}</div>
                                         <div class="mt-1 text-xl font-black tracking-tight text-emerald-700">
                                             KES {{ number_format((float) ($selectedPlan['price'] ?? 0)) }}
                                         </div>
                                     </div>
 
-                                    <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/40/80 px-4 py-3.5 border border-zinc-150 shadow-inner">
+                                    <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/80 px-4 py-3.5 border border-zinc-200 dark:border-zinc-800 shadow-inner">
                                         <div class="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400 dark:text-zinc-500">{{ __('Duration') }}</div>
                                         <div class="mt-1 text-sm font-black text-zinc-950 dark:text-white">
                                             @if (! empty($selectedPlan['duration_days']))
@@ -640,7 +644,7 @@ new #[Title('Subscriptions')] class extends Component {
                                 </div>
 
                                 @if ($this->sambazaLine)
-                                    <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/40/80 p-4 border border-zinc-150">
+                                    <div class="rounded-2xl bg-zinc-50 dark:bg-zinc-950/80 p-4 border border-zinc-200 dark:border-zinc-800">
                                         <div class="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 mb-3 block">{{ __('Choose SIM Slot') }}</div>
                                         <div class="grid grid-cols-2 gap-2">
                                             <button 

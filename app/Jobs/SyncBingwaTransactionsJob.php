@@ -81,10 +81,20 @@ class SyncBingwaTransactionsJob implements ShouldBeUniqueUntilProcessing, Should
             'push_data' => $this->pushData,
         ]);
 
-        // Dispatch the USSD processor synchronously when there are newly synced jobs
-        // or any existing queued transactions still waiting to be processed.
-        // Doing this synchronously skips the latency of queueing a second job.
-        if ($result['synced'] > 0 || Transaction::query()->where('status', 'queued')->exists()) {
+        // Dispatch the USSD processor synchronously when there are newly synced jobs,
+        // any existing queued transactions still waiting, or any failed transactions
+        // whose scheduled retry time has arrived.
+        $hasQueuedOrDueRetries = Transaction::query()
+            ->where(function ($query) {
+                $query->where('status', 'queued')
+                    ->orWhere(function ($q) {
+                        $q->where('status', 'failed')
+                            ->whereNotNull('next_attempt_at')
+                            ->where('next_attempt_at', '<=', now());
+                    });
+            })->exists();
+
+        if ($result['synced'] > 0 || $hasQueuedOrDueRetries) {
             if (! DeviceSetting::isTransactionProcessingEnabledForUser($user->id)) {
                 Log::debug('Bingwa transaction processing skipped because processing is paused.', [
                     'component' => 'transaction_sync',

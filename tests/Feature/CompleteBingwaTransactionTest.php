@@ -45,7 +45,7 @@ it('reschedules a transaction for tomorrow when daily limit is reached and offer
     expect($clonedCount)->toBe(0);
 });
 
-it('does not clone the transaction if the failure message does not match', function () {
+it('retries the transaction up to 5 times for other failures', function () {
     $user = User::factory()->create();
     $offer = Offer::factory()->create([
         'user_id' => $user->id,
@@ -64,10 +64,11 @@ it('does not clone the transaction if the failure message does not match', funct
     // Act
     $action->complete($transaction->id, 'failed', 'Insufficient balance');
 
-    // Assert original transaction is failed normally
+    // Assert original transaction is queued for retry
     $originalTransaction = $transaction->fresh();
-    expect($originalTransaction->status)->toBe('failed');
-    expect($originalTransaction->status_desc)->toBe('Insufficient balance');
+    expect($originalTransaction->status)->toBe('queued');
+    expect($originalTransaction->status_desc)->toBe('Insufficient balance (Retrying 1/5)');
+    expect($originalTransaction->retry_count)->toBe(1);
 
     // Assert no clone was created
     $clonesCount = Transaction::where('transaction_id', 'like', 'TXN54321-retry-%')->count();

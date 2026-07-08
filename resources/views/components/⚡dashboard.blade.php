@@ -32,10 +32,6 @@ new #[Title('Dashboard')] class extends Component
 
     public bool $isProcessingEnabled = true;
 
-    public bool $showTransactionDetails = false;
-
-    public ?int $selectedTransactionId = null;
-
     /**
      * Guards against concurrent USSD bridge calls from overlapping polls.
      * The NativePHP persistent PHP runtime is single-threaded; two simultaneous
@@ -181,19 +177,11 @@ new #[Title('Dashboard')] class extends Component
         // bytes are unpacked in a fresh process, resulting in a 500 error on the
         // dashboard island. The island polls every 10s so caching is unnecessary.
         return Transaction::query()
+            ->with(['offer:id,name,ussd_code,ussd_mode'])
             ->where('user_id', Auth::id())
             ->orderByDesc('id')
             ->limit(10)
-            ->get([
-                'id',
-                'sender_name',
-                'sender_phone',
-                'offer_name',
-                'amount',
-                'status',
-                'status_desc',
-                'occurred_at',
-            ]);
+            ->get();
     }
 
     public function toggleBalance(): void
@@ -370,35 +358,6 @@ new #[Title('Dashboard')] class extends Component
     private function recentTransactionsCacheKey(): string
     {
         return 'dashboard:recent-transactions:'.Auth::id();
-    }
-
-
-    #[On('open-transaction-details')]
-    public function openTransactionDetails(int $transactionId): void
-    {
-        $this->selectedTransactionId = $transactionId;
-        $this->showTransactionDetails = true;
-        Flux::modal('dashboard-transaction-details')->show();
-    }
-
-    public function closeTransactionDetails(): void
-    {
-        $this->showTransactionDetails = false;
-        $this->selectedTransactionId = null;
-        Flux::modal('dashboard-transaction-details')->close();
-    }
-
-    #[Computed]
-    public function selectedTransaction(): ?Transaction
-    {
-        if ($this->selectedTransactionId === null) {
-            return null;
-        }
-
-        return Transaction::query()
-            ->with(['offer:id,name,ussd_code,ussd_mode'])
-            ->where('user_id', Auth::id())
-            ->find($this->selectedTransactionId);
     }
 
     public function transactionProductLabel(Transaction $transaction): string
@@ -793,6 +752,7 @@ new #[Title('Dashboard')] class extends Component
         </div>
 
         @island
+        <div x-data="{ activeTx: null, copied: false }" class="flex min-h-0 flex-1 flex-col gap-2 relative">
             <div wire:poll.visible.5s class="flex min-h-0 flex-1 flex-col gap-2">
                 {{-- Recent Transactions --}}
                 <div class="flex items-center justify-between px-1 pt-1">
@@ -811,10 +771,26 @@ new #[Title('Dashboard')] class extends Component
                                 $status = strtolower((string) ($tx->status ?? ''));
                                 $isSuccess = in_array($status, ['completed', 'successful'], true);
                                 $isFailed = $status === 'failed';
+
+                                $txData = $tx->toArray();
+                                $txData['product_label'] = $this->transactionProductLabel($tx);
+                                $txData['resolved_ussd_code'] = $this->resolvedUssdCode($tx);
+                                $txData['offer_ussd_mode'] = $tx->offer?->ussd_mode ?? '—';
+                                $txData['occurred_at_formatted'] = \App\Support\AppTimezone::format($tx->occurred_at);
+                                $txData['processed_at_formatted'] = \App\Support\AppTimezone::format($tx->processed_at);
+                                $txData['created_at_formatted'] = \App\Support\AppTimezone::format($tx->created_at);
+                                $txData['updated_at_formatted'] = \App\Support\AppTimezone::format($tx->updated_at);
+                                $txData['next_attempt_at_formatted'] = $tx->next_attempt_at ? \App\Support\AppTimezone::format($tx->next_attempt_at, 'H:i, M j, Y') : null;
+                                $txData['balance_payload'] = $tx->balance ? $this->formatDetailValue($tx->balance) : null;
+                                $txData['amount_display'] = number_format((float) $tx->amount);
+                                $txData['sender_display'] = $tx->sender_name ?: __('Unknown sender');
+                                $txData['status_display'] = blank($tx->status) ? __('Pending') : $tx->status;
+                                $txData['is_success'] = $isSuccess;
+                                $txData['is_failed'] = $isFailed;
                             @endphp
 
                              <div 
-                                wire:click="openTransactionDetails({{ $tx->id }})"
+                                @click="activeTx = {{ \Illuminate\Support\Js::from($txData) }}; copied = false"
                                 role="button"
                                 tabindex="0"
                                 @class([
@@ -867,190 +843,195 @@ new #[Title('Dashboard')] class extends Component
                         @endforelse
                     </div>
                 </div>
-            <flux:modal
-                name="dashboard-transaction-details"
-                wire:model.self="showTransactionDetails"
-                class="w-[min(100vw-1rem,48rem)] max-w-3xl"
-                :closable="false"
-                wire:close="closeTransactionDetails"
-                scroll="body"
-            >
-                @php
-                    $selectedTransaction = $this->selectedTransaction;
-                @endphp
+            </div>
 
-                @if ($selectedTransaction)
-                    <div x-data="{ copied: false }" class="space-y-3">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="space-y-0.5">
-                                <flux:heading size="md">{{ __('Transaction Details') }}</flux:heading>
-                            </div>
+            <!-- Modal Wrapper -->
+            <div>
+                <div>
+                    <!-- Backdrop -->
+                    <div 
+                        x-show="activeTx !== null" 
+                        x-transition.opacity.duration.200ms
+                        @click="activeTx = null"
+                        class="fixed inset-0 z-[100] bg-zinc-900/50 backdrop-blur-sm dark:bg-zinc-900/80"
+                        style="display: none;"
+                    ></div>
 
-                            <flux:button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                class="!h-9 w-9 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
-                                aria-label="{{ __('Close transaction details') }}"
-                                x-on:click.stop="$flux.modal('dashboard-transaction-details').close()"
-                                wire:click="closeTransactionDetails"
-                            >
-                                <flux:icon.x-mark class="size-5" />
-                            </flux:button>
-                        </div>
+                    <!-- Modal Body -->
+                    <div 
+                        x-show="activeTx !== null"
+                        class="fixed inset-0 z-[101] flex items-center justify-center p-4 sm:p-6"
+                        style="display: none;"
+                        @click.self="activeTx = null"
+                    >
+                        <div 
+                            x-show="activeTx !== null"
+                            x-transition.scale.95.duration.200ms
+                            @keyup.escape.window="activeTx = null"
+                            class="w-[min(100vw-1rem,48rem)] max-w-3xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-xl border border-zinc-200 bg-white p-6 shadow-[0_18px_48px_rgba(0,0,0,0.25)] dark:border-zinc-800 dark:bg-zinc-900"
+                        >
+                            <div class="space-y-3">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="space-y-0.5">
+                                        <flux:heading size="md">{{ __('Transaction Details') }}</flux:heading>
+                                    </div>
+                                    <flux:button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        class="!h-9 w-9 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
+                                        aria-label="{{ __('Close transaction details') }}"
+                                        @click="activeTx = null"
+                                    >
+                                        <flux:icon.x-mark class="size-5" />
+                                    </flux:button>
+                                </div>
 
-                        <div class="flex flex-col gap-2">
-                            {{-- Status Card --}}
-                            <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
-                                <div class="grid @if($selectedTransaction->next_attempt_at) grid-cols-2 gap-4 @else grid-cols-1 @endif">
-                                    <div>
-                                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Status') }}</div>
-                                        <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                                            {{ blank($selectedTransaction->status) ? __('Pending') : $selectedTransaction->status }}
-                                            @if ($selectedTransaction->status === 'failed' && $selectedTransaction->next_attempt_at)
-                                                <span class="ml-2 inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber-600">
-                                                    {{ __('Rescheduled') }}
-                                                </span>
-                                            @endif
+                                <div class="flex flex-col gap-2">
+                                    {{-- Status Card --}}
+                                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
+                                        <div class="grid" :class="activeTx?.next_attempt_at_formatted ? 'grid-cols-2 gap-4' : 'grid-cols-1'">
+                                            <div>
+                                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Status') }}</div>
+                                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                                                    <span x-text="activeTx?.status_display"></span>
+                                                    <template x-if="activeTx?.is_failed && activeTx?.next_attempt_at_formatted">
+                                                        <span class="ml-2 inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber-600">
+                                                            {{ __('Rescheduled') }}
+                                                        </span>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <template x-if="activeTx?.next_attempt_at_formatted">
+                                                <div>
+                                                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Rescheduled For') }}</div>
+                                                    <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100" x-text="activeTx.next_attempt_at_formatted"></div>
+                                                </div>
+                                            </template>
                                         </div>
                                     </div>
-                                    @if ($selectedTransaction->next_attempt_at)
+
+                                    {{-- Amount and Sender Card --}}
+                                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Amount') }}</div>
+                                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">Ksh <span x-text="activeTx?.amount_display"></span></div>
+                                            </div>
+                                            <div>
+                                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Sender') }}</div>
+                                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100" x-text="activeTx?.sender_display"></div>
+                                                <div class="mt-0.5 flex items-center gap-2">
+                                                    <div class="text-[10px] text-zinc-500 dark:text-zinc-400" x-text="activeTx?.sender_phone"></div>
+                                                    <template x-if="activeTx?.sender_phone">
+                                                        <flux:button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            class="!h-5 px-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400"
+                                                            x-on:click="
+                                                                let phone = activeTx.sender_phone;
+                                                                let fallbackCopy = function(text) {
+                                                                    let ta = document.createElement('textarea');
+                                                                    ta.value = text;
+                                                                    ta.style.position = 'fixed';
+                                                                    ta.style.left = '-9999px';
+                                                                    ta.style.top = '0';
+                                                                    ta.setAttribute('readonly', '');
+                                                                    document.body.appendChild(ta);
+                                                                    ta.select();
+                                                                    ta.setSelectionRange(0, 99999);
+                                                                    document.execCommand('copy');
+                                                                    document.body.removeChild(ta);
+                                                                };
+                                                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                                                    navigator.clipboard.writeText(phone).catch(() => fallbackCopy(phone));
+                                                                } else {
+                                                                    fallbackCopy(phone);
+                                                                }
+                                                                copied = true;
+                                                                setTimeout(() => copied = false, 1200);
+                                                            "
+                                                        >
+                                                            <span x-show="!copied">{{ __('Copy') }}</span>
+                                                            <span x-show="copied" x-cloak>{{ __('Copied') }}</span>
+                                                        </flux:button>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- M-PESA Code and Matched Offer Card --}}
+                                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('M-PESA Code') }}</div>
+                                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100" x-text="activeTx?.mpesa_code || '—'"></div>
+                                            </div>
+                                            <div>
+                                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Matched App Product') }}</div>
+                                                <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100" x-text="activeTx?.product_label"></div>
+                                                <div class="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400" x-text="activeTx?.offer_type || '—'"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- USSD Code Card --}}
+                                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
+                                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('USSD Code') }}</div>
+                                        <div class="mt-0.5 font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100 break-all" x-text="activeTx?.resolved_ussd_code"></div>
+                                        <div class="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400" x-text="activeTx?.offer_ussd_mode"></div>
+                                    </div>
+                                </div>
+
+                                {{-- Compact grouped dates panel --}}
+                                <div class="rounded-xl bg-zinc-50/50 dark:bg-zinc-950/20 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
+                                    <div class="grid grid-cols-2 gap-x-4 gap-y-2.5">
                                         <div>
-                                            <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Rescheduled For') }}</div>
-                                            <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ \App\Support\AppTimezone::format($selectedTransaction->next_attempt_at, 'H:i, M j, Y') }}</div>
+                                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Occurred At') }}</span>
+                                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block" x-text="activeTx?.occurred_at_formatted"></span>
                                         </div>
-                                    @endif
-                                </div>
-                            </div>
-
-                            {{-- Amount and Sender Card --}}
-                            <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Amount') }}</div>
-                                        <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">Ksh {{ number_format((float) $selectedTransaction->amount) }}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Sender') }}</div>
-                                        <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ $selectedTransaction->sender_name ?: __('Unknown sender') }}</div>
-                                        <div class="mt-0.5 flex items-center gap-2">
-                                            <div class="text-[10px] text-zinc-500 dark:text-zinc-400">{{ $selectedTransaction->sender_phone }}</div>
-                                            @if (filled($selectedTransaction->sender_phone))
-                                                <flux:button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    class="!h-5 px-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400"
-                                                    data-phone="{{ $selectedTransaction->sender_phone }}"
-                                                    x-on:click="
-                                                        let phone = $el.getAttribute('data-phone');
-                                                        let fallbackCopy = function(text) {
-                                                            let ta = document.createElement('textarea');
-                                                            ta.value = text;
-                                                            ta.style.position = 'fixed';
-                                                            ta.style.left = '-9999px';
-                                                            ta.style.top = '0';
-                                                            ta.setAttribute('readonly', '');
-                                                            document.body.appendChild(ta);
-                                                            ta.select();
-                                                            ta.setSelectionRange(0, 99999);
-                                                            document.execCommand('copy');
-                                                            document.body.removeChild(ta);
-                                                        };
-                                                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                                                            navigator.clipboard.writeText(phone).catch(() => fallbackCopy(phone));
-                                                        } else {
-                                                            fallbackCopy(phone);
-                                                        }
-                                                        copied = true;
-                                                        setTimeout(() => copied = false, 1200);
-                                                    "
-                                                >
-                                                    <span x-show="!copied">{{ __('Copy') }}</span>
-                                                    <span x-show="copied" x-cloak>{{ __('Copied') }}</span>
-                                                </flux:button>
-                                            @endif
+                                        <div>
+                                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Processed At') }}</span>
+                                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block" x-text="activeTx?.processed_at_formatted"></span>
+                                        </div>
+                                        <div>
+                                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Created At') }}</span>
+                                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block" x-text="activeTx?.created_at_formatted"></span>
+                                        </div>
+                                        <div>
+                                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Updated At') }}</span>
+                                            <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block" x-text="activeTx?.updated_at_formatted"></span>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {{-- M-PESA Code and Matched Offer Card --}}
-                            <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('M-PESA Code') }}</div>
-                                        <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ $selectedTransaction->mpesa_code ?: '—' }}</div>
+                                <template x-if="activeTx?.raw_sms">
+                                    <div class="space-y-1">
+                                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Raw SMS') }}</div>
+                                        <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 text-xs leading-relaxed text-zinc-800 dark:text-zinc-200 ring-1 ring-zinc-200 dark:ring-zinc-800/80 break-words" x-text="activeTx?.raw_sms"></div>
                                     </div>
-                                    <div>
-                                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Matched App Product') }}</div>
-                                        <div class="mt-0.5 text-xs font-bold text-zinc-900 dark:text-zinc-100">{{ $this->transactionProductLabel($selectedTransaction) }}</div>
-                                        <div class="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">{{ $selectedTransaction->offer_type ?: '—' }}</div>
+                                </template>
+
+                                <div class="space-y-1">
+                                    <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('USSD Result') }}</div>
+                                    <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 text-xs leading-relaxed text-zinc-800 dark:text-zinc-200 ring-1 ring-zinc-200 dark:ring-zinc-800/80" x-text="activeTx?.status_desc || '—'"></div>
+                                </div>
+
+                                <template x-if="activeTx?.balance_payload">
+                                    <div class="space-y-1">
+                                        <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Balance Payload') }}</div>
+                                        <pre class="overflow-x-auto rounded-xl bg-zinc-950 dark:bg-black/60 p-2.5 text-[10px] leading-relaxed text-zinc-100 dark:text-zinc-200 ring-1 ring-zinc-900 dark:ring-zinc-900/50" x-text="activeTx?.balance_payload"></pre>
                                     </div>
-                                </div>
-                            </div>
-
-                            {{-- USSD Code Card --}}
-                            <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('USSD Code') }}</div>
-                                <div class="mt-0.5 font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100 break-all">{{ $this->resolvedUssdCode($selectedTransaction) }}</div>
-                                <div class="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">{{ $selectedTransaction->offer?->ussd_mode ?: '—' }}</div>
+                                </template>
                             </div>
                         </div>
-
-                        {{-- Compact grouped dates panel --}}
-                        <div class="rounded-xl bg-zinc-50/50 dark:bg-zinc-950/20 p-2.5 px-3 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
-                            <div class="grid grid-cols-2 gap-x-4 gap-y-2.5">
-                                <div>
-                                    <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Occurred At') }}</span>
-                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ \App\Support\AppTimezone::format($selectedTransaction->occurred_at) }}</span>
-                                </div>
-                                <div>
-                                    <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Processed At') }}</span>
-                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ \App\Support\AppTimezone::format($selectedTransaction->processed_at) }}</span>
-                                </div>
-                                <div>
-                                    <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Created At') }}</span>
-                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ \App\Support\AppTimezone::format($selectedTransaction->created_at) }}</span>
-                                </div>
-                                <div>
-                                    <span class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 block">{{ __('Updated At') }}</span>
-                                    <span class="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">{{ \App\Support\AppTimezone::format($selectedTransaction->updated_at) }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        @if ($selectedTransaction->raw_sms)
-                            <div class="space-y-1">
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Raw SMS') }}</div>
-                                <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 text-xs leading-relaxed text-zinc-800 dark:text-zinc-200 ring-1 ring-zinc-200 dark:ring-zinc-800/80 break-words">
-                                    {{ $selectedTransaction->raw_sms }}
-                                </div>
-                            </div>
-                        @endif
-
-                        <div class="space-y-1">
-                            <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('USSD Result') }}</div>
-                            <div class="rounded-xl bg-zinc-50 dark:bg-zinc-950/40 p-2.5 text-xs leading-relaxed text-zinc-800 dark:text-zinc-200 ring-1 ring-zinc-200 dark:ring-zinc-800/80">
-                                {{ $selectedTransaction->status_desc ?: __('—') }}
-                            </div>
-                        </div>
-
-                        @if ($selectedTransaction->balance)
-                            <div class="space-y-1">
-                                <div class="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{{ __('Balance Payload') }}</div>
-                                <pre class="overflow-x-auto rounded-xl bg-zinc-950 dark:bg-black/60 p-2.5 text-[10px] leading-relaxed text-zinc-100 dark:text-zinc-200 ring-1 ring-zinc-900 dark:ring-zinc-900/50">{{ $this->formatDetailValue($selectedTransaction->balance) }}</pre>
-                            </div>
-                        @endif
                     </div>
-                @else
-                    <div class="space-y-3">
-                        <flux:heading size="lg">{{ __('Transaction details') }}</flux:heading>
-                        <flux:text class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('Select a transaction to view the full USSD trail.') }}</flux:text>
-                    </div>
-                @endif
-            </flux:modal>
-            @endisland
+                </div>
+            </div>
+        </div>
+        @endisland
 
         {{-- Floating Action Button --}}
         <div class="fixed bottom-24 right-4 z-50 lg:bottom-8 lg:right-8">
